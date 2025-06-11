@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"os"
 	"tctg-automation/pkg/amz"
 	"tctg-automation/pkg/connectwise"
 	"tctg-automation/pkg/webex"
@@ -24,10 +25,17 @@ type Server struct {
 	webexClient *webex.Client
 	db          *dynamodb.DynamoDB
 
+	rootUrl string
+
 	Boards []boardSetting `json:"boards"`
 }
 
 func (s *Server) NewRouter() (*gin.Engine, error) {
+	ctx := context.Background()
+	if err := s.initiateWebhook(ctx); err != nil {
+		return nil, fmt.Errorf("initiating tickets webhook: %w", err)
+	}
+
 	r := gin.Default()
 
 	ticketbot := r.Group("/ticketbot")
@@ -35,11 +43,17 @@ func (s *Server) NewRouter() (*gin.Engine, error) {
 		ticketbot.GET("/boards", s.listBoardsEndpoint)
 		ticketbot.POST("/boards", s.addOrUpdateBoardEndpoint)
 		ticketbot.DELETE("/boards/:board_id", s.deleteBoardEndpoint)
+		ticketbot.POST("/tickets", s.handleTicketEndpoint)
 	}
 	return r, nil
 }
 
 func NewServer(ctx context.Context) (*Server, error) {
+	u := os.Getenv("TICKETBOT_ROOT_URL")
+	if u == "" {
+		return nil, fmt.Errorf("TICKETBOT_ROOT_URL cannot be blank")
+	}
+
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("creating aws default config: %w", err)
@@ -64,6 +78,7 @@ func NewServer(ctx context.Context) (*Server, error) {
 		webexClient: w,
 		db:          db,
 		Boards:      []boardSetting{},
+		rootUrl:     u,
 	}
 
 	if err := server.refreshBoards(); err != nil {

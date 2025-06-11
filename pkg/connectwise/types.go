@@ -907,3 +907,20 @@ type ServiceTicketNoteAll struct {
 	TimeEnd   string `json:"timeEnd,omitempty"`
 	TimeStart string `json:"timeStart,omitempty"`
 }
+
+type WebhookPayload struct {
+	MessageId         string      `json:"MessageId"`
+	FromUrl           string      `json:"FromUrl"`
+	CompanyId         string      `json:"CompanyId"`
+	MemberId          string      `json:"MemberId"`
+	Action            string      `json:"Action"`
+	Type              string      `json:"Type"`
+	ID                int         `json:"ID"`
+	ProductInstanceId interface{} `json:"ProductInstanceId"`
+	PartnerId         interface{} `json:"PartnerId"`
+	Entity            string      `json:"Entity"`
+	Metadata          struct {
+		KeyUrl string `json:"key_url"`
+	} `json:"Metadata"`
+	CallbackObjectRecId int `json:"CallbackObjectRecId"`
+}

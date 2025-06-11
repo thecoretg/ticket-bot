@@ -37,10 +37,16 @@ func (s *Server) listBoards() ([]boardSetting, error) {
 			return nil, fmt.Errorf("parsing BoardId: %w", err)
 		}
 
+		enabled := true
+		if enabledAttr := i["Enabled"]; enabledAttr != nil && enabledAttr.BOOL != nil {
+			enabled = *enabledAttr.BOOL
+		}
+
 		board := boardSetting{
 			BoardID:     boardID,
 			BoardName:   *i["BoardName"].S,
 			WebexRoomID: *i["WebexRoomId"].S,
+			Enabled:     enabled,
 		}
 		boards = append(boards, board)
 	}
@@ -118,6 +124,9 @@ func putBoardSettingInput(b *boardSetting) *dynamodb.PutItemInput {
 			},
 			"WebexRoomId": {
 				S: aws.String(b.WebexRoomID),
+			},
+			"Enabled:": {
+				BOOL: aws.Bool(b.Enabled),
 			},
 		},
 	}

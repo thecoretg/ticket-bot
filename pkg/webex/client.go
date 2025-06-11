@@ -31,7 +31,6 @@ func NewClientFromAWS(ctx context.Context, httpClient *http.Client, s *ssm.Clien
 	if err != nil {
 		return nil, fmt.Errorf("getting key from AWS: %w", err)
 	}
-
 	return &Client{
 		httpClient: httpClient,
 		apiKey:     key,

@@ -13,8 +13,14 @@ import (
 var ginLambda *ginadapter.GinLambda
 
 func init() {
+	level := slog.LevelInfo
+	if os.Getenv("TICKETBOT_DEBUG") == "1" {
+		slog.Info("----- DEBUG ON -----")
+		level = slog.LevelDebug
+	}
+
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: level,
 	})
 	slog.SetDefault(slog.New(handler))
 }
