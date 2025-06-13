@@ -1,7 +1,13 @@
 package util
 
-import "github.com/gin-gonic/gin"
+func ErrorJSON(message string) map[string]any {
+	return map[string]any{
+		"error": message,
+	}
+}
 
-func ErrorJSON(c *gin.Context, status int, message string) {
-	c.JSON(status, gin.H{"error": message})
+func ResultJSON(message string) map[string]any {
+	return map[string]any{
+		"result": message,
+	}
 }

@@ -42,7 +42,7 @@ func (c *Client) GetWebhook(ctx context.Context, webhookId string) (*Webhook, er
 
 func (c *Client) DeleteWebhook(ctx context.Context, webhookId string) error {
 	if err := c.request(ctx, "DELETE", fmt.Sprintf("webhooks/%s", webhookId), nil, nil); err != nil {
-		return fmt.Errorf("deleting webex webhook %s: %w", err)
+		return fmt.Errorf("deleting webex webhook %s: %w", webhookId, err)
 	}
 
 	return nil

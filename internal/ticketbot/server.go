@@ -26,6 +26,9 @@ type server struct {
 	webexClient *webex.Client
 	db          *sqlx.DB
 
+	boardsHandler *boardsHandler
+	usersHandler  *usersHandler
+
 	rootUrl string
 }
 
@@ -97,10 +100,12 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 	}
 
 	server := &server{
-		cwClient:    cw,
-		webexClient: w,
-		db:          db,
-		rootUrl:     addr,
+		cwClient:      cw,
+		webexClient:   w,
+		db:            db,
+		boardsHandler: newBoardsHandler(db),
+		usersHandler:  newUsersHandler(db),
+		rootUrl:       addr,
 	}
 
 	return server, nil
@@ -114,12 +119,9 @@ func (s *server) newRouter() (*gin.Engine, error) {
 
 	r := gin.Default()
 
-	r.GET("/boards", s.listBoardsEndpoint)
-	r.POST("/boards", s.addOrUpdateBoardEndpoint)
-	r.DELETE("/boards/:board_id", s.deleteBoardEndpoint)
-	r.POST("/tickets", s.handleTicketEndpoint)
-	r.GET("/users", s.listUsersEndpoint)
-	r.POST("/users", s.addOrUpdateUserEndpoint)
+	addTicketRoutes(r, s)
+	addBoardRoutes(r, s.boardsHandler)
+	addUserRoutes(r, s.usersHandler)
 
 	return r, nil
 }
