@@ -884,10 +884,15 @@ type Member struct {
 }
 
 type Ticket struct {
-	Info         interface{} `json:"_info,omitempty"`
-	ActualHours  float64     `json:"actualHours,omitempty"`
-	AddressLine1 string      `json:"addressLine1,omitempty"`
-	AddressLine2 string      `json:"addressLine2,omitempty"`
+	Info struct {
+		LastUpdated time.Time `json:"lastUpdated,omitempty"`
+		UpdatedBy   string    `json:"updatedBy"`
+		DateEntered time.Time `json:"dateEntered"`
+		EnteredBy   string    `json:"enteredBy"`
+	} `json:"_info,omitempty"`
+	ActualHours  float64 `json:"actualHours,omitempty"`
+	AddressLine1 string  `json:"addressLine1,omitempty"`
+	AddressLine2 string  `json:"addressLine2,omitempty"`
 	Agreement    struct {
 		Info           interface{} `json:"_info,omitempty"`
 		ChargeFirmFlag bool        `json:"chargeFirmFlag,omitempty"`
@@ -912,11 +917,11 @@ type Ticket struct {
 		ID   int         `json:"id,omitempty"`
 		Name string      `json:"name,omitempty"`
 	} `json:"board,omitempty"`
-	BudgetHours float64 `json:"budgetHours,omitempty"`
-	City        string  `json:"city,omitempty"`
-	ClosedBy    string  `json:"closedBy,omitempty"`
-	ClosedDate  string  `json:"closedDate,omitempty"`
-	ClosedFlag  bool    `json:"closedFlag,omitempty"`
+	BudgetHours float64   `json:"budgetHours,omitempty"`
+	City        string    `json:"city,omitempty"`
+	ClosedBy    string    `json:"closedBy,omitempty"`
+	ClosedDate  time.Time `json:"closedDate,omitempty"`
+	ClosedFlag  bool      `json:"closedFlag,omitempty"`
 	Company     struct {
 		Info       interface{} `json:"_info,omitempty"`
 		ID         int         `json:"id,omitempty"`

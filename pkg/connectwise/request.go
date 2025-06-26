@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 const (
@@ -20,6 +22,29 @@ type doRequestResult struct {
 	statusCode int
 }
 
+type ErrNotFound struct{}
+
+func (e *ErrNotFound) Error() string {
+	return "not found"
+}
+
+type ErrBadRequest struct {
+	Message string
+}
+
+func (e *ErrBadRequest) Error() string {
+	return fmt.Sprintf("bad request: %s", e.Message)
+}
+
+type ErrMaxRetries struct {
+	Attempts  int
+	LastError error
+}
+
+func (e *ErrMaxRetries) Error() string {
+	return fmt.Sprintf("max retries exceeded after %d attempts: %v", e.Attempts, e.LastError)
+}
+
 func ApiRequestNonPaginated[T any](ctx context.Context, client *Client, method, endpoint string, params *QueryParams, payload any) (*T, error) {
 	if params != nil {
 		endpoint = addQueryParams(endpoint, *params)
@@ -30,13 +55,13 @@ func ApiRequestNonPaginated[T any](ctx context.Context, client *Client, method, 
 		return nil, err
 	}
 
-	result, err := client.doRequest(ctx, method, createFullUrl(endpoint), body)
+	result, err := client.doRequestWithRetry(ctx, method, createFullUrl(endpoint), body)
 	if err != nil {
 		return nil, err
 	}
 
 	if result.statusCode < 200 || result.statusCode >= 300 {
-		return nil, fmt.Errorf("bad status: %d", result.statusCode)
+		return nil, handleErrorResponse(result)
 	}
 
 	if len(result.data) == 0 {
@@ -77,13 +102,13 @@ func ApiRequestPaginated[T any](ctx context.Context, c *Client, method, endpoint
 
 func (c *Client) doPaginatedRequest(ctx context.Context, method, fullUrl string, body io.Reader, handlePage func(data []byte) error) error {
 	for {
-		result, err := c.doRequest(ctx, method, fullUrl, body)
+		result, err := c.doRequestWithRetry(ctx, method, fullUrl, body)
 		if err != nil {
 			return err
 		}
 
 		if result.statusCode < 200 || result.statusCode >= 300 {
-			return fmt.Errorf("bad status: %d", result.statusCode)
+			return handleErrorResponse(result)
 		}
 
 		if err := handlePage(result.data); err != nil {
@@ -99,6 +124,70 @@ func (c *Client) doPaginatedRequest(ctx context.Context, method, fullUrl string,
 	}
 
 	return nil
+}
+
+func (c *Client) doRequestWithRetry(ctx context.Context, method, fullUrl string, body io.Reader) (*doRequestResult, error) {
+	var lastErr error
+	var result *doRequestResult
+
+	for attempt := 0; attempt < c.retryConfig.MaxRetries; attempt++ {
+		var requestBody io.Reader
+		if body != nil {
+			requestBody = body
+		}
+		result, lastErr = c.doRequest(ctx, method, fullUrl, requestBody)
+
+		if lastErr == nil && !isRetryableError(result.statusCode, nil) {
+			return result, nil
+		}
+
+		if attempt == c.retryConfig.MaxRetries {
+			break
+		}
+
+		var delay time.Duration
+		if result != nil && result.statusCode == http.StatusTooManyRequests {
+			if retryAfter := extractRetryAfter(result.header); retryAfter > 0 {
+				delay = retryAfter
+			} else {
+				delay = calculateBackoff(attempt, c.retryConfig)
+			}
+		} else {
+			delay = calculateBackoff(attempt, c.retryConfig)
+			// back off if you know what's good for ya kid
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(delay):
+			// continue to the next attempt
+		}
+	}
+
+	if lastErr != nil {
+		return nil, &ErrMaxRetries{
+			Attempts:  c.retryConfig.MaxRetries + 1,
+			LastError: lastErr,
+		}
+	}
+
+	return result, nil
+}
+
+func handleErrorResponse(result *doRequestResult) error {
+	switch result.statusCode {
+	case http.StatusNotFound:
+		return &ErrNotFound{}
+	case http.StatusBadRequest:
+		var errMsg string
+		if len(result.data) > 0 {
+			errMsg = string(result.data)
+		}
+		return &ErrBadRequest{Message: errMsg}
+	default:
+		return fmt.Errorf("unexpected status code: %d, response: %s", result.statusCode, string(result.data))
+	}
 }
 
 func (c *Client) doRequest(ctx context.Context, method, fullUrl string, body io.Reader) (*doRequestResult, error) {
@@ -182,4 +271,43 @@ func addQueryParams(endpoint string, params QueryParams) string {
 
 func createFullUrl(endpoint string) string {
 	return fmt.Sprintf("%s/%s", baseUrl, endpoint)
+}
+
+func isRetryableError(statusCode int, err error) bool {
+	if err != nil {
+		return true
+	}
+
+	switch statusCode {
+	case http.StatusTooManyRequests,
+		http.StatusRequestTimeout,
+		http.StatusInternalServerError,
+		http.StatusBadGateway,
+		http.StatusServiceUnavailable,
+		http.StatusGatewayTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
+func calculateBackoff(attempt int, config *RetryConfig) time.Duration {
+	delay := float64(config.InitialDelay) * math.Pow(config.BackOffMultiplier, float64(attempt))
+	if delay > float64(config.MaxDelay) {
+		delay = float64(config.MaxDelay)
+	}
+	return time.Duration(delay)
+}
+
+func extractRetryAfter(headers http.Header) time.Duration {
+	retryAfter := headers.Get("Retry-After")
+	if retryAfter == "" {
+		return 0
+	}
+
+	if seconds, err := time.ParseDuration(retryAfter + "s"); err == nil {
+		return seconds
+	}
+
+	return 0
 }

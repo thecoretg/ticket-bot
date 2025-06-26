@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	"log/slog"
 	"net/http"
@@ -24,10 +23,7 @@ const (
 type server struct {
 	cwClient    *connectwise.Client
 	webexClient *webex.Client
-	db          *sqlx.DB
-
-	boardsHandler *boardsHandler
-	usersHandler  *usersHandler
+	dbHandler   *DBHandler
 
 	rootUrl string
 }
@@ -84,7 +80,7 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 
 	s := ssm.NewFromConfig(cfg)
 	h := http.DefaultClient
-	cw, err := connectwise.NewClientFromAWS(ctx, h, s, cwCredsParam, true)
+	cw, err := connectwise.NewClientFromAWS(ctx, h, nil, s, cwCredsParam, true)
 	if err != nil {
 		return nil, fmt.Errorf("creating connectwise client via AWS: %w", err)
 	}
@@ -94,18 +90,17 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 		return nil, fmt.Errorf("creating webex client via AWS: %w", err)
 	}
 
-	db, err := initDB()
+	dbHandler, err := initDB(os.Getenv("TICKETBOT_DB_CONN"))
 	if err != nil {
 		return nil, fmt.Errorf("initializing db: %w", err)
 	}
 
 	server := &server{
-		cwClient:      cw,
-		webexClient:   w,
-		db:            db,
-		boardsHandler: newBoardsHandler(db),
-		usersHandler:  newUsersHandler(db),
-		rootUrl:       addr,
+		cwClient:    cw,
+		webexClient: w,
+		dbHandler:   dbHandler,
+
+		rootUrl: addr,
 	}
 
 	return server, nil
@@ -118,10 +113,7 @@ func (s *server) newRouter() (*gin.Engine, error) {
 	}
 
 	r := gin.Default()
-
-	addTicketRoutes(r, s)
-	addBoardRoutes(r, s.boardsHandler)
-	addUserRoutes(r, s.usersHandler)
+	r.POST("/tickets", s.processTicketPayload)
 
 	return r, nil
 }
