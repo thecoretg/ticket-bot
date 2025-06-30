@@ -2,6 +2,7 @@ package ticketbot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"log/slog"
@@ -36,16 +37,33 @@ func (s *server) processCompanyPayload(c *gin.Context) {
 		c.Status(http.StatusNoContent)
 		return
 	default:
-		if err := processCompanyUpdate(c.Request.Context(), w.ID); err != nil {
+		if err := s.processCompanyUpdate(c.Request.Context(), w.ID); err != nil {
+			var deletedErr ErrWasDeleted
+			if errors.As(err, &deletedErr) {
+				slog.Warn("company was deleted externally", "id", w.ID)
+				c.Status(http.StatusGone)
+				return
+			}
 
+			slog.Error("processing company", "id", w.ID, "action", w.Action, "error", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":  err,
+				"action": w.Action,
+				"ticket": w.ID,
+			})
+			return
 		}
+
+		slog.Info("company processed", "id", w.ID, "action", w.Action)
+		c.Status(http.StatusNoContent)
+		return
 	}
 }
 
 func (s *server) processCompanyUpdate(ctx context.Context, companyID int) error {
 	cwc, err := s.cwClient.GetCompany(ctx, companyID, nil)
 	if err != nil {
-		return checkCWError("getting company via CW API", err, companyID)
+		return checkCWError("getting company via CW API", "company", err, companyID)
 	}
 
 	c := NewCompany(companyID, cwc.Name)

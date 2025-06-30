@@ -11,24 +11,6 @@ import (
 	"tctg-automation/pkg/util"
 )
 
-type ErrTicketWasDeleted struct {
-	TicketID int
-}
-
-func (e ErrTicketWasDeleted) Error() string {
-	return fmt.Sprintf("ticket %d was deleted by external factors", e.TicketID)
-}
-
-type ErrMaxRetries struct {
-	TicketID  int
-	Attempts  int
-	LastError error
-}
-
-func (e ErrMaxRetries) Error() string {
-	return fmt.Sprintf("max retries exceeded for ticket %d after %d attempts: %v", e.TicketID, e.Attempts, e.LastError)
-}
-
 func (s *server) processTicketPayload(c *gin.Context) {
 	w := &connectwise.WebhookPayload{}
 	if err := c.ShouldBindJSON(w); err != nil {
@@ -56,7 +38,7 @@ func (s *server) processTicketPayload(c *gin.Context) {
 		return
 	default:
 		if err := s.processTicketUpdate(c.Request.Context(), w.ID); err != nil {
-			var deletedErr ErrTicketWasDeleted
+			var deletedErr ErrWasDeleted
 			if errors.As(err, &deletedErr) {
 				slog.Warn("ticket was deleted externally", "id", w.ID)
 				c.Status(http.StatusGone)
@@ -81,7 +63,7 @@ func (s *server) processTicketPayload(c *gin.Context) {
 func (s *server) processTicketUpdate(ctx context.Context, ticketID int) error {
 	cwt, err := s.cwClient.GetTicket(ctx, ticketID, nil)
 	if err != nil {
-		return checkCWError("getting ticket info via CW API", err, ticketID)
+		return checkCWError("getting ticket info via CW API", "ticket", err, ticketID)
 	}
 
 	n, err := s.getMostRecentNote(ctx, ticketID)
@@ -101,7 +83,7 @@ func (s *server) getMostRecentNote(ctx context.Context, ticketID int) (int, erro
 	p := &connectwise.QueryParams{OrderBy: "_info/dateEntered desc"}
 	n, err := s.cwClient.ListServiceTicketNotes(ctx, ticketID, p)
 	if err != nil {
-		return 0, checkCWError("listing ticket notes", err, ticketID)
+		return 0, checkCWError("listing ticket notes", "ticket", err, ticketID)
 	}
 
 	for _, note := range n {
@@ -111,19 +93,4 @@ func (s *server) getMostRecentNote(ctx context.Context, ticketID int) (int, erro
 	}
 
 	return 0, nil
-}
-
-// checks for specific errors to reduce repetitive connectwise error checking
-func checkCWError(msg string, err error, ticketID int) error {
-	var notFoundErr *connectwise.ErrNotFound
-
-	switch {
-	case errors.As(err, &notFoundErr):
-		slog.Info("ticket was deleted externally", "id", ticketID)
-		return ErrTicketWasDeleted{
-			TicketID: ticketID,
-		}
-	default:
-		return fmt.Errorf("%s: %w", msg, err)
-	}
 }

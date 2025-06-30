@@ -114,6 +114,9 @@ func (s *server) newRouter() (*gin.Engine, error) {
 
 	r := gin.Default()
 	r.POST("/tickets", s.processTicketPayload)
+	r.POST("/companies", s.processCompanyPayload)
+	r.POST("/contacts", s.processContactPayload)
+	r.POST("/members", s.processMemberPayload)
 
 	return r, nil
 }
