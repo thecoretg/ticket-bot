@@ -84,7 +84,7 @@ func (s *server) processTicketUpdate(ctx context.Context, ticketID int) error {
 		return checkCWError("getting ticket info via CW API", err, ticketID)
 	}
 
-	n, err := s.getMostRecentNoteID(ctx, ticketID)
+	n, err := s.getMostRecentNote(ctx, ticketID)
 	if err != nil {
 		return fmt.Errorf("getting most recent note: %w", err)
 	}
@@ -97,7 +97,7 @@ func (s *server) processTicketUpdate(ctx context.Context, ticketID int) error {
 	return nil
 }
 
-func (s *server) getMostRecentNoteID(ctx context.Context, ticketID int) (int, error) {
+func (s *server) getMostRecentNote(ctx context.Context, ticketID int) (int, error) {
 	p := &connectwise.QueryParams{OrderBy: "_info/dateEntered desc"}
 	n, err := s.cwClient.ListServiceTicketNotes(ctx, ticketID, p)
 	if err != nil {

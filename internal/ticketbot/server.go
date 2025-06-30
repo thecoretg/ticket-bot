@@ -108,7 +108,7 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 
 func (s *server) newRouter() (*gin.Engine, error) {
 	ctx := context.Background()
-	if err := s.initiateWebhook(ctx); err != nil {
+	if err := s.initiateTicketWebhook(ctx); err != nil {
 		return nil, fmt.Errorf("initiating tickets webhook: %w", err)
 	}
 

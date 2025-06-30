@@ -429,15 +429,15 @@ func upsertContactSQL() string {
 }
 
 func upsertTicketSQL() string {
-	return `INSERT INTO ticket (ticket_id, board_id, company_id, contact_id, summary, latest_note_id, owner_id, resources, created_on, updated_on, closed_on, closed)
-		VALUES (:ID, :Board, :Company, :Contact, :Summary, :LatestNote, :Owner, :Resources, :Created, :Updated, :ClosedOn, :Closed)
+	return `INSERT INTO ticket (ticket_id, board_id, company_id, contact_id, latest_note_id, owner_id, summary, resources, created_on, updated_on, closed_on, closed)
+		VALUES (:ID, :Board, :Company, :Contact, :LatestNote, :Owner, :Summary, :Resources, :Created, :Updated, :ClosedOn, :Closed)
 		ON CONFLICT (ticket_id) DO UPDATE SET
 			board_id = EXCLUDED.board_id,
 			company_id = EXCLUDED.company_id,
 			contact_id = EXCLUDED.contact_id,
-			summary = EXCLUDED.summary,
 			latest_note_id = EXCLUDED.latest_note_id,
 			owner_id = EXCLUDED.owner_id,
+			summary = EXCLUDED.summary,
 			resources = EXCLUDED.resources,
 			created_on = EXCLUDED.created_on,
 			updated_on = EXCLUDED.updated_on,
