@@ -14,19 +14,19 @@ func (s *server) initiateTicketWebhook(ctx context.Context) error {
 		return fmt.Errorf("listing callbacks: %w", err)
 	}
 
-	if err := s.processHook(ctx, s.ticketsWebhookURL(), "tickets", "owner", 1, currentHooks); err != nil {
+	if err := s.processHook(ctx, s.ticketsWebhookURL(), "ticket", "owner", 1, currentHooks); err != nil {
 		return fmt.Errorf("processing tickets hook: %w", err)
 	}
 
-	if err := s.processHook(ctx, s.contactsWebhookURL(), "contacts", "owner", 1, currentHooks); err != nil {
+	if err := s.processHook(ctx, s.contactsWebhookURL(), "contact", "owner", 1, currentHooks); err != nil {
 		return fmt.Errorf("processing tickets hook: %w", err)
 	}
 
-	if err := s.processHook(ctx, s.companiesWebhookURL(), "companies", "owner", 1, currentHooks); err != nil {
+	if err := s.processHook(ctx, s.companiesWebhookURL(), "company", "owner", 1, currentHooks); err != nil {
 		return fmt.Errorf("processing tickets hook: %w", err)
 	}
 
-	if err := s.processHook(ctx, s.membersWebhookURL(), "", "owner", 1, currentHooks); err != nil {
+	if err := s.processHook(ctx, s.membersWebhookURL(), "member", "owner", 1, currentHooks); err != nil {
 		return fmt.Errorf("processing tickets hook: %w", err)
 	}
 

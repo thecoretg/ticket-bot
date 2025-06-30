@@ -272,10 +272,10 @@ type Company struct {
 			AdditionalProp3 string `json:"additionalProp3,omitempty"`
 		} `json:"_info,omitempty"`
 	} `json:"parentCompany,omitempty"`
-	AnnualRevenue     int `json:"annualRevenue,omitempty"`
-	NumberOfEmployees int `json:"numberOfEmployees,omitempty"`
-	YearEstablished   int `json:"yearEstablished,omitempty"`
-	RevenueYear       int `json:"revenueYear,omitempty"`
+	AnnualRevenue     float64 `json:"annualRevenue,omitempty"`
+	NumberOfEmployees int     `json:"numberOfEmployees,omitempty"`
+	YearEstablished   int     `json:"yearEstablished,omitempty"`
+	RevenueYear       int     `json:"revenueYear,omitempty"`
 	OwnershipType     struct {
 		Id   int    `json:"id,omitempty"`
 		Name string `json:"name,omitempty"`
@@ -466,14 +466,13 @@ type Company struct {
 		AdditionalProp3 string `json:"additionalProp3,omitempty"`
 	} `json:"_info,omitempty"`
 	CustomFields []struct {
-		Id               int    `json:"id,omitempty"`
-		Caption          string `json:"caption,omitempty"`
-		Type             string `json:"type,omitempty"`
-		EntryMethod      string `json:"entryMethod,omitempty"`
-		NumberOfDecimals int    `json:"numberOfDecimals,omitempty"`
-		Value            struct {
-		} `json:"value,omitempty"`
-		ConnectWiseId string `json:"connectWiseId,omitempty"`
+		Id               int         `json:"id,omitempty"`
+		Caption          string      `json:"caption,omitempty"`
+		Type             string      `json:"type,omitempty"`
+		EntryMethod      string      `json:"entryMethod,omitempty"`
+		NumberOfDecimals int         `json:"numberOfDecimals,omitempty"`
+		Value            interface{} `json:"value,omitempty"`
+		ConnectWiseId    string      `json:"connectWiseId,omitempty"`
 	} `json:"customFields,omitempty"`
 }
 type Contact struct {

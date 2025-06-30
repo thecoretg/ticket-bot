@@ -108,6 +108,9 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 
 func (s *server) newRouter() (*gin.Engine, error) {
 	ctx := context.Background()
+	if err := s.loadInitialData(ctx); err != nil {
+		return nil, fmt.Errorf("loading initial data: %w", err)
+	}
 	if err := s.initiateTicketWebhook(ctx); err != nil {
 		return nil, fmt.Errorf("initiating tickets webhook: %w", err)
 	}
