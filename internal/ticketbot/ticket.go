@@ -66,12 +66,30 @@ func (s *server) processTicketUpdate(ctx context.Context, ticketID int) error {
 		return checkCWError("getting ticket info via CW API", "ticket", err, ticketID)
 	}
 
+	if err := s.ensureBoardExists(cwt.Board.ID, cwt.Board.Name); err != nil {
+		return fmt.Errorf("ensuring board exists: %w", err)
+	}
+
+	if err := s.ensureStatusExists(ctx, cwt.Status.ID, cwt.Board.ID); err != nil {
+		return fmt.Errorf("ensuring status exists: %w", err)
+	}
+
+	if err := s.ensureCompanyExists(cwt.Company.ID, cwt.Company.Name); err != nil {
+		return fmt.Errorf("ensuring company exists: %w", err)
+	}
+
+	if cwt.Contact.ID != 0 {
+		if err := s.ensureContactExists(ctx, cwt.Contact.ID); err != nil {
+			return fmt.Errorf("ensuring contact exists: %w", err)
+		}
+	}
+
 	n, err := s.getMostRecentNote(ctx, ticketID)
 	if err != nil {
 		return fmt.Errorf("getting most recent note: %w", err)
 	}
 
-	t := NewTicket(ticketID, cwt.Board.ID, cwt.Company.ID, cwt.Contact.ID, n, cwt.Owner.ID, cwt.Summary, cwt.Resources, cwt.Info.DateEntered, cwt.Info.LastUpdated, cwt.ClosedDate, cwt.ClosedFlag)
+	t := NewTicket(ticketID, cwt.Board.ID, cwt.Status.ID, cwt.Company.ID, cwt.Contact.ID, n, cwt.Owner.ID, cwt.Summary, cwt.Resources, cwt.Info.DateEntered, cwt.Info.LastUpdated, cwt.ClosedDate, cwt.ClosedFlag)
 	if err := s.dbHandler.UpsertTicket(t); err != nil {
 		return fmt.Errorf("processing ticket in db: %w", err)
 	}
@@ -93,4 +111,82 @@ func (s *server) getMostRecentNote(ctx context.Context, ticketID int) (int, erro
 	}
 
 	return 0, nil
+}
+
+func (s *server) ensureBoardExists(boardID int, name string) error {
+	b, err := s.dbHandler.GetBoard(boardID)
+	if err != nil {
+		return fmt.Errorf("querying db for board: %w", err)
+	}
+
+	if b == nil {
+		n := NewBoard(boardID, name)
+		if err := s.dbHandler.UpsertBoard(n); err != nil {
+			return fmt.Errorf("inserting new board into db: %w", err)
+		}
+		slog.Info("added board to db", "id", n.ID, "name", n.Name)
+	}
+
+	return nil
+}
+
+func (s *server) ensureStatusExists(ctx context.Context, statusID, boardID int) error {
+	st, err := s.dbHandler.GetStatus(statusID)
+	if err != nil {
+		return fmt.Errorf("querying db for status: %w", err)
+	}
+
+	if st == nil {
+		r, err := s.cwClient.GetBoardStatus(ctx, boardID, statusID, nil)
+		if err != nil {
+			return fmt.Errorf("getting status from connectwise: %w", err)
+		}
+
+		n := NewStatus(statusID, boardID, r.Name, r.ClosedStatus, !r.Inactive)
+		if err := s.dbHandler.UpsertStatus(n); err != nil {
+			return fmt.Errorf("inserting new status into db: %w", err)
+		}
+		slog.Info("added status to db", "id", n.ID, "name", n.Name, "closedStatus", n.Closed, "active", n.Active)
+	}
+
+	return nil
+}
+
+func (s *server) ensureContactExists(ctx context.Context, contactID int) error {
+	c, err := s.dbHandler.GetContact(contactID)
+	if err != nil {
+		return fmt.Errorf("querying db for contact: %w", err)
+	}
+
+	if c == nil {
+		r, err := s.cwClient.GetContact(ctx, contactID, nil)
+		if err != nil {
+			return fmt.Errorf("getting ticket contact: %w", err)
+		}
+
+		n := NewContact(contactID, r.FirstName, r.LastName, r.Company.ID)
+		if err := s.dbHandler.UpsertContact(n); err != nil {
+			return fmt.Errorf("inserting new contact into db: %w", err)
+		}
+		slog.Info("added contact to db", "id", n.ID, "companyID", n.CompanyID, "firstName", n.FirstName, "lastName", n.LastName)
+	}
+
+	return nil
+}
+
+func (s *server) ensureCompanyExists(companyID int, name string) error {
+	c, err := s.dbHandler.GetCompany(companyID)
+	if err != nil {
+		return fmt.Errorf("querying db for company: %w", err)
+	}
+
+	if c == nil {
+		n := NewCompany(companyID, name)
+		if err := s.dbHandler.UpsertCompany(n); err != nil {
+			return fmt.Errorf("inserting new company into db: %w", err)
+		}
+		slog.Info("added board to db", "id", n.ID, "name", n.Name)
+	}
+
+	return nil
 }

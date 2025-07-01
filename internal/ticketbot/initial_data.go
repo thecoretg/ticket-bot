@@ -10,17 +10,17 @@ import (
 // Logic for the first run of the DB, which loads all companies, contacts, members, and boards into the DB.
 
 func (s *server) loadInitialData(ctx context.Context) error {
-	if err := s.loadInitialBoards(ctx); err != nil {
-		return fmt.Errorf("loading initial boards: %w", err)
-	}
+	//if err := s.loadInitialBoards(ctx); err != nil {
+	//	return fmt.Errorf("loading initial boards: %w", err)
+	//}
 
 	if err := s.loadInitialMembers(ctx); err != nil {
 		return fmt.Errorf("loading initial members: %w", err)
 	}
 
-	if err := s.loadInitialCompanies(ctx); err != nil {
-		return fmt.Errorf("loading initial companies: %w", err)
-	}
+	//if err := s.loadInitialCompanies(ctx); err != nil {
+	//	return fmt.Errorf("loading initial companies: %w", err)
+	//}
 
 	//if err := s.loadInitialContacts(ctx); err != nil {
 	//	return fmt.Errorf("loading initial contacts: %w", err)
@@ -73,7 +73,8 @@ func (s *server) loadInitialBoards(ctx context.Context) error {
 }
 
 func (s *server) loadInitialMembers(ctx context.Context) error {
-	members, err := s.cwClient.ListMembers(ctx, nil)
+	p := &connectwise.QueryParams{Conditions: "inactiveFlag=False"}
+	members, err := s.cwClient.ListMembers(ctx, p)
 	if err != nil {
 		return fmt.Errorf("listing boards from connectwise: %w", err)
 	}
@@ -118,7 +119,7 @@ func (s *server) loadInitialMembers(ctx context.Context) error {
 
 func (s *server) loadInitialCompanies(ctx context.Context) error {
 	p := &connectwise.QueryParams{
-		Conditions: "status/name = 'Active'",
+		Conditions: "status/name = 'Active' and deletedFlag=false",
 	}
 	companies, err := s.cwClient.ListCompanies(ctx, p)
 	if err != nil {

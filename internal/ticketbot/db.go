@@ -1,6 +1,8 @@
 package ticketbot
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
@@ -49,6 +51,7 @@ CREATE TABLE IF NOT EXISTS member (
 CREATE TABLE IF NOT EXISTS ticket (
     ticket_id INT PRIMARY KEY,
     board_id INT NOT NULL REFERENCES board(board_id),
+    status_id INT NOT NULL REFERENCES status(status_id),
     company_id INT NOT NULL REFERENCES company(company_id),
     contact_id INT REFERENCES contact(contact_id),
     summary VARCHAR(100) NOT NULL,
@@ -161,6 +164,7 @@ func NewMember(id int, identifier, firstName, lastName, email, phone string) *Me
 type Ticket struct {
 	ID         int        `db:"ticket_id"`
 	Board      int        `db:"board_id"`
+	Status     int        `db:"status_id"`
 	Company    int        `db:"company_id"`
 	Contact    *int       `db:"contact_id"`
 	Summary    string     `db:"summary"`
@@ -173,10 +177,11 @@ type Ticket struct {
 	Closed     bool       `db:"closed"`
 }
 
-func NewTicket(ticketID, boardID, companyID, contactID, latestNoteID, ownerID int, summary, resources string, createdOn, updatedOn, closedOn time.Time, closed bool) *Ticket {
+func NewTicket(ticketID, boardID, statusID, companyID, contactID, latestNoteID, ownerID int, summary, resources string, createdOn, updatedOn, closedOn time.Time, closed bool) *Ticket {
 	return &Ticket{
 		ID:         ticketID,
 		Board:      boardID,
+		Status:     statusID,
 		Company:    companyID,
 		Contact:    intToPtr(contactID),
 		LatestNote: intToPtr(latestNoteID),
@@ -205,13 +210,11 @@ func InitDB(connString string) (*DBHandler, error) {
 
 func (h *DBHandler) GetTicket(ticketID int) (*Ticket, error) {
 	t := &Ticket{}
-	err := h.db.Get(t, "SELECT * FROM ticket WHERE ticket_id = $1", ticketID)
-	if err != nil {
+	if err := h.db.Get(t, "SELECT * FROM ticket WHERE ticket_id = $1", ticketID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("getting ticket by id: %w", err)
-	}
-
-	if t.ID == 0 {
-		return nil, nil
 	}
 
 	return t, nil
@@ -220,6 +223,9 @@ func (h *DBHandler) GetTicket(ticketID int) (*Ticket, error) {
 func (h *DBHandler) ListTickets() ([]Ticket, error) {
 	var tickets []Ticket
 	if err := h.db.Select(&tickets, "SELECT * FROM ticket"); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("listing tickets: %w", err)
 	}
 
@@ -245,19 +251,22 @@ func (h *DBHandler) DeleteTicket(ticketID int) error {
 
 func (h *DBHandler) GetBoard(boardID int) (*Board, error) {
 	b := &Board{}
-	err := h.db.Get(b, "SELECT * FROM board WHERE board_id = $1", boardID)
-	if err != nil {
+	if err := h.db.Get(b, "SELECT * FROM board WHERE board_id = $1", boardID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("getting board by id: %w", err)
 	}
-	if b.ID == 0 {
-		return nil, nil
-	}
+
 	return b, nil
 }
 
 func (h *DBHandler) ListBoards() ([]Board, error) {
 	var boards []Board
 	if err := h.db.Select(&boards, "SELECT * FROM board"); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("listing boards: %w", err)
 	}
 	return boards, nil
@@ -278,12 +287,11 @@ func (h *DBHandler) DeleteBoard(boardID int) error {
 
 func (h *DBHandler) GetStatus(statusID int) (*Status, error) {
 	s := &Status{}
-	err := h.db.Get(s, "SELECT * FROM status WHERE status_id = $1", statusID)
-	if err != nil {
+	if err := h.db.Get(s, "SELECT * FROM status WHERE status_id = $1", statusID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("getting status by id: %w", err)
-	}
-	if s.ID == 0 {
-		return nil, nil
 	}
 	return s, nil
 }
@@ -291,6 +299,9 @@ func (h *DBHandler) GetStatus(statusID int) (*Status, error) {
 func (h *DBHandler) ListStatuses() ([]Status, error) {
 	var statuses []Status
 	if err := h.db.Select(&statuses, "SELECT * FROM status"); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("listing statuses: %w", err)
 	}
 	return statuses, nil
@@ -311,12 +322,11 @@ func (h *DBHandler) DeleteStatus(statusID int) error {
 
 func (h *DBHandler) GetCompany(companyID int) (*Company, error) {
 	c := &Company{}
-	err := h.db.Get(c, "SELECT * FROM company WHERE company_id = $1", companyID)
-	if err != nil {
+	if err := h.db.Get(c, "SELECT * FROM company WHERE company_id = $1", companyID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("getting company by id: %w", err)
-	}
-	if c.ID == 0 {
-		return nil, nil
 	}
 	return c, nil
 }
@@ -324,6 +334,9 @@ func (h *DBHandler) GetCompany(companyID int) (*Company, error) {
 func (h *DBHandler) ListCompanies() ([]Company, error) {
 	var companies []Company
 	if err := h.db.Select(&companies, "SELECT * FROM company"); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("listing companies: %w", err)
 	}
 	return companies, nil
@@ -344,12 +357,11 @@ func (h *DBHandler) DeleteCompany(companyID int) error {
 
 func (h *DBHandler) GetContact(contactID int) (*Contact, error) {
 	c := &Contact{}
-	err := h.db.Get(c, "SELECT * FROM contact WHERE contact_id = $1", contactID)
-	if err != nil {
+	if err := h.db.Get(c, "SELECT * FROM contact WHERE contact_id = $1", contactID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("getting contact by id: %w", err)
-	}
-	if c.ID == 0 {
-		return nil, nil
 	}
 	return c, nil
 }
@@ -357,6 +369,9 @@ func (h *DBHandler) GetContact(contactID int) (*Contact, error) {
 func (h *DBHandler) ListContacts() ([]Contact, error) {
 	var contacts []Contact
 	if err := h.db.Select(&contacts, "SELECT * FROM contact"); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("listing contacts: %w", err)
 	}
 	return contacts, nil
@@ -377,12 +392,11 @@ func (h *DBHandler) DeleteContact(contactID int) error {
 
 func (h *DBHandler) GetMember(memberID int) (*Member, error) {
 	m := &Member{}
-	err := h.db.Get(m, "SELECT * FROM member WHERE member_id = $1", memberID)
-	if err != nil {
+	if err := h.db.Get(m, "SELECT * FROM member WHERE member_id = $1", memberID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("getting member by id: %w", err)
-	}
-	if m.ID == 0 {
-		return nil, nil
 	}
 	return m, nil
 }
@@ -390,6 +404,9 @@ func (h *DBHandler) GetMember(memberID int) (*Member, error) {
 func (h *DBHandler) ListMembers() ([]Member, error) {
 	var members []Member
 	if err := h.db.Select(&members, "SELECT * FROM member"); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("listing members: %w", err)
 	}
 	return members, nil
@@ -429,10 +446,11 @@ func upsertContactSQL() string {
 }
 
 func upsertTicketSQL() string {
-	return `INSERT INTO ticket (ticket_id, board_id, company_id, contact_id, latest_note_id, owner_id, summary, resources, created_on, updated_on, closed_on, closed)
-		VALUES (:ticket_id, :board_id, :company_id, :contact_id, :latest_note_id, :owner_id, :summary, :resources, :created_on, :updated_on, :closed_on, :closed)
+	return `INSERT INTO ticket (ticket_id, board_id, status_id, company_id, contact_id, latest_note_id, owner_id, summary, resources, created_on, updated_on, closed_on, closed)
+		VALUES (:ticket_id, :board_id,:status_id, :company_id, :contact_id, :latest_note_id, :owner_id, :summary, :resources, :created_on, :updated_on, :closed_on, :closed)
 		ON CONFLICT (ticket_id) DO UPDATE SET
 			board_id = EXCLUDED.board_id,
+			status_id = EXCLUDED.status_id,
 			company_id = EXCLUDED.company_id,
 			contact_id = EXCLUDED.contact_id,
 			latest_note_id = EXCLUDED.latest_note_id,
