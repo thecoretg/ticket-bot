@@ -63,6 +63,10 @@ func (c *Client) PostServiceTicketNote(ctx context.Context, ticketId int, note *
 	return ApiRequestNonPaginated[ServiceTicketNote](ctx, c, "POST", ticketIdNotesEndpoint(ticketId), nil, note)
 }
 
+func (c *Client) GetServiceTicketNote(ctx context.Context, ticketId, noteId int, params *QueryParams) (*ServiceTicketNote, error) {
+	return ApiRequestNonPaginated[ServiceTicketNote](ctx, c, "GET", ticketIdNoteIdEndpoint(ticketId, noteId), params, nil)
+}
+
 func (c *Client) DeleteServiceTicketNote(ctx context.Context, ticketId, noteId int) error {
 	if _, err := ApiRequestNonPaginated[struct{}](ctx, c, "DELETE", ticketIdNoteIdEndpoint(ticketId, noteId), nil, nil); err != nil {
 		return err
