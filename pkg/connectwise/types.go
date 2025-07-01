@@ -1134,15 +1134,15 @@ type ServiceTicketNote struct {
 		ID   int         `json:"id,omitempty"`
 		Name string      `json:"name,omitempty"`
 	} `json:"contact,omitempty"`
-	CreatedBy             string `json:"createdBy,omitempty"`
-	CustomerUpdatedFlag   bool   `json:"customerUpdatedFlag,omitempty"`
-	DateCreated           string `json:"dateCreated,omitempty"`
-	DetailDescriptionFlag bool   `json:"detailDescriptionFlag,omitempty"`
-	ExternalFlag          bool   `json:"externalFlag,omitempty"`
-	ID                    int    `json:"id,omitempty"`
-	InternalAnalysisFlag  bool   `json:"internalAnalysisFlag,omitempty"`
-	InternalFlag          bool   `json:"internalFlag,omitempty"`
-	IssueFlag             bool   `json:"issueFlag,omitempty"`
+	CreatedBy             string    `json:"createdBy,omitempty"`
+	CustomerUpdatedFlag   bool      `json:"customerUpdatedFlag,omitempty"`
+	DateCreated           time.Time `json:"dateCreated,omitempty"`
+	DetailDescriptionFlag bool      `json:"detailDescriptionFlag,omitempty"`
+	ExternalFlag          bool      `json:"externalFlag,omitempty"`
+	ID                    int       `json:"id,omitempty"`
+	InternalAnalysisFlag  bool      `json:"internalAnalysisFlag,omitempty"`
+	InternalFlag          bool      `json:"internalFlag,omitempty"`
+	IssueFlag             bool      `json:"issueFlag,omitempty"`
 	Member                struct {
 		Info          interface{} `json:"_info,omitempty"`
 		DailyCapacity float64     `json:"dailyCapacity,omitempty"`
