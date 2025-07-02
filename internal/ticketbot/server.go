@@ -29,6 +29,7 @@ type server struct {
 }
 
 func Run() error {
+	slog.Info("loading environment variables...")
 	if err := godotenv.Load(); err != nil {
 		slog.Warn("loading .env file", "error", err)
 	}
@@ -58,13 +59,13 @@ func Run() error {
 func setLogger(e string) {
 	level := slog.LevelInfo
 	if e == "1" || e == "true" {
-		slog.Info("----- DEBUG ON -----")
 		level = slog.LevelDebug
 	}
 
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: level,
 	})
+	slog.Info("logger initialized", "level", level)
 	slog.SetDefault(slog.New(handler))
 }
 
@@ -73,6 +74,7 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 		return nil, fmt.Errorf("TICKETBOT_ROOT_URL cannot be blank")
 	}
 
+	slog.Info("initializing AWS systems manager client")
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("creating aws default config: %w", err)
@@ -80,11 +82,13 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 
 	s := ssm.NewFromConfig(cfg)
 	h := http.DefaultClient
+	slog.Info("initializing CW client with AWS creds")
 	cw, err := connectwise.NewClientFromAWS(ctx, h, nil, s, cwCredsParam, true)
 	if err != nil {
 		return nil, fmt.Errorf("creating connectwise client via AWS: %w", err)
 	}
 
+	slog.Info("initializing Webex client with AWS creds")
 	w, err := webex.NewClientFromAWS(ctx, h, s, webexCredsParam, true)
 	if err != nil {
 		return nil, fmt.Errorf("creating webex client via AWS: %w", err)
