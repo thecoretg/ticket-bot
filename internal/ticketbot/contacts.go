@@ -33,7 +33,7 @@ func (s *server) processContactPayload(c *gin.Context) {
 			return
 		}
 
-		slog.Info("contact deleted", "id", w.ID)
+		slog.Debug("contact deleted", "id", w.ID)
 		c.Status(http.StatusNoContent)
 		return
 	default:
@@ -54,7 +54,7 @@ func (s *server) processContactPayload(c *gin.Context) {
 			return
 		}
 
-		slog.Info("contact processed", "id", w.ID, "action", w.Action)
+		slog.Debug("contact processed", "id", w.ID, "action", w.Action)
 		c.Status(http.StatusNoContent)
 		return
 	}

@@ -39,7 +39,7 @@ func (s *server) loadInitialBoards(ctx context.Context) error {
 		return nil
 	}
 
-	slog.Info("got boards from connectwise", "total", len(boards))
+	slog.Debug("got boards from connectwise", "total", len(boards))
 	var dbBoards []Board
 	for _, b := range boards {
 		d := NewBoard(b.ID, b.Name)
@@ -68,7 +68,7 @@ func (s *server) loadInitialBoards(ctx context.Context) error {
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("committing transaction: %w", err)
 	}
-	slog.Info("successfully updated boards in db")
+	slog.Debug("successfully updated boards in db")
 	return nil
 }
 
@@ -80,10 +80,9 @@ func (s *server) loadInitialMembers(ctx context.Context) error {
 	}
 
 	if len(members) == 0 {
-		slog.Warn("got no members")
-		return nil
+		return fmt.Errorf("got no members from connectwise")
 	}
-	slog.Info("got members from connectwise", "total", len(members))
+	slog.Debug("got members from connectwise", "total", len(members))
 
 	var dbMembers []Member
 	for _, b := range members {
@@ -113,6 +112,6 @@ func (s *server) loadInitialMembers(ctx context.Context) error {
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("committing transaction: %w", err)
 	}
-	slog.Info("successfully updated members in db")
+	slog.Debug("successfully updated members in db")
 	return nil
 }

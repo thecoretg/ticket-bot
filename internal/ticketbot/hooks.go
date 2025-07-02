@@ -3,7 +3,6 @@ package ticketbot
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"tctg-automation/pkg/connectwise"
 )
@@ -45,15 +44,14 @@ func (s *server) processHook(ctx context.Context, url, entity, level string, obj
 	for _, c := range currentHooks {
 		if c.URL == hook.URL {
 			if c.Type == hook.Type && c.Level == hook.Level && c.InactiveFlag == hook.InactiveFlag && !found {
-				log.Printf("found existing webhook %d with URL %s", c.ID, c.URL)
+				slog.Debug("found existing webhook", "id", objectID, "entity", entity, "level", level, "url", url)
 				found = true
 				continue
 			} else {
 				if err := s.cwClient.DeleteCallback(ctx, c.ID); err != nil {
-					slog.Error("deleting unneeded hook", "url", url, "entity", entity, "level", level, "objectID", objectID)
 					return fmt.Errorf("deleting webhook %d: %w", c.ID, err)
 				}
-				slog.Info("deleted unused webhook", "id", c.ID, "url", c.URL)
+				slog.Debug("deleted unused webhook", "id", c.ID, "url", c.URL)
 			}
 		}
 	}

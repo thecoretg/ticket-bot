@@ -33,7 +33,7 @@ func (s *server) processTicketPayload(c *gin.Context) {
 			return
 		}
 
-		slog.Info("ticket deleted", "id", w.ID)
+		slog.Debug("ticket deleted", "id", w.ID)
 		c.Status(http.StatusNoContent)
 		return
 	default:
@@ -54,7 +54,7 @@ func (s *server) processTicketPayload(c *gin.Context) {
 			return
 		}
 
-		slog.Info("ticket processed", "id", w.ID, "action", w.Action)
+		slog.Debug("ticket processed", "id", w.ID, "action", w.Action)
 		c.Status(http.StatusNoContent)
 		return
 	}
@@ -151,7 +151,7 @@ func (s *server) ensureBoardExists(boardID int, name string) error {
 		if err := s.dbHandler.UpsertBoard(n); err != nil {
 			return fmt.Errorf("inserting new board into db: %w", err)
 		}
-		slog.Info("added board to db", "id", n.ID, "name", n.Name)
+		slog.Debug("added board to db", "id", n.ID, "name", n.Name)
 	}
 
 	return nil
@@ -173,7 +173,7 @@ func (s *server) ensureStatusExists(ctx context.Context, statusID, boardID int) 
 		if err := s.dbHandler.UpsertStatus(n); err != nil {
 			return fmt.Errorf("inserting new status into db: %w", err)
 		}
-		slog.Info("added status to db", "id", n.ID, "name", n.Name, "closedStatus", n.Closed, "active", n.Active)
+		slog.Debug("added status to db", "id", n.ID, "name", n.Name, "closedStatus", n.Closed, "active", n.Active)
 	}
 
 	return nil
@@ -195,7 +195,7 @@ func (s *server) ensureContactExists(ctx context.Context, contactID int) error {
 		if err := s.dbHandler.UpsertContact(n); err != nil {
 			return fmt.Errorf("inserting new contact into db: %w", err)
 		}
-		slog.Info("added contact to db", "id", n.ID, "companyID", n.CompanyID, "firstName", n.FirstName, "lastName", n.LastName)
+		slog.Debug("added contact to db", "id", n.ID, "companyID", n.CompanyID, "firstName", n.FirstName, "lastName", n.LastName)
 	}
 
 	return nil
@@ -212,7 +212,7 @@ func (s *server) ensureCompanyExists(companyID int, name string) error {
 		if err := s.dbHandler.UpsertCompany(n); err != nil {
 			return fmt.Errorf("inserting new company into db: %w", err)
 		}
-		slog.Info("added board to db", "id", n.ID, "name", n.Name)
+		slog.Debug("added board to db", "id", n.ID, "name", n.Name)
 	}
 
 	return nil
@@ -234,7 +234,7 @@ func (s *server) ensureTicketNoteExists(ctx context.Context, ticketID, noteID in
 		if err := s.dbHandler.UpsertTicketNote(n); err != nil {
 			return fmt.Errorf("inserting new ticket note into db: %w", err)
 		}
-		slog.Info("added ticket note to db", "ticketID", ticketID, "noteID", noteID, "contactID", r.Contact.ID, "memberID", r.Member.ID, "internal", r.InternalAnalysisFlag)
+		slog.Debug("added ticket note to db", "ticketID", ticketID, "noteID", noteID, "contactID", r.Contact.ID, "memberID", r.Member.ID, "internal", r.InternalAnalysisFlag)
 	}
 
 	return nil

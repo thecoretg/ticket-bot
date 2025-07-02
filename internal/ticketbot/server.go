@@ -31,25 +31,22 @@ type server struct {
 func Run() error {
 	slog.Info("loading environment variables...")
 	if err := godotenv.Load(); err != nil {
-		slog.Warn("loading .env file", "error", err)
+		fmt.Println("no .env file present, defaulting to environment")
 	}
 	setLogger(os.Getenv("TICKETBOT_DEBUG"))
 
 	ctx := context.Background()
 	s, err := newServer(ctx, os.Getenv("TICKETBOT_ROOT_URL"))
 	if err != nil {
-		slog.Error("creating server config", "error", err)
 		return fmt.Errorf("error creating server config: %w", err)
 	}
 
 	r, err := s.newRouter()
 	if err != nil {
-		slog.Error("creating router", "error", err)
 		return fmt.Errorf("error creating router: %w", err)
 	}
 
 	if err := r.Run(":80"); err != nil {
-		slog.Error("running server", "error", err)
 		return fmt.Errorf("error running server: %w", err)
 	}
 
@@ -65,7 +62,10 @@ func setLogger(e string) {
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: level,
 	})
-	slog.Info("logger initialized", "level", level)
+
+	// this only shows if debug is enabled
+	// you can tell by the way that it is
+	slog.Debug("debug enabled")
 	slog.SetDefault(slog.New(handler))
 }
 
@@ -74,7 +74,7 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 		return nil, fmt.Errorf("TICKETBOT_ROOT_URL cannot be blank")
 	}
 
-	slog.Info("initializing AWS systems manager client")
+	slog.Debug("initializing AWS systems manager client")
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("creating aws default config: %w", err)
@@ -82,13 +82,13 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 
 	s := ssm.NewFromConfig(cfg)
 	h := http.DefaultClient
-	slog.Info("initializing CW client with AWS creds")
+	slog.Debug("initializing CW client with AWS creds")
 	cw, err := connectwise.NewClientFromAWS(ctx, h, nil, s, cwCredsParam, true)
 	if err != nil {
 		return nil, fmt.Errorf("creating connectwise client via AWS: %w", err)
 	}
 
-	slog.Info("initializing Webex client with AWS creds")
+	slog.Debug("initializing Webex client with AWS creds")
 	w, err := webex.NewClientFromAWS(ctx, h, s, webexCredsParam, true)
 	if err != nil {
 		return nil, fmt.Errorf("creating webex client via AWS: %w", err)
@@ -99,22 +99,22 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 		return nil, fmt.Errorf("initializing db: %w", err)
 	}
 
-	server := &server{
+	return &server{
 		cwClient:    cw,
 		webexClient: w,
 		dbHandler:   dbHandler,
 
 		rootUrl: addr,
-	}
-
-	return server, nil
+	}, nil
 }
 
 func (s *server) newRouter() (*gin.Engine, error) {
 	ctx := context.Background()
+
 	if err := s.loadInitialData(ctx); err != nil {
 		return nil, fmt.Errorf("loading initial data: %w", err)
 	}
+
 	if err := s.initiateTicketWebhook(ctx); err != nil {
 		return nil, fmt.Errorf("initiating tickets webhook: %w", err)
 	}
