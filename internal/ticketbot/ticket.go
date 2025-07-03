@@ -37,8 +37,8 @@ func (s *server) processTicketPayload(c *gin.Context) {
 		if err := s.processTicketUpdate(c.Request.Context(), w.ID); err != nil {
 			var deletedErr ErrWasDeleted
 			if errors.As(err, &deletedErr) {
-				slog.Warn("ticket was deleted externally", "id", w.ID)
-				c.Status(http.StatusGone)
+				slog.Debug("ticket was deleted externally", "id", w.ID)
+				c.Status(http.StatusNoContent)
 				return
 			}
 
@@ -242,7 +242,7 @@ func (s *server) ensureTicketNoteExists(ctx context.Context, ticketID, noteID in
 		}
 
 		// TODO: check if member exists, if not, create it
-		
+
 		n := db.NewTicketNote(ticketID, noteID, r.Contact.ID, r.Member.ID, r.Text, r.DateCreated, r.InternalAnalysisFlag)
 		if err := s.dbHandler.UpsertTicketNote(n); err != nil {
 			return fmt.Errorf("inserting new ticket note into db: %w", err)

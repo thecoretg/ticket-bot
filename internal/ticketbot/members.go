@@ -37,7 +37,7 @@ func (s *server) processMemberPayload(c *gin.Context) {
 			var deletedErr ErrWasDeleted
 			if errors.As(err, &deletedErr) {
 				slog.Debug("member was deleted externally", "id", w.ID)
-				c.Status(http.StatusGone)
+				c.Status(http.StatusNoContent)
 				return
 			}
 

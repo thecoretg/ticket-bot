@@ -36,8 +36,8 @@ func (s *server) processContactPayload(c *gin.Context) {
 		if err := s.processContactUpdate(c.Request.Context(), w.ID); err != nil {
 			var deletedErr ErrWasDeleted
 			if errors.As(err, &deletedErr) {
-				slog.Warn("contact was deleted externally", "id", w.ID)
-				c.Status(http.StatusGone)
+				slog.Debug("contact was deleted externally", "id", w.ID)
+				c.Status(http.StatusNoContent)
 				return
 			}
 
