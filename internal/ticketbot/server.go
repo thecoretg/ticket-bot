@@ -42,7 +42,7 @@ func Run() error {
 		return fmt.Errorf("error creating server config: %w", err)
 	}
 
-	r, err := s.newRouter()
+	r, err := s.newRouter(os.Getenv("TICKETBOT_EXIT_ON_ERROR") == "1")
 	if err != nil {
 		return fmt.Errorf("error creating router: %w", err)
 	}
@@ -109,7 +109,7 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 	}, nil
 }
 
-func (s *server) newRouter() (*gin.Engine, error) {
+func (s *server) newRouter(exitOnError bool) (*gin.Engine, error) {
 	ctx := context.Background()
 
 	if err := s.loadInitialData(ctx); err != nil {
@@ -121,6 +121,9 @@ func (s *server) newRouter() (*gin.Engine, error) {
 	}
 
 	r := gin.Default()
+	r.Use(requireValidCWSignature())
+	r.Use(ErrorHandler(exitOnError))
+
 	r.POST("/tickets", s.processTicketPayload)
 	r.POST("/companies", s.processCompanyPayload)
 	r.POST("/contacts", s.processContactPayload)

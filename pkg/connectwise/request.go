@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"net/http"
 	"net/url"
@@ -159,9 +160,11 @@ func (c *Client) doRequestWithRetry(ctx context.Context, method, fullUrl string,
 
 		select {
 		case <-ctx.Done():
+			slog.Debug("request cancelled", "method", method, "url", fullUrl, "attempt", attempt+1, "error", ctx.Err())
 			return nil, ctx.Err()
 		case <-time.After(delay):
 			// continue to the next attempt
+			slog.Debug("retrying request", "method", method, "url", fullUrl, "attempt", attempt+1, "delay", delay)
 		}
 	}
 

@@ -76,8 +76,7 @@ CREATE TABLE IF NOT EXISTS ticket_note (
     member_id INT REFERENCES member(member_id) ON DELETE SET NULL,
     content TEXT DEFAULT NULL,
     created_on TIMESTAMP NOT NULL,
-    internal BOOLEAN DEFAULT FALSE,
-   	notified BOOLEAN DEFAULT FALSE
+    internal BOOLEAN DEFAULT FALSE
 );
 
 DO $$

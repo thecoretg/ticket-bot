@@ -9,28 +9,23 @@ import (
 	"net/http"
 	"tctg-automation/internal/ticketbot/db"
 	"tctg-automation/pkg/connectwise"
-	"tctg-automation/pkg/util"
 )
 
 func (s *server) processContactPayload(c *gin.Context) {
 	w := &connectwise.WebhookPayload{}
 	if err := c.ShouldBindJSON(w); err != nil {
-		c.JSON(http.StatusInternalServerError, util.ErrorJSON("invalid request body"))
+		c.Error(fmt.Errorf("invalid request body: %w", err))
 		return
 	}
 
 	if w.ID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "contact ID cannot be 0"})
+		c.Error(errors.New("contact ID cannot be 0"))
 		return
 	}
 	switch w.Action {
 	case "deleted":
 		if err := s.dbHandler.DeleteContact(w.ID); err != nil {
-			slog.Error("deleting contact", "id", w.ID, "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":   fmt.Sprintf("couldn't delete contact %v", err),
-				"contact": w.ID,
-			})
+			c.Error(fmt.Errorf("deleting contact %d: %w", w.ID, err))
 			return
 		}
 
@@ -46,12 +41,7 @@ func (s *server) processContactPayload(c *gin.Context) {
 				return
 			}
 
-			slog.Error("processing contact", "id", w.ID, "action", w.Action, "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":  err,
-				"action": w.Action,
-				"ticket": w.ID,
-			})
+			c.Error(fmt.Errorf("processing contact %d: %w", w.ID, err))
 			return
 		}
 

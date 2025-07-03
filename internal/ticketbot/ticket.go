@@ -15,22 +15,18 @@ import (
 func (s *server) processTicketPayload(c *gin.Context) {
 	w := &connectwise.WebhookPayload{}
 	if err := c.ShouldBindJSON(w); err != nil {
-		c.JSON(http.StatusInternalServerError, util.ErrorJSON("invalid request body"))
+		c.Error(fmt.Errorf("unmarshaling ConnectWise webhook payload: %w", err))
 		return
 	}
 
 	if w.ID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ticket ID cannot be 0"})
+		c.Error(errors.New("ticket ID cannot be 0"))
 		return
 	}
 	switch w.Action {
 	case "deleted":
 		if err := s.dbHandler.DeleteTicket(w.ID); err != nil {
-			slog.Error("deleting ticket", "id", w.ID, "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":  fmt.Sprintf("couldn't delete ticket: %v", err),
-				"ticket": w.ID,
-			})
+			c.Error(fmt.Errorf("deleting ticket %d: %w", w.ID, err))
 			return
 		}
 
@@ -46,12 +42,7 @@ func (s *server) processTicketPayload(c *gin.Context) {
 				return
 			}
 
-			slog.Error("processing ticket", "id", w.ID, "action", w.Action, "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":  err,
-				"action": w.Action,
-				"ticket": w.ID,
-			})
+			c.Error(fmt.Errorf("processing ticket %d: %w", w.ID, err))
 			return
 		}
 

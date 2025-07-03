@@ -9,27 +9,23 @@ import (
 	"net/http"
 	"tctg-automation/internal/ticketbot/db"
 	"tctg-automation/pkg/connectwise"
-	"tctg-automation/pkg/util"
 )
 
 func (s *server) processCompanyPayload(c *gin.Context) {
 	w := &connectwise.WebhookPayload{}
 	if err := c.ShouldBindJSON(w); err != nil {
-		c.JSON(http.StatusInternalServerError, util.ErrorJSON("invalid request body"))
+		c.Error(fmt.Errorf("unmarshaling ConnectWise webhook payload: %w", err))
 		return
 	}
 
 	if w.ID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "company ID cannot be 0"})
+		c.Error(errors.New("company ID cannot be 0"))
 		return
 	}
 	switch w.Action {
 	case "deleted":
 		if err := s.dbHandler.DeleteCompany(w.ID); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":   fmt.Sprintf("couldn't delete company %v", err),
-				"company": w.ID,
-			})
+			c.Error(fmt.Errorf("deleting company %d: %w", w.ID, err))
 			return
 		}
 
@@ -45,12 +41,7 @@ func (s *server) processCompanyPayload(c *gin.Context) {
 				return
 			}
 
-			slog.Error("deleting company", "companyID", w.ID)
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":  err,
-				"action": w.Action,
-				"ticket": w.ID,
-			})
+			c.Error(fmt.Errorf("processing company %d: %w", w.ID, err))
 			return
 		}
 

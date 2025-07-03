@@ -1,8 +1,11 @@
 package ticketbot
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"github.com/gin-gonic/gin"
+	"io"
 	"log/slog"
 	"tctg-automation/pkg/connectwise"
 )
@@ -79,4 +82,28 @@ func (s *server) companiesWebhookURL() string {
 
 func (s *server) membersWebhookURL() string {
 	return fmt.Sprintf("%s/members", s.rootUrl)
+}
+
+func requireValidCWSignature() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		bodyBytes, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.Error(fmt.Errorf("reading request body: %w", err))
+			c.Next()
+			c.Abort()
+			return
+		}
+
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		valid, err := connectwise.ValidateWebhook(c.Request)
+		if err != nil || !valid {
+			c.Error(fmt.Errorf("invalid ConnectWise webhook signature: %w", err))
+			c.Next()
+			c.Abort()
+			return
+		}
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes)) // Restore body for further processing
+		c.Next()
+	}
 }
