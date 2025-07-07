@@ -3,6 +3,7 @@ package webex
 import "time"
 
 type Webhook struct {
+	ID        string `json:"id"`
 	Name      string `json:"name"`
 	TargetUrl string `json:"targetUrl"`
 	Resource  string `json:"resource"`
