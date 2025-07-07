@@ -26,7 +26,8 @@ type server struct {
 	webexClient *webex.Client
 	dbHandler   *db.Handler
 
-	rootUrl string
+	exitOnError bool
+	rootUrl     string
 }
 
 func Run() error {
@@ -44,7 +45,7 @@ func Run() error {
 		return fmt.Errorf("error creating server config: %w", err)
 	}
 
-	r, err := s.newRouter(os.Getenv("TICKETBOT_EXIT_ON_ERROR") == "1")
+	r, err := s.newRouter()
 	if err != nil {
 		return fmt.Errorf("error creating router: %w", err)
 	}
@@ -86,36 +87,31 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 		return nil, fmt.Errorf("initializing db: %w", err)
 	}
 
+	exitOnError := os.Getenv("TICKETBOT_EXIT_ON_ERROR") == "1"
 	return &server{
 		cwClient:    cw,
 		webexClient: w,
 		dbHandler:   dbHandler,
 
-		rootUrl: addr,
+		exitOnError: exitOnError,
+		rootUrl:     addr,
 	}, nil
 }
 
-func (s *server) newRouter(exitOnError bool) (*gin.Engine, error) {
+func (s *server) newRouter() (*gin.Engine, error) {
 	ctx := context.Background()
 
 	if err := s.loadInitialData(ctx); err != nil {
 		return nil, fmt.Errorf("loading initial data: %w", err)
 	}
 
-	if err := s.initiateTicketWebhook(ctx); err != nil {
+	if err := s.initiateWebhooks(ctx); err != nil {
 		return nil, fmt.Errorf("initiating tickets webhook: %w", err)
 	}
 
 	r := gin.Default()
-	r.Use(requireValidCWSignature())
-	r.Use(ErrorHandler(exitOnError))
-
-	r.GET("/boards/:board_id", s.getBoard)
-	r.PUT("/boards/:board_id/notify", s.processBoardSettingsPayload)
-	r.POST("/tickets", s.processTicketPayload)
-	r.POST("/companies", s.processCompanyPayload)
-	r.POST("/contacts", s.processContactPayload)
-	r.POST("/members", s.processMemberPayload)
+	s.addHooksGroup(r)
+	s.addBoardsGroup(r)
 
 	return r, nil
 }

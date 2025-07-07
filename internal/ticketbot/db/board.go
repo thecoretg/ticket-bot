@@ -8,8 +8,12 @@ import (
 )
 
 type Board struct {
-	ID            int     `db:"board_id" json:"id"`
-	Name          string  `db:"board_name" json:"name"`
+	ID   int    `db:"board_id" json:"id"`
+	Name string `db:"board_name" json:"name"`
+	BoardNotifySettings
+}
+
+type BoardNotifySettings struct {
 	NotifyEnabled bool    `db:"notify_enabled" json:"notify_enabled"`
 	WebexSpace    *string `db:"webex_space_id" json:"webex_space"`
 }

@@ -10,7 +10,15 @@ import (
 	"tctg-automation/pkg/connectwise"
 )
 
-func (s *server) initiateTicketWebhook(ctx context.Context) error {
+func (s *server) addHooksGroup(r *gin.Engine) {
+	hooks := r.Group("/hooks", requireValidCWSignature(), ErrorHandler(s.exitOnError))
+	hooks.POST("/tickets", s.processTicketPayload)
+	hooks.POST("/companies", s.processCompanyPayload)
+	hooks.POST("/contacts", s.processContactPayload)
+	hooks.POST("/members", s.processMemberPayload)
+}
+
+func (s *server) initiateWebhooks(ctx context.Context) error {
 	currentHooks, err := s.cwClient.ListCallbacks(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("listing callbacks: %w", err)
@@ -47,7 +55,7 @@ func (s *server) processHook(ctx context.Context, url, entity, level string, obj
 	for _, c := range currentHooks {
 		if c.URL == hook.URL {
 			if c.Type == hook.Type && c.Level == hook.Level && c.InactiveFlag == hook.InactiveFlag && !found {
-				slog.Debug("found existing webhook", "id", objectID, "entity", entity, "level", level, "url", url)
+				slog.Debug("found existing webhook", "id", c.ID, "entity", entity, "level", level, "url", url)
 				found = true
 				continue
 			} else {
@@ -69,19 +77,19 @@ func (s *server) processHook(ctx context.Context, url, entity, level string, obj
 }
 
 func (s *server) ticketsWebhookURL() string {
-	return fmt.Sprintf("%s/tickets", s.rootUrl)
+	return fmt.Sprintf("%s/hooks/tickets", s.rootUrl)
 }
 
 func (s *server) contactsWebhookURL() string {
-	return fmt.Sprintf("%s/contacts", s.rootUrl)
+	return fmt.Sprintf("%s/hooks/contacts", s.rootUrl)
 }
 
 func (s *server) companiesWebhookURL() string {
-	return fmt.Sprintf("%s/companies", s.rootUrl)
+	return fmt.Sprintf("%s/hooks/companies", s.rootUrl)
 }
 
 func (s *server) membersWebhookURL() string {
-	return fmt.Sprintf("%s/members", s.rootUrl)
+	return fmt.Sprintf("%s/hooks/members", s.rootUrl)
 }
 
 func requireValidCWSignature() gin.HandlerFunc {

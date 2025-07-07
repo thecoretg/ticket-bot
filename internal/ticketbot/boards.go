@@ -12,8 +12,25 @@ import (
 	"tctg-automation/pkg/connectwise"
 )
 
-func (s *server) processBoardSettingsPayload(c *gin.Context) {
-	b := &db.Board{}
+func (s *server) addBoardsGroup(r *gin.Engine) {
+	bg := r.Group("/boards", ErrorHandler(s.exitOnError))
+	bg.GET("/", s.listBoards)
+	bg.GET("/:board_id", s.getBoard)
+	bg.PUT("/:board_id/notify", s.updateBoardNotifySettings)
+}
+
+func (s *server) listBoards(c *gin.Context) {
+	b, err := s.dbHandler.ListBoards()
+	if err != nil {
+		c.Error(fmt.Errorf("listing boards: %w", err))
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, b)
+}
+
+func (s *server) updateBoardNotifySettings(c *gin.Context) {
+	b := &db.BoardNotifySettings{}
 	if err := c.ShouldBindJSON(b); err != nil {
 		c.Error(fmt.Errorf("invalid request body: %w", err))
 		return
