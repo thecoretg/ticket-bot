@@ -55,3 +55,20 @@ type MessageGetResponse struct {
 	PersonEmail string    `json:"personEmail,omitempty"`
 	Created     time.Time `json:"created,omitempty"`
 }
+
+type ListRoomsResponse struct {
+	Items []Room `json:"items"`
+}
+
+type Room struct {
+	Id           string    `json:"id"`
+	Title        string    `json:"title"`
+	Type         string    `json:"type"`
+	IsLocked     bool      `json:"isLocked"`
+	LastActivity time.Time `json:"lastActivity"`
+	CreatorId    string    `json:"creatorId"`
+	Created      time.Time `json:"created"`
+	OwnerId      string    `json:"ownerId"`
+	IsPublic     bool      `json:"isPublic"`
+	IsReadOnly   bool      `json:"isReadOnly"`
+}
