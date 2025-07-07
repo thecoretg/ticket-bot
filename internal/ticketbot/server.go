@@ -105,7 +105,7 @@ func (s *server) newRouter() (*gin.Engine, error) {
 		return nil, fmt.Errorf("loading initial data: %w", err)
 	}
 
-	if err := s.initiateWebhooks(ctx); err != nil {
+	if err := s.initiateAllHooks(ctx); err != nil {
 		return nil, fmt.Errorf("initiating tickets webhook: %w", err)
 	}
 
