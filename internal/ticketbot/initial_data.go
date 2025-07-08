@@ -11,9 +11,9 @@ import (
 // Logic for the first run of the DB, which loads all companies, contacts, members, and boards into the DB.
 
 func (s *server) loadInitialData(ctx context.Context) error {
-	//if err := s.loadInitialBoards(ctx); err != nil {
-	//	return fmt.Errorf("loading initial boards: %w", err)
-	//}
+	if err := s.loadInitialBoards(ctx); err != nil {
+		return fmt.Errorf("loading initial boards: %w", err)
+	}
 
 	if err := s.loadInitialMembers(ctx); err != nil {
 		return fmt.Errorf("loading initial members: %w", err)

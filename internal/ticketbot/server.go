@@ -27,10 +27,11 @@ type server struct {
 	webexClient *webex.Client
 	dbHandler   *db.Handler
 
-	webexSecret   string
-	webexBotEmail string
-	exitOnError   bool
-	rootUrl       string
+	webexSecret       string
+	webexBotEmail     string
+	initialAdminEmail string
+	exitOnError       bool
+	rootUrl           string
 }
 
 func Run() error {

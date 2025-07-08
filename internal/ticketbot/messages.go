@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strings"
 	"tctg-automation/pkg/webex"
 )
 
@@ -34,16 +35,76 @@ func (s *server) processMessageSent(c *gin.Context) {
 		return
 	}
 
-	// sending message back for testing
+	sendMsg := false
 	p := webex.MessagePostBody{
 		Person: email,
-		Text:   fmt.Sprintf("your message was: %s", m.Text),
 	}
-	if err := s.webexClient.SendMessage(c.Request.Context(), p); err != nil {
-		c.Error(fmt.Errorf("sending message: %w", err))
-		return
+
+	cmd, subcmd, _ := parseMessageInput(m.Text)
+
+	switch cmd {
+	case "boards":
+		switch subcmd {
+		case "list":
+			p.Markdown = s.makeBoardsListMsg()
+			sendMsg = true
+		}
+	}
+
+	if sendMsg {
+		if err := s.webexClient.SendMessage(c.Request.Context(), p); err != nil {
+			c.Error(fmt.Errorf("sending message: %w", err))
+			return
+		}
 	}
 
 	c.Status(http.StatusNoContent)
+	return
+}
+
+func (s *server) makeBoardsListMsg() string {
+	boards, err := s.dbHandler.ListBoards()
+	if err != nil {
+		return "An error occured getting the boards. Please notify an admin."
+	}
+
+	if len(boards) == 0 {
+		return "No boards were found."
+	}
+
+	var lines []string
+	for _, board := range boards {
+		l := fmt.Sprintf("**%s** (id: %d, notifications: %v)", board.Name, board.ID, board.NotifyEnabled)
+		lines = append(lines, l)
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func parseMessageInput(msg string) (command string, subcommand string, args map[string]string) {
+	parts := strings.Fields(msg)
+
+	if len(parts) > 0 {
+		command = parts[0]
+	}
+
+	if len(parts) > 1 && !strings.HasPrefix(parts[1], "--") {
+		subcommand = parts[1]
+	}
+
+	start := 1
+	if subcommand != "" {
+		start = 2
+	}
+
+	for i := start; i < len(parts); i++ {
+		if strings.HasPrefix(parts[i], "--") && i+1 < len(parts) {
+			key := strings.TrimPrefix(parts[i], "--")
+			value := parts[i+1]
+			args[key] = value
+			i++
+		}
+	}
+
 	return
 }
