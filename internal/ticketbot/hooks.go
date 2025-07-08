@@ -165,3 +165,26 @@ func requireValidCWSignature() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+func (s *server) requireValidWebexSignature() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		bodyBytes, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.Error(fmt.Errorf("reading request body: %w", err))
+			c.Next()
+			c.Abort()
+			return
+		}
+
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+		valid, err := webex.ValidateWebhook(c.Request, s.webexSecret)
+		if err != nil || !valid {
+			c.Error(fmt.Errorf("invalid Webex webhook signature: %w", err))
+			c.Next()
+			c.Abort()
+			return
+		}
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+		c.Next()
+	}
+}

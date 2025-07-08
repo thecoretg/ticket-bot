@@ -2,6 +2,7 @@ package ticketbot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
@@ -26,6 +27,7 @@ type server struct {
 	webexClient *webex.Client
 	dbHandler   *db.Handler
 
+	webexSecret string
 	exitOnError bool
 	rootUrl     string
 }
@@ -87,12 +89,18 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 		return nil, fmt.Errorf("initializing db: %w", err)
 	}
 
+	webexSecret := os.Getenv("TICKETBOT_WEBEX_SECRET")
+	if webexSecret == "" {
+		return nil, errors.New("webex secret cannot be empty")
+	}
+
 	exitOnError := os.Getenv("TICKETBOT_EXIT_ON_ERROR") == "1"
 	return &server{
 		cwClient:    cw,
 		webexClient: w,
 		dbHandler:   dbHandler,
 
+		webexSecret: webexSecret,
 		exitOnError: exitOnError,
 		rootUrl:     addr,
 	}, nil
