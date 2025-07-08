@@ -3,12 +3,13 @@ package webex
 import "time"
 
 type Webhook struct {
-	ID        string `json:"id"`
+	ID        string `json:"id,omitempty"`
 	Name      string `json:"name"`
 	TargetUrl string `json:"targetUrl"`
 	Resource  string `json:"resource"`
 	Event     string `json:"event"`
-	Filter    string `json:"filter"`
+	Filter    string `json:"filter,omitempty"`
+	Secret    string `json:"secret,omitempty"`
 }
 
 type WebhooksGetResponse struct {

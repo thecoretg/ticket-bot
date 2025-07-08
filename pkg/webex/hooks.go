@@ -3,8 +3,13 @@ package webex
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 )
 
 func (c *Client) CreateWebhook(ctx context.Context, newWebhook *Webhook) (*Webhook, error) {
@@ -46,4 +51,21 @@ func (c *Client) DeleteWebhook(ctx context.Context, webhookId string) error {
 	}
 
 	return nil
+}
+
+// ValidateWebhook checks the X-Webex-Signature header against the HMAC-SHA256 of the body.
+func ValidateWebhook(r *http.Request, secret string) (bool, error) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return false, err
+	}
+	defer r.Body.Close()
+
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write(body)
+	expectedMAC := mac.Sum(nil)
+	expectedSig := hex.EncodeToString(expectedMAC)
+	actualSig := r.Header.Get("X-Webex-Signature")
+
+	return hmac.Equal([]byte(expectedSig), []byte(actualSig)), nil
 }
