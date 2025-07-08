@@ -66,7 +66,7 @@ func (c *Client) request(ctx context.Context, method, endpoint string, payload i
 	}
 
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusCreated {
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
 		data, err := io.ReadAll(res.Body)
 		if err != nil {
 			return fmt.Errorf("reading error response body: %w", err)

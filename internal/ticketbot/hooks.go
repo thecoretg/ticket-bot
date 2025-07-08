@@ -19,13 +19,17 @@ func (s *server) addHooksGroup(r *gin.Engine) {
 	cw.POST("/contacts", s.processContactPayload)
 	cw.POST("/members", s.processMemberPayload)
 
-	//webex := hooks.Group("/webex", ErrorHandler(s.exitOnError))
-
+	wx := hooks.Group("/webex", s.requireValidWebexSignature(), ErrorHandler(s.exitOnError))
+	wx.POST("/messages", s.processMessageSent)
 }
 
 func (s *server) initiateAllHooks(ctx context.Context) error {
 	if err := s.initiateCWHooks(ctx); err != nil {
 		return fmt.Errorf("initiating connectwise hooks: %w", err)
+	}
+
+	if err := s.initiateWebexHooks(ctx); err != nil {
+		return fmt.Errorf("initiating webex hooks: %w", err)
 	}
 
 	return nil
@@ -56,6 +60,19 @@ func (s *server) initiateCWHooks(ctx context.Context) error {
 	return nil
 }
 
+func (s *server) initiateWebexHooks(ctx context.Context) error {
+	wh, err := s.webexClient.GetAllWebhooks(ctx)
+	if err != nil {
+		return fmt.Errorf("listing webhooks: %w", err)
+	}
+
+	filter := "roomType=direct"
+	if err := s.processWebexHook(ctx, "Ticketbot: Message Created", s.messageWebhookURL(), "messages", "created", &filter, wh); err != nil {
+		return fmt.Errorf("processing messages hook: %w", err)
+	}
+
+	return nil
+}
 func (s *server) processCwHook(ctx context.Context, url, entity, level string, objectID int, currentHooks []connectwise.Callback) error {
 	hook := &connectwise.Callback{
 		URL:      url,
@@ -95,6 +112,7 @@ func (s *server) processWebexHook(ctx context.Context, name, url, resource, even
 		TargetUrl: url,
 		Resource:  resource,
 		Event:     event,
+		Secret:    s.webexSecret,
 	}
 	if filter != nil {
 		hook.Filter = *filter
@@ -103,7 +121,7 @@ func (s *server) processWebexHook(ctx context.Context, name, url, resource, even
 	found := false
 	for _, c := range currentHooks {
 		if c.TargetUrl == hook.TargetUrl {
-			if c == *hook && !found {
+			if c.Name == hook.Name && c.Resource == hook.Resource && c.Event == hook.Event && c.Filter == hook.Filter && !found {
 				slog.Debug("found existing webex webhook", "name", c.Name, "url", c.TargetUrl, "resource", c.Resource, "event", c.Event, "filter", c.Event)
 				found = true
 				continue
@@ -140,6 +158,10 @@ func (s *server) companiesWebhookURL() string {
 
 func (s *server) membersWebhookURL() string {
 	return fmt.Sprintf("%s/hooks/cw/members", s.rootUrl)
+}
+
+func (s *server) messageWebhookURL() string {
+	return fmt.Sprintf("%s/hooks/webex/messages", s.rootUrl)
 }
 
 func requireValidCWSignature() gin.HandlerFunc {

@@ -27,9 +27,10 @@ type server struct {
 	webexClient *webex.Client
 	dbHandler   *db.Handler
 
-	webexSecret string
-	exitOnError bool
-	rootUrl     string
+	webexSecret   string
+	webexBotEmail string
+	exitOnError   bool
+	rootUrl       string
 }
 
 func Run() error {
@@ -94,15 +95,21 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 		return nil, errors.New("webex secret cannot be empty")
 	}
 
+	webexBotEmail := os.Getenv("TICKETBOT_BOT_EMAIL")
+	if webexBotEmail == "" {
+		return nil, errors.New("webex bot email cannot be empty")
+	}
+
 	exitOnError := os.Getenv("TICKETBOT_EXIT_ON_ERROR") == "1"
 	return &server{
 		cwClient:    cw,
 		webexClient: w,
 		dbHandler:   dbHandler,
 
-		webexSecret: webexSecret,
-		exitOnError: exitOnError,
-		rootUrl:     addr,
+		webexSecret:   webexSecret,
+		webexBotEmail: webexBotEmail,
+		exitOnError:   exitOnError,
+		rootUrl:       addr,
 	}, nil
 }
 

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 func (c *Client) CreateWebhook(ctx context.Context, newWebhook *Webhook) (*Webhook, error) {
@@ -66,6 +67,23 @@ func ValidateWebhook(r *http.Request, secret string) (bool, error) {
 	expectedMAC := mac.Sum(nil)
 	expectedSig := hex.EncodeToString(expectedMAC)
 	actualSig := r.Header.Get("X-Webex-Signature")
+	actualSig, _ = splitHeaderVals(actualSig)
 
 	return hmac.Equal([]byte(expectedSig), []byte(actualSig)), nil
+}
+
+// splitHeaderVals returns the SHA256 and SHA512 values from the X-Webex-Signature header
+func splitHeaderVals(s string) (string, string) {
+	// shortened values as to not collide with packages
+	var sh2, sh5 string
+	for _, part := range strings.Split(s, ",") {
+		part = strings.TrimSpace(part)
+		if strings.HasPrefix(part, "SHA-256=") {
+			sh2 = strings.TrimPrefix(part, "SHA-256=")
+		} else if strings.HasPrefix(part, "SHA-512=") {
+			sh5 = strings.TrimPrefix(part, "SHA-512=")
+		}
+	}
+
+	return sh2, sh5
 }
