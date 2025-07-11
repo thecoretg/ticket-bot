@@ -7,22 +7,6 @@ import (
 	"tctg-automation/pkg/connectwise"
 )
 
-func (s *server) getMostRecentNote(ctx context.Context, ticketID int) (int, error) {
-	p := &connectwise.QueryParams{OrderBy: "_info/dateEntered desc", PageSize: 1000}
-	n, err := s.cwClient.ListServiceTicketNotes(ctx, ticketID, p)
-	if err != nil {
-		return 0, checkCWError("listing ticket notes", "ticket", err, ticketID)
-	}
-
-	for _, note := range n {
-		if note.Text != "" {
-			return note.ID, nil
-		}
-	}
-
-	return 0, nil
-}
-
 func (s *server) ensureTicketNoteExists(ctx context.Context, ticketID, noteID int) error {
 	note, err := s.dbHandler.GetTicketNote(noteID)
 	if err != nil {

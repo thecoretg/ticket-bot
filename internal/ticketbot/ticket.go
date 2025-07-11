@@ -62,24 +62,6 @@ func (s *server) processTicketUpdate(ctx context.Context, ticketID int) error {
 		return checkCWError("getting ticket info via CW API", "ticket", err, ticketID)
 	}
 
-	if err := s.ensureBoardExists(cwt.Board.ID, cwt.Board.Name); err != nil {
-		return fmt.Errorf("ensuring board exists: %w", err)
-	}
-
-	if err := s.ensureStatusExists(ctx, cwt.Status.ID, cwt.Board.ID, cwt.Board.Name); err != nil {
-		return fmt.Errorf("ensuring status exists: %w", err)
-	}
-
-	if err := s.ensureCompanyExists(cwt.Company.ID, cwt.Company.Name); err != nil {
-		return fmt.Errorf("ensuring company exists: %w", err)
-	}
-
-	if cwt.Contact.ID != 0 {
-		if err := s.ensureContactExists(ctx, cwt.Contact.ID); err != nil {
-			return fmt.Errorf("ensuring contact exists: %w", err)
-		}
-	}
-
 	// see if ticket already exists in db
 	ticket, err := s.dbHandler.GetTicket(ticketID)
 	if err != nil {
@@ -118,4 +100,20 @@ func (s *server) processTicketUpdate(ctx context.Context, ticketID int) error {
 	}
 
 	return nil
+}
+
+func (s *server) getMostRecentNote(ctx context.Context, ticketID int) (int, error) {
+	p := &connectwise.QueryParams{OrderBy: "_info/dateEntered desc", PageSize: 1000}
+	n, err := s.cwClient.ListServiceTicketNotes(ctx, ticketID, p)
+	if err != nil {
+		return 0, checkCWError("listing ticket notes", "ticket", err, ticketID)
+	}
+
+	for _, note := range n {
+		if note.Text != "" {
+			return note.ID, nil
+		}
+	}
+
+	return 0, nil
 }
