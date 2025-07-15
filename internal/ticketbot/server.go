@@ -11,7 +11,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"tctg-automation/internal/ticketbot/db"
 	"tctg-automation/pkg/connectwise"
 	"tctg-automation/pkg/webex"
 )
@@ -25,7 +24,6 @@ const (
 type server struct {
 	cwClient    *connectwise.Client
 	webexClient *webex.Client
-	dbHandler   *db.Handler
 
 	webexSecret       string
 	webexBotEmail     string
@@ -86,11 +84,6 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 		return nil, fmt.Errorf("creating webex client via AWS: %w", err)
 	}
 
-	dbHandler, err := db.InitDB(os.Getenv("TICKETBOT_DB_CONN"))
-	if err != nil {
-		return nil, fmt.Errorf("initializing db: %w", err)
-	}
-
 	webexSecret := os.Getenv("TICKETBOT_WEBEX_SECRET")
 	if webexSecret == "" {
 		return nil, errors.New("webex secret cannot be empty")
@@ -105,7 +98,6 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 	return &server{
 		cwClient:    cw,
 		webexClient: w,
-		dbHandler:   dbHandler,
 
 		webexSecret:   webexSecret,
 		webexBotEmail: webexBotEmail,
@@ -115,19 +107,6 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 }
 
 func (s *server) newRouter() (*gin.Engine, error) {
-	ctx := context.Background()
-
-	if err := s.loadInitialData(ctx); err != nil {
-		return nil, fmt.Errorf("loading initial data: %w", err)
-	}
-
-	if err := s.initiateAllHooks(ctx); err != nil {
-		return nil, fmt.Errorf("initiating tickets webhook: %w", err)
-	}
-
 	r := gin.Default()
-	s.addHooksGroup(r)
-	s.addBoardsGroup(r)
-
 	return r, nil
 }

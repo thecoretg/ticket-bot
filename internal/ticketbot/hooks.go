@@ -11,18 +11,6 @@ import (
 	"tctg-automation/pkg/webex"
 )
 
-func (s *server) addHooksGroup(r *gin.Engine) {
-	hooks := r.Group("/hooks")
-	cw := hooks.Group("/cw", requireValidCWSignature(), ErrorHandler(s.exitOnError))
-	cw.POST("/tickets", s.processTicketPayload)
-	cw.POST("/companies", s.processCompanyPayload)
-	cw.POST("/contacts", s.processContactPayload)
-	cw.POST("/members", s.processMemberPayload)
-
-	wx := hooks.Group("/webex", s.requireValidWebexSignature(), ErrorHandler(s.exitOnError))
-	wx.POST("/messages", s.processMessageSent)
-}
-
 func (s *server) initiateAllHooks(ctx context.Context) error {
 	if err := s.initiateCWHooks(ctx); err != nil {
 		return fmt.Errorf("initiating connectwise hooks: %w", err)
