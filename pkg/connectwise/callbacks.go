@@ -1,7 +1,6 @@
 package connectwise
 
 import (
-	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -15,32 +14,28 @@ func callbackIdEndpoint(boardId int) string {
 	return fmt.Sprintf("system/callbacks/%d", boardId)
 }
 
-func (c *Client) ListCallbacks(ctx context.Context, params *QueryParams) ([]Callback, error) {
-	return ApiRequestPaginated[Callback](ctx, c, "GET", "system/callbacks", params, nil)
+func (c *Client) PostCallback(typeArg *Callback) (*Callback, error) {
+	return Post[Callback](c, "system/callbacks", typeArg)
 }
 
-func (c *Client) PostCallback(ctx context.Context, callback *Callback) (*Callback, error) {
-	return ApiRequestNonPaginated[Callback](ctx, c, "POST", "system/callbacks", nil, callback)
+func (c *Client) ListCallbacks(params map[string]string) ([]Callback, error) {
+	return GetMany[Callback](c, "system/callbacks", params)
 }
 
-func (c *Client) GetCallback(ctx context.Context, callbackId int, params *QueryParams) (*Callback, error) {
-	return ApiRequestNonPaginated[Callback](ctx, c, "GET", callbackIdEndpoint(callbackId), params, nil)
+func (c *Client) GetCallback(callbackID int, params map[string]string) (*Callback, error) {
+	return GetOne[Callback](c, callbackIdEndpoint(callbackID), params)
 }
 
-func (c *Client) DeleteCallback(ctx context.Context, callbackId int) error {
-	if _, err := ApiRequestNonPaginated[struct{}](ctx, c, "DELETE", callbackIdEndpoint(callbackId), nil, nil); err != nil {
-		return err
-	}
-
-	return nil
+func (c *Client) PutCallback(callbackID int, typeArg *Callback) (*Callback, error) {
+	return Put[Callback](c, callbackIdEndpoint(callbackID), typeArg)
 }
 
-func (c *Client) PutCallback(ctx context.Context, callbackId int, callback *Callback) (*Callback, error) {
-	return ApiRequestNonPaginated[Callback](ctx, c, "PUT", callbackIdEndpoint(callbackId), nil, callback)
+func (c *Client) PatchCallback(callbackID int, patchOps []PatchOp) (*Callback, error) {
+	return Patch[Callback](c, callbackIdEndpoint(callbackID), patchOps)
 }
 
-func (c *Client) PatchCallback(ctx context.Context, callbackId int, patchOps []PatchOp) (*Callback, error) {
-	return ApiRequestNonPaginated[Callback](ctx, c, "PATCH", callbackIdEndpoint(callbackId), nil, patchOps)
+func (c *Client) DeleteCallback(callbackID int) error {
+	return Delete(c, callbackIdEndpoint(callbackID))
 }
 
 func ValidateWebhook(r *http.Request) (bool, error) {

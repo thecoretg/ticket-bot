@@ -18,6 +18,7 @@ type Creds struct {
 
 type Client struct {
 	restClient *resty.Client
+	creds      *Creds
 }
 
 func NewClient(creds *Creds) *Client {
@@ -25,9 +26,10 @@ func NewClient(creds *Creds) *Client {
 	c.SetBasicAuth(fmt.Sprintf("%s+%s", creds.CompanyId, creds.PublicKey), creds.PrivateKey)
 	c.SetHeader("Content-Type", "application/json")
 	c.SetHeader("Accept", "application/json")
+	c.SetHeader("clientId", creds.ClientId)
 	c.SetRetryCount(3)
 
-	return &Client{restClient: c}
+	return &Client{restClient: c, creds: creds}
 }
 
 func NewClientFromAWS(ctx context.Context, s *ssm.Client, paramName string, withDecryption bool) (*Client, error) {
@@ -48,7 +50,8 @@ func GetCredsFromAWS(ctx context.Context, s *ssm.Client, paramName string, withD
 	return c, nil
 }
 
-func basicAuth(username, password string) string {
-	auth := username + ":" + password
+func basicAuth(creds *Creds) string {
+	username := fmt.Sprintf("%s+%s", creds.CompanyId, creds.PublicKey)
+	auth := fmt.Sprintf("%s:%s", username, creds.PrivateKey)
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(auth))
 }
