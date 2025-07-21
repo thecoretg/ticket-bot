@@ -1,7 +1,6 @@
 package connectwise
 
 import (
-	"context"
 	"fmt"
 )
 
@@ -17,68 +16,60 @@ func ticketIdNoteIdEndpoint(ticketId, noteId int) string {
 	return fmt.Sprintf("%s/%d", ticketIdNotesEndpoint(ticketId), noteId)
 }
 
-func (c *Client) ListTickets(ctx context.Context, params *QueryParams) ([]Ticket, error) {
-	return ApiRequestPaginated[Ticket](ctx, c, "GET", "service/tickets", params, nil)
+func (c *Client) PostTicket(ticket *Ticket) (*Ticket, error) {
+	return Post[Ticket](c, "service/tickets", ticket)
 }
 
-func (c *Client) PostTicket(ctx context.Context, ticket *Ticket) (*Ticket, error) {
-	return ApiRequestNonPaginated[Ticket](ctx, c, "POST", "service/tickets", nil, ticket)
+func (c *Client) ListTickets(params map[string]string) ([]Ticket, error) {
+	return GetMany[Ticket](c, "service/tickets", params)
 }
 
-func (c *Client) GetTicket(ctx context.Context, ticketId int, params *QueryParams) (*Ticket, error) {
-	return ApiRequestNonPaginated[Ticket](ctx, c, "GET", ticketIdEndpoint(ticketId), params, nil)
+func (c *Client) GetTicket(ticketID int, params map[string]string) (*Ticket, error) {
+	return GetOne[Ticket](c, ticketIdEndpoint(ticketID), params)
 }
 
-func (c *Client) DeleteTicket(ctx context.Context, ticketId int) error {
-	if _, err := ApiRequestNonPaginated[struct{}](ctx, c, "DELETE", ticketIdEndpoint(ticketId), nil, nil); err != nil {
-		return err
-	}
-
-	return nil
+func (c *Client) PutTicket(ticketID int, ticket *Ticket) (*Ticket, error) {
+	return Put[Ticket](c, ticketIdEndpoint(ticketID), ticket)
 }
 
-func (c *Client) PutTicket(ctx context.Context, ticketId int, ticket *Ticket) (*Ticket, error) {
-	return ApiRequestNonPaginated[Ticket](ctx, c, "PUT", ticketIdEndpoint(ticketId), nil, ticket)
+func (c *Client) PatchTicket(ticketID int, patchOps []PatchOp) (*Ticket, error) {
+	return Patch[Ticket](c, ticketIdEndpoint(ticketID), patchOps)
 }
 
-func (c *Client) PatchTicket(ctx context.Context, ticketId int, patchOps []PatchOp) (*Ticket, error) {
-	return ApiRequestNonPaginated[Ticket](ctx, c, "PATCH", ticketIdEndpoint(ticketId), nil, patchOps)
+func (c *Client) DeleteTicket(ticketID int) error {
+	return Delete(c, ticketIdEndpoint(ticketID))
 }
 
-// ListServiceTicketNotes gets all ticket notes, regardless of if they have a time entry.
+// ListServiceTicketNotesAll gets all ticket notes, regardless of if they have a time entry.
 //
 // This is most likely the one you want to use unless you consistently uncheck the time entry box.
-func (c *Client) ListServiceTicketNotes(ctx context.Context, ticketId int, params *QueryParams) ([]ServiceTicketNoteAll, error) {
-	return ApiRequestPaginated[ServiceTicketNoteAll](ctx, c, "GET", ticketIdEndpoint(ticketId)+"/allNotes", params, nil)
+func (c *Client) ListServiceTicketNotesAll(params map[string]string, ticketID int) ([]ServiceTicketNoteAll, error) {
+	return GetMany[ServiceTicketNoteAll](c, ticketIdNotesEndpoint(ticketID), params)
 }
 
-// ListServiceNotes gets all notes that are not time entry.
+func (c *Client) PostServiceTicketNote(ticketNote *ServiceTicketNote, ticketID int) (*ServiceTicketNote, error) {
+	return Post[ServiceTicketNote](c, ticketIdNotesEndpoint(ticketID), ticketNote)
+}
+
+// ListServiceTicketNotes gets all notes that are not time entry.
 //
 // Not recommended since you will probably get what you need through ListServiceTicketNotes
-func (c *Client) ListServiceNotes(ctx context.Context, ticketId int, params *QueryParams) ([]ServiceTicketNote, error) {
-	return ApiRequestPaginated[ServiceTicketNote](ctx, c, "GET", ticketIdNotesEndpoint(ticketId), params, nil)
+func (c *Client) ListServiceTicketNotes(params map[string]string, ticketID int) ([]ServiceTicketNote, error) {
+	return GetMany[ServiceTicketNote](c, ticketIdNotesEndpoint(ticketID), params)
 }
 
-func (c *Client) PostServiceTicketNote(ctx context.Context, ticketId int, note *ServiceTicketNote) (*ServiceTicketNote, error) {
-	return ApiRequestNonPaginated[ServiceTicketNote](ctx, c, "POST", ticketIdNotesEndpoint(ticketId), nil, note)
+func (c *Client) GetServiceTicketNote(noteID int, params map[string]string, ticketID int) (*ServiceTicketNote, error) {
+	return GetOne[ServiceTicketNote](c, ticketIdNoteIdEndpoint(ticketID, noteID), params)
 }
 
-func (c *Client) GetServiceTicketNote(ctx context.Context, ticketId, noteId int, params *QueryParams) (*ServiceTicketNote, error) {
-	return ApiRequestNonPaginated[ServiceTicketNote](ctx, c, "GET", ticketIdNoteIdEndpoint(ticketId, noteId), params, nil)
+func (c *Client) PutServiceTicketNote(noteID int, ticketNote *ServiceTicketNote, ticketID int) (*ServiceTicketNote, error) {
+	return Put[ServiceTicketNote](c, ticketIdNoteIdEndpoint(ticketID, noteID), ticketNote)
 }
 
-func (c *Client) DeleteServiceTicketNote(ctx context.Context, ticketId, noteId int) error {
-	if _, err := ApiRequestNonPaginated[struct{}](ctx, c, "DELETE", ticketIdNoteIdEndpoint(ticketId, noteId), nil, nil); err != nil {
-		return err
-	}
-
-	return nil
+func (c *Client) PatchServiceTicketNote(noteID int, patchOps []PatchOp, ticketID int) (*ServiceTicketNote, error) {
+	return Patch[ServiceTicketNote](c, ticketIdNoteIdEndpoint(ticketID, noteID), patchOps)
 }
 
-func (c *Client) PutServiceTicketNote(ctx context.Context, ticketId, noteId int, note *ServiceTicketNote) (*ServiceTicketNote, error) {
-	return ApiRequestNonPaginated[ServiceTicketNote](ctx, c, "PUT", ticketIdNoteIdEndpoint(ticketId, noteId), nil, note)
-}
-
-func (c *Client) PatchServiceTicketNote(ctx context.Context, ticketId, noteId int, patchOps []PatchOp) (*ServiceTicketNote, error) {
-	return ApiRequestNonPaginated[ServiceTicketNote](ctx, c, "PATCH", ticketIdNoteIdEndpoint(ticketId, noteId), nil, patchOps)
+func (c *Client) DeleteServiceTicketNote(noteID int, ticketID int) error {
+	return Delete(c, ticketIdNoteIdEndpoint(ticketID, noteID))
 }

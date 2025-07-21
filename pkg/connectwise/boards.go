@@ -1,7 +1,6 @@
 package connectwise
 
 import (
-	"context"
 	"fmt"
 )
 
@@ -17,58 +16,50 @@ func boardIdStatusIdEndpoint(boardId, statusId int) string {
 	return fmt.Sprintf("%s/%d", boardIdStatusEndpoint(boardId), statusId)
 }
 
-func (c *Client) ListBoards(ctx context.Context, params *QueryParams) ([]Board, error) {
-	return ApiRequestPaginated[Board](ctx, c, "GET", "service/boards", params, nil)
+func (c *Client) PostBoard(board *Board) (*Board, error) {
+	return Post[Board](c, "service/boards", board)
 }
 
-func (c *Client) PostBoard(ctx context.Context, board *Board) (*Board, error) {
-	return ApiRequestNonPaginated[Board](ctx, c, "POST", "service/boards", nil, board)
+func (c *Client) ListBoards(params map[string]string) ([]Board, error) {
+	return GetMany[Board](c, "service/boards", params)
 }
 
-func (c *Client) GetBoard(ctx context.Context, boardId int, params *QueryParams) (*Board, error) {
-	return ApiRequestNonPaginated[Board](ctx, c, "GET", boardIdEndpoint(boardId), params, nil)
+func (c *Client) GetBoard(boardID int, params map[string]string) (*Board, error) {
+	return GetOne[Board](c, boardIdEndpoint(boardID), params)
 }
 
-func (c *Client) DeleteBoard(ctx context.Context, boardId int) error {
-	if _, err := ApiRequestNonPaginated[struct{}](ctx, c, "DELETE", boardIdEndpoint(boardId), nil, nil); err != nil {
-		return err
-	}
-
-	return nil
+func (c *Client) PutBoard(boardID int, board *Board) (*Board, error) {
+	return Put[Board](c, boardIdEndpoint(boardID), board)
 }
 
-func (c *Client) PutBoard(ctx context.Context, boardId int, board *Board) (*Board, error) {
-	return ApiRequestNonPaginated[Board](ctx, c, "PUT", boardIdEndpoint(boardId), nil, board)
+func (c *Client) PatchBoard(boardID int, patchOps []PatchOp) (*Board, error) {
+	return Patch[Board](c, boardIdEndpoint(boardID), patchOps)
 }
 
-func (c *Client) PatchBoard(ctx context.Context, boardId int, patchOps []PatchOp) (*Board, error) {
-	return ApiRequestNonPaginated[Board](ctx, c, "PATCH", boardIdEndpoint(boardId), nil, patchOps)
+func (c *Client) DeleteBoard(boardID int) error {
+	return Delete(c, boardIdEndpoint(boardID))
 }
 
-func (c *Client) ListBoardStatuses(ctx context.Context, boardId int, params *QueryParams) ([]BoardStatus, error) {
-	return ApiRequestPaginated[BoardStatus](ctx, c, "GET", boardIdStatusEndpoint(boardId), params, nil)
+func (c *Client) PostBoardStatus(boardStatus *BoardStatus, boardID int) (*BoardStatus, error) {
+	return Post[BoardStatus](c, boardIdStatusEndpoint(boardID), boardStatus)
 }
 
-func (c *Client) PostBoardStatus(ctx context.Context, boardId int, status *BoardStatus) (*BoardStatus, error) {
-	return ApiRequestNonPaginated[BoardStatus](ctx, c, "POST", boardIdStatusEndpoint(boardId), nil, status)
+func (c *Client) ListBoardStatuss(params map[string]string, boardID int) ([]BoardStatus, error) {
+	return GetMany[BoardStatus](c, boardIdStatusEndpoint(boardID), params)
 }
 
-func (c *Client) GetBoardStatus(ctx context.Context, boardId, statusId int, params *QueryParams) (*BoardStatus, error) {
-	return ApiRequestNonPaginated[BoardStatus](ctx, c, "GET", boardIdStatusIdEndpoint(boardId, statusId), params, nil)
+func (c *Client) GetBoardStatus(statusID int, params map[string]string, boardID int) (*BoardStatus, error) {
+	return GetOne[BoardStatus](c, boardIdStatusIdEndpoint(boardID, statusID), params)
 }
 
-func (c *Client) DeleteBoardStatus(ctx context.Context, boardId, statusId int) error {
-	if _, err := ApiRequestNonPaginated[struct{}](ctx, c, "DELETE", boardIdStatusIdEndpoint(boardId, statusId), nil, nil); err != nil {
-		return err
-	}
-
-	return nil
+func (c *Client) PutBoardStatus(statusID int, boardStatus *BoardStatus, boardID int) (*BoardStatus, error) {
+	return Put[BoardStatus](c, boardIdStatusIdEndpoint(boardID, statusID), boardStatus)
 }
 
-func (c *Client) PutBoardStatus(ctx context.Context, boardId, statusId int, status *BoardStatus) (*BoardStatus, error) {
-	return ApiRequestNonPaginated[BoardStatus](ctx, c, "PUT", boardIdStatusIdEndpoint(boardId, statusId), nil, status)
+func (c *Client) PatchBoardStatus(statusID int, patchOps []PatchOp, boardID int) (*BoardStatus, error) {
+	return Patch[BoardStatus](c, boardIdStatusIdEndpoint(boardID, statusID), patchOps)
 }
 
-func (c *Client) PatchBoardStatus(ctx context.Context, boardId, statusId int, patchOps []PatchOp) (*BoardStatus, error) {
-	return ApiRequestNonPaginated[BoardStatus](ctx, c, "PATCH", boardIdStatusIdEndpoint(boardId, statusId), nil, patchOps)
+func (c *Client) DeleteBoardStatus(statusID int, boardID int) error {
+	return Delete(c, boardIdStatusIdEndpoint(boardID, statusID))
 }

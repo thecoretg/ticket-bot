@@ -73,7 +73,7 @@ func newServer(ctx context.Context, addr string) (*server, error) {
 	s := ssm.NewFromConfig(cfg)
 	h := http.DefaultClient
 	slog.Debug("initializing CW client with AWS creds")
-	cw, err := connectwise.NewClientFromAWS(ctx, h, nil, s, cwCredsParam, true)
+	cw, err := connectwise.NewClientFromAWS(ctx, s, cwCredsParam, true)
 	if err != nil {
 		return nil, fmt.Errorf("creating connectwise client via AWS: %w", err)
 	}

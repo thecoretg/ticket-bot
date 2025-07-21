@@ -5,17 +5,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
-	"net/http"
+	"resty.dev/v3"
 	"tctg-automation/pkg/amz"
-	"time"
 )
-
-type Client struct {
-	httpClient   *http.Client
-	encodedCreds string
-	clientId     string
-	retryConfig  *RetryConfig
-}
 
 type Creds struct {
 	PublicKey  string
@@ -24,70 +16,27 @@ type Creds struct {
 	CompanyId  string // The company name you enter when you log in to the PSA
 }
 
-type RetryConfig struct {
-	MaxRetries        int
-	InitialDelay      time.Duration
-	MaxDelay          time.Duration
-	BackOffMultiplier float64
+type Client struct {
+	restClient *resty.Client
 }
 
-func NewClient(creds Creds, httpClient *http.Client, retryConfig *RetryConfig) *Client {
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
+func NewClient(creds *Creds) *Client {
+	c := resty.New()
+	c.SetBasicAuth(fmt.Sprintf("%s+%s", creds.CompanyId, creds.PublicKey), creds.PrivateKey)
+	c.SetHeader("Content-Type", "application/json")
+	c.SetHeader("Accept", "application/json")
+	c.SetRetryCount(3)
 
-	if retryConfig == nil {
-		retryConfig = DefaultRetryConfig()
-	}
-
-	username := fmt.Sprintf("%s+%s", creds.CompanyId, creds.PublicKey)
-	return &Client{
-		httpClient:   httpClient,
-		encodedCreds: basicAuth(username, creds.PrivateKey),
-		clientId:     creds.ClientId,
-		retryConfig:  retryConfig,
-	}
+	return &Client{restClient: c}
 }
 
-func NewClientFromAWS(ctx context.Context, httpClient *http.Client, retryConfig *RetryConfig, s *ssm.Client, paramName string, withDecryption bool) (*Client, error) {
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
-
-	if retryConfig == nil {
-		retryConfig = DefaultRetryConfig()
-	}
-
+func NewClientFromAWS(ctx context.Context, s *ssm.Client, paramName string, withDecryption bool) (*Client, error) {
 	creds, err := GetCredsFromAWS(ctx, s, paramName, withDecryption)
 	if err != nil {
 		return nil, fmt.Errorf("getting creds from AWS: %w", err)
 	}
 
-	username := fmt.Sprintf("%s+%s", creds.CompanyId, creds.PublicKey)
-	return &Client{
-		httpClient:   httpClient,
-		encodedCreds: basicAuth(username, creds.PrivateKey),
-		clientId:     creds.ClientId,
-		retryConfig:  retryConfig,
-	}, nil
-}
-
-func DefaultRetryConfig() *RetryConfig {
-	return &RetryConfig{
-		MaxRetries:        5,
-		InitialDelay:      500 * time.Millisecond,
-		MaxDelay:          15 * time.Second,
-		BackOffMultiplier: 1.5,
-	}
-}
-
-func NewRetryConfig(maxRetries int, initialDelay, maxDelay time.Duration, backOffMultiplier float64) *RetryConfig {
-	return &RetryConfig{
-		MaxRetries:        maxRetries,
-		InitialDelay:      initialDelay,
-		MaxDelay:          maxDelay,
-		BackOffMultiplier: backOffMultiplier,
-	}
+	return NewClient(creds), nil
 }
 
 func GetCredsFromAWS(ctx context.Context, s *ssm.Client, paramName string, withDecryption bool) (*Creds, error) {

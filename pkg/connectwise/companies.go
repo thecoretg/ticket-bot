@@ -1,7 +1,6 @@
 package connectwise
 
 import (
-	"context"
 	"fmt"
 )
 
@@ -9,30 +8,26 @@ func companyIdEndpoint(companyId int) string {
 	return fmt.Sprintf("company/companies/%d", companyId)
 }
 
-func (c *Client) ListCompanies(ctx context.Context, params *QueryParams) ([]Company, error) {
-	return ApiRequestPaginated[Company](ctx, c, "GET", "company/companies", params, nil)
+func (c *Client) PostCompany(company *Company) (*Company, error) {
+	return Post[Company](c, "company/companies", company)
 }
 
-func (c *Client) PostCompany(ctx context.Context, company *Company) (*Company, error) {
-	return ApiRequestNonPaginated[Company](ctx, c, "POST", "company/companies", nil, company)
+func (c *Client) ListCompanies(params map[string]string) ([]Company, error) {
+	return GetMany[Company](c, "company/companies", params)
 }
 
-func (c *Client) GetCompany(ctx context.Context, companyId int, params *QueryParams) (*Company, error) {
-	return ApiRequestNonPaginated[Company](ctx, c, "GET", companyIdEndpoint(companyId), params, nil)
+func (c *Client) GetCompany(companyID int, params map[string]string) (*Company, error) {
+	return GetOne[Company](c, companyIdEndpoint(companyID), params)
 }
 
-func (c *Client) DeleteCompany(ctx context.Context, companyId int) error {
-	if _, err := ApiRequestNonPaginated[struct{}](ctx, c, "DELETE", companyIdEndpoint(companyId), nil, nil); err != nil {
-		return err
-	}
-
-	return nil
+func (c *Client) PutCompany(companyID int, company *Company) (*Company, error) {
+	return Put[Company](c, companyIdEndpoint(companyID), company)
 }
 
-func (c *Client) PutCompany(ctx context.Context, companyId int, company *Company) (*Company, error) {
-	return ApiRequestNonPaginated[Company](ctx, c, "PUT", companyIdEndpoint(companyId), nil, company)
+func (c *Client) PatchCompany(companyID int, patchOps []PatchOp) (*Company, error) {
+	return Patch[Company](c, companyIdEndpoint(companyID), patchOps)
 }
 
-func (c *Client) PatchCompany(ctx context.Context, companyId int, patchOps []PatchOp) (*Company, error) {
-	return ApiRequestNonPaginated[Company](ctx, c, "PATCH", companyIdEndpoint(companyId), nil, patchOps)
+func (c *Client) DeleteCompany(companyID int) error {
+	return Delete(c, companyIdEndpoint(companyID))
 }

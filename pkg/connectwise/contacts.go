@@ -1,7 +1,6 @@
 package connectwise
 
 import (
-	"context"
 	"fmt"
 )
 
@@ -9,30 +8,26 @@ func contactIdEndpoint(contactId int) string {
 	return fmt.Sprintf("company/contacts/%d", contactId)
 }
 
-func (c *Client) ListContacts(ctx context.Context, params *QueryParams) ([]Contact, error) {
-	return ApiRequestPaginated[Contact](ctx, c, "GET", "company/contacts", params, nil)
+func (c *Client) PostContact(contact *Contact) (*Contact, error) {
+	return Post[Contact](c, "company/contacts", contact)
 }
 
-func (c *Client) PostContact(ctx context.Context, contact *Contact) (*Contact, error) {
-	return ApiRequestNonPaginated[Contact](ctx, c, "POST", "company/contact", nil, contact)
+func (c *Client) ListContacts(params map[string]string) ([]Contact, error) {
+	return GetMany[Contact](c, "company/contacts", params)
 }
 
-func (c *Client) GetContact(ctx context.Context, contactId int, params *QueryParams) (*Contact, error) {
-	return ApiRequestNonPaginated[Contact](ctx, c, "GET", contactIdEndpoint(contactId), params, nil)
+func (c *Client) GetContact(contactID int, params map[string]string) (*Contact, error) {
+	return GetOne[Contact](c, contactIdEndpoint(contactID), params)
 }
 
-func (c *Client) DeleteContact(ctx context.Context, contactId int) error {
-	if _, err := ApiRequestNonPaginated[struct{}](ctx, c, "DELETE", contactIdEndpoint(contactId), nil, nil); err != nil {
-		return err
-	}
-
-	return nil
+func (c *Client) PutContact(contactID int, contact *Contact) (*Contact, error) {
+	return Put[Contact](c, contactIdEndpoint(contactID), contact)
 }
 
-func (c *Client) PutContact(ctx context.Context, contactId int, contact *Contact) (*Contact, error) {
-	return ApiRequestNonPaginated[Contact](ctx, c, "PUT", contactIdEndpoint(contactId), nil, contact)
+func (c *Client) PatchContact(contactID int, patchOps []PatchOp) (*Contact, error) {
+	return Patch[Contact](c, contactIdEndpoint(contactID), patchOps)
 }
 
-func (c *Client) PatchContact(ctx context.Context, contactId int, patchOps []PatchOp) (*Contact, error) {
-	return ApiRequestNonPaginated[Contact](ctx, c, "PATCH", contactIdEndpoint(contactId), nil, patchOps)
+func (c *Client) DeleteContact(contactID int) error {
+	return Delete(c, contactIdEndpoint(contactID))
 }
