@@ -2,10 +2,11 @@ package ticketbot
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"log/slog"
 	"net/http"
 	"os"
+
+	"github.com/gin-gonic/gin"
 )
 
 type ErrWasDeleted struct {

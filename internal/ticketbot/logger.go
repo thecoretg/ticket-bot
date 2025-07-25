@@ -6,9 +6,9 @@ import (
 	"os"
 )
 
-func setLogger(lvl string, toFile bool) error {
+func setLogger(debug, toFile bool) error {
 	level := slog.LevelInfo
-	if lvl == "1" || lvl == "true" {
+	if debug {
 		level = slog.LevelDebug
 	}
 
@@ -33,7 +33,7 @@ func newFileHandler(filePath string, level slog.Level) (*slog.TextHandler, error
 	if err != nil {
 		return nil, fmt.Errorf("opening log file %s: %w", filePath, err)
 	}
-	
+
 	return slog.NewTextHandler(file, &slog.HandlerOptions{
 		Level: level,
 	}), nil

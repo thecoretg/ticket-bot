@@ -3,17 +3,18 @@ package ticketbot
 import (
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"log/slog"
 	"net/http"
 	"tctg-automation/internal/ticketbot/types"
 	"tctg-automation/pkg/connectwise"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func (s *server) addTicketGroup(r *gin.Engine) {
 	tickets := r.Group("/hooks")
-	cw := tickets.Group("/cw", requireValidCWSignature(), ErrorHandler(s.exitOnError))
+	cw := tickets.Group("/cw", requireValidCWSignature(), ErrorHandler(s.config.ExitOnError))
 	cw.POST("/tickets", s.handleTickets)
 }
 

@@ -3,3 +3,4 @@
 .idea
 *.db
 *.log
+*config.json
