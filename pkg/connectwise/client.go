@@ -4,16 +4,17 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"tctg-automation/pkg/amz"
+
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"resty.dev/v3"
-	"tctg-automation/pkg/amz"
 )
 
 type Creds struct {
-	PublicKey  string
-	PrivateKey string
-	ClientId   string
-	CompanyId  string // The company name you enter when you log in to the PSA
+	PublicKey  string `json:"public_key,omitempty" mapstructure:"public_key"`
+	PrivateKey string `json:"private_key,omitempty" mapstructure:"private_key"`
+	ClientId   string `json:"client_id,omitempty" mapstructure:"client_id"`
+	CompanyId  string `json:"company_id,omitempty" mapstructure:"company_id"` // The company name you enter when you log in to the PSA
 }
 
 type Client struct {
