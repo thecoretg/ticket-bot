@@ -45,7 +45,7 @@ func TestClient_GetMostRecentTicketNote(t *testing.T) {
 	t.Logf("Got CW creds from AWS - client ID: %s", c.creds.ClientId)
 	t.Logf("resty client: %v", c.restClient)
 
-	r, err := c.GetMostRecentTicketNote(676781)
+	r, err := c.GetMostRecentTicketNote(677180)
 	if err != nil {
 		t.Fatalf("getting most recent note: %v", err)
 	}

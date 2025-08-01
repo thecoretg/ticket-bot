@@ -1,13 +1,11 @@
 package ticketbot
 
 import (
-	"tctg-automation/internal/ticketbot/cfg"
-	"tctg-automation/internal/ticketbot/store"
 	"testing"
 )
 
 func TestPrepServer(t *testing.T) {
-	config, err := cfg.InitCfg()
+	config, err := InitCfg()
 	if err != nil {
 		t.Fatalf("initializing config: %v", err)
 	}
@@ -16,7 +14,7 @@ func TestPrepServer(t *testing.T) {
 		t.Fatalf("error setting logger: %v", err)
 	}
 
-	s := newServer(config, store.NewInMemoryStore())
+	s := newServer(config, NewInMemoryStore())
 	if err := s.prep(true, false); err != nil {
 		t.Fatalf("preparing server: %v", err)
 	}

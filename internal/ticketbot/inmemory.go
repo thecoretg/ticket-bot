@@ -1,33 +1,32 @@
-package store
+package ticketbot
 
 import (
 	"sync"
-	"tctg-automation/internal/ticketbot/types"
 )
 
 type InMemoryStore struct {
-	tickets map[int]*types.Ticket
-	boards  map[int]*types.Board
+	tickets map[int]*Ticket
+	boards  map[int]*Board
 	mu      sync.RWMutex
 }
 
 func NewInMemoryStore() *InMemoryStore {
-	t := make(map[int]*types.Ticket)
-	b := make(map[int]*types.Board)
+	t := make(map[int]*Ticket)
+	b := make(map[int]*Board)
 	return &InMemoryStore{
 		tickets: t,
 		boards:  b,
 	}
 }
 
-func (m *InMemoryStore) UpsertTicket(ticket *types.Ticket) error {
+func (m *InMemoryStore) UpsertTicket(ticket *Ticket) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.tickets[ticket.ID] = ticket
 	return nil
 }
 
-func (m *InMemoryStore) GetTicket(ticketID int) (*types.Ticket, error) {
+func (m *InMemoryStore) GetTicket(ticketID int) (*Ticket, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if ticket, exists := m.tickets[ticketID]; exists {
@@ -36,29 +35,29 @@ func (m *InMemoryStore) GetTicket(ticketID int) (*types.Ticket, error) {
 	return nil, nil
 }
 
-func (m *InMemoryStore) ListTickets() ([]types.Ticket, error) {
+func (m *InMemoryStore) ListTickets() ([]Ticket, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	var tickets []types.Ticket
+	var tickets []Ticket
 	for _, ticket := range m.tickets {
 		tickets = append(tickets, *ticket)
 	}
 
 	if tickets == nil {
-		tickets = []types.Ticket{}
+		tickets = []Ticket{}
 	}
 
 	return tickets, nil
 }
 
-func (m *InMemoryStore) UpsertBoard(board *types.Board) error {
+func (m *InMemoryStore) UpsertBoard(board *Board) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.boards[board.ID] = board
 	return nil
 }
 
-func (m *InMemoryStore) GetBoard(boardID int) (*types.Board, error) {
+func (m *InMemoryStore) GetBoard(boardID int) (*Board, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if board, exists := m.boards[boardID]; exists {
@@ -67,16 +66,16 @@ func (m *InMemoryStore) GetBoard(boardID int) (*types.Board, error) {
 	return nil, nil
 }
 
-func (m *InMemoryStore) ListBoards() ([]types.Board, error) {
+func (m *InMemoryStore) ListBoards() ([]Board, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	var boards []types.Board
+	var boards []Board
 	for _, board := range m.boards {
 		boards = append(boards, *board)
 	}
 
 	if boards == nil {
-		boards = []types.Board{}
+		boards = []Board{}
 	}
 
 	return boards, nil

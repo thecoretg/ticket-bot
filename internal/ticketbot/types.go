@@ -1,6 +1,15 @@
-package types
+package ticketbot
 
 import "time"
+
+type Store interface {
+	UpsertTicket(ticket *Ticket) error
+	GetTicket(ticketID int) (*Ticket, error)
+	ListTickets() ([]Ticket, error)
+	UpsertBoard(board *Board) error
+	GetBoard(boardID int) (*Board, error)
+	ListBoards() ([]Board, error)
+}
 
 type TimeDetails struct {
 	UpdatedAt    time.Time `json:"updated_at"`
@@ -22,5 +31,10 @@ type Board struct {
 	ID            int    `json:"id"`
 	Name          string `json:"name"`
 	NotifyEnabled bool   `json:"notify_enabled"`
-	WebexRoomIDs  []int  `json:"webex_room_ids"`
+	// WebexRooms    []WebexRoom `json:"webex_room_ids"`
 }
+
+//type WebexRoom struct {
+//	ID      string `json:"id"`
+//	BoardID int
+//}

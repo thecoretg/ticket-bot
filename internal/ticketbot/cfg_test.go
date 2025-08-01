@@ -1,4 +1,4 @@
-package cfg
+package ticketbot
 
 import "testing"
 

@@ -1,12 +1,11 @@
 package ticketbot
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
-	"tctg-automation/internal/ticketbot/cfg"
-	"tctg-automation/internal/ticketbot/store"
 	"tctg-automation/pkg/connectwise"
 	"tctg-automation/pkg/webex"
 
@@ -14,8 +13,8 @@ import (
 )
 
 type server struct {
-	config      *cfg.Cfg
-	dataStore   store.Store
+	config      *Cfg
+	dataStore   Store
 	cwClient    *connectwise.Client
 	webexClient *webex.Client
 	ticketLocks sync.Map
@@ -23,7 +22,7 @@ type server struct {
 }
 
 func Run() error {
-	config, err := cfg.InitCfg()
+	config, err := InitCfg()
 	if err != nil {
 		return fmt.Errorf("initializing config: %w", err)
 	}
@@ -31,10 +30,14 @@ func Run() error {
 	if err := setLogger(config.Debug, config.LogToFile, config.LogFilePath); err != nil {
 		return fmt.Errorf("error setting logger: %w", err)
 	}
-
 	slog.Debug("DEBUG ON") // only prints if debug is on...so clever
 
-	s := newServer(config, store.NewInMemoryStore())
+	store, err := createStore(config)
+	if err != nil {
+		return fmt.Errorf("creating store: %w", err)
+	}
+
+	s := newServer(config, store)
 	if err := s.prep(true, true); err != nil {
 		return fmt.Errorf("preparing server: %w", err)
 	}
@@ -67,7 +70,7 @@ func (s *server) addAllRoutes() {
 	s.addBoardsGroup()
 }
 
-func newServer(cfg *cfg.Cfg, store store.Store) *server {
+func newServer(cfg *Cfg, store Store) *server {
 	return &server{
 		config:      cfg,
 		cwClient:    connectwise.NewClient(&cfg.CWCreds),
@@ -75,4 +78,23 @@ func newServer(cfg *cfg.Cfg, store store.Store) *server {
 		dataStore:   store,
 		ginEngine:   gin.Default(),
 	}
+}
+
+func createStore(cfg *Cfg) (Store, error) {
+	var store Store
+	store = NewInMemoryStore()
+	if cfg.UseDB {
+		slog.Debug("use db set to true in config")
+		if cfg.DSN == "" {
+			return nil, errors.New("no DSN provided for database connection")
+		}
+
+		var err error
+		store, err = NewPostgresStore(cfg.DSN)
+		if err != nil {
+			return nil, fmt.Errorf("creating postgres store: %w", err)
+		}
+	}
+
+	return store, nil
 }

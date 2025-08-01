@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"tctg-automation/internal/ticketbot/types"
 	"tctg-automation/pkg/connectwise"
 )
 
@@ -48,11 +47,11 @@ func (s *server) preloadBoards() error {
 			go func(board connectwise.Board) {
 				defer wg.Done()
 				defer func() { <-sem }()
-				b := &types.Board{
+				b := &Board{
 					ID:            board.ID,
 					Name:          board.Name,
 					NotifyEnabled: false,
-					WebexRoomIDs:  nil,
+					//WebexRooms:    []WebexRoom{},
 				}
 				if err := s.dataStore.UpsertBoard(b); err != nil {
 					slog.Warn("error preloading board", "board_id", board.ID, "error", err)

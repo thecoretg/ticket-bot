@@ -12,12 +12,16 @@ func ticketIdEndpoint(ticketId int) string {
 	return fmt.Sprintf("service/tickets/%d", ticketId)
 }
 
-func ticketIdNotesEndpoint(ticketId int) string {
+func notesEndpoint(ticketId int) string {
 	return fmt.Sprintf("%s/notes", ticketIdEndpoint(ticketId))
 }
 
-func ticketIdNoteIdEndpoint(ticketId, noteId int) string {
-	return fmt.Sprintf("%s/%d", ticketIdNotesEndpoint(ticketId), noteId)
+func allNotesEndpoint(ticketId int) string {
+	return fmt.Sprintf("%s/allNotes", ticketIdEndpoint(ticketId))
+}
+
+func specificNoteEndpoint(ticketId, noteId int) string {
+	return fmt.Sprintf("%s/notes/%d", ticketIdEndpoint(ticketId), noteId)
 }
 
 func (c *Client) PostTicket(ticket *Ticket) (*Ticket, error) {
@@ -48,40 +52,40 @@ func (c *Client) DeleteTicket(ticketID int) error {
 //
 // This is most likely the one you want to use unless you consistently uncheck the time entry box.
 func (c *Client) ListServiceTicketNotesAll(params map[string]string, ticketID int) ([]ServiceTicketNoteAll, error) {
-	return GetMany[ServiceTicketNoteAll](c, ticketIdNotesEndpoint(ticketID), params)
+	return GetMany[ServiceTicketNoteAll](c, allNotesEndpoint(ticketID), params)
 }
 
 func (c *Client) PostServiceTicketNote(ticketNote *ServiceTicketNote, ticketID int) (*ServiceTicketNote, error) {
-	return Post[ServiceTicketNote](c, ticketIdNotesEndpoint(ticketID), ticketNote)
+	return Post[ServiceTicketNote](c, notesEndpoint(ticketID), ticketNote)
 }
 
 // ListServiceTicketNotes gets all notes that are not time entry.
 //
 // Not recommended since you will probably get what you need through ListServiceTicketNotes
 func (c *Client) ListServiceTicketNotes(params map[string]string, ticketID int) ([]ServiceTicketNote, error) {
-	return GetMany[ServiceTicketNote](c, ticketIdNotesEndpoint(ticketID), params)
+	return GetMany[ServiceTicketNote](c, notesEndpoint(ticketID), params)
 }
 
 func (c *Client) GetServiceTicketNote(noteID int, params map[string]string, ticketID int) (*ServiceTicketNote, error) {
-	return GetOne[ServiceTicketNote](c, ticketIdNoteIdEndpoint(ticketID, noteID), params)
+	return GetOne[ServiceTicketNote](c, specificNoteEndpoint(ticketID, noteID), params)
 }
 
 func (c *Client) PutServiceTicketNote(noteID int, ticketNote *ServiceTicketNote, ticketID int) (*ServiceTicketNote, error) {
-	return Put[ServiceTicketNote](c, ticketIdNoteIdEndpoint(ticketID, noteID), ticketNote)
+	return Put[ServiceTicketNote](c, specificNoteEndpoint(ticketID, noteID), ticketNote)
 }
 
 func (c *Client) PatchServiceTicketNote(noteID int, patchOps []PatchOp, ticketID int) (*ServiceTicketNote, error) {
-	return Patch[ServiceTicketNote](c, ticketIdNoteIdEndpoint(ticketID, noteID), patchOps)
+	return Patch[ServiceTicketNote](c, specificNoteEndpoint(ticketID, noteID), patchOps)
 }
 
 func (c *Client) DeleteServiceTicketNote(noteID int, ticketID int) error {
-	return Delete(c, ticketIdNoteIdEndpoint(ticketID, noteID))
+	return Delete(c, specificNoteEndpoint(ticketID, noteID))
 }
 
 func (c *Client) GetMostRecentTicketNote(ticketID int) (*ServiceTicketNote, error) {
 	p := map[string]string{
 		"orderBy":  "id desc",
-		"pageSize": "1",
+		"pageSize": "100",
 	}
 
 	notes, err := c.ListServiceTicketNotesAll(p, ticketID)
@@ -89,7 +93,7 @@ func (c *Client) GetMostRecentTicketNote(ticketID int) (*ServiceTicketNote, erro
 		return nil, fmt.Errorf("listing service notes: %w", err)
 	}
 
-	if len(notes) != 1 {
+	if len(notes) == 0 {
 		return nil, nil
 	}
 

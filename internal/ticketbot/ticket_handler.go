@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"tctg-automation/internal/ticketbot/types"
 	"tctg-automation/pkg/connectwise"
 	"tctg-automation/pkg/webex"
 	"time"
@@ -70,7 +69,7 @@ func (s *server) getTicketLock(ticketID int) *sync.Mutex {
 	return lockIface.(*sync.Mutex)
 }
 
-func (s *server) addOrUpdateTicket(storeTicket *types.Ticket, cwTicket *connectwise.Ticket, attemptNotify bool) error {
+func (s *server) addOrUpdateTicket(storeTicket *Ticket, cwTicket *connectwise.Ticket, attemptNotify bool) error {
 	lock := s.getTicketLock(cwTicket.ID)
 	if !lock.TryLock() {
 		slog.Debug("waiting for ticket lock to resolve", "ticket_id", cwTicket.ID)
@@ -163,17 +162,17 @@ func (s *server) getLatestNote(ticketID int) (*connectwise.ServiceTicketNote, er
 	return note, nil
 }
 
-func (s *server) addBoard(boardID int) (*types.Board, error) {
+func (s *server) addBoard(boardID int) (*Board, error) {
 	cwBoard, err := s.cwClient.GetBoard(boardID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("getting board from connectwise: %w", err)
 	}
 
-	storeBoard := &types.Board{
+	storeBoard := &Board{
 		ID:            cwBoard.ID,
 		Name:          cwBoard.Name,
 		NotifyEnabled: false,
-		WebexRoomIDs:  nil,
+		//WebexRooms:    []WebexRoom{},
 	}
 
 	if err := s.dataStore.UpsertBoard(storeBoard); err != nil {
@@ -183,8 +182,8 @@ func (s *server) addBoard(boardID int) (*types.Board, error) {
 	return storeBoard, nil
 }
 
-func cwTicketToStoreTicket(cwTicket *connectwise.Ticket, latestNote *connectwise.ServiceTicketNote) *types.Ticket {
-	return &types.Ticket{
+func cwTicketToStoreTicket(cwTicket *connectwise.Ticket, latestNote *connectwise.ServiceTicketNote) *Ticket {
+	return &Ticket{
 		ID:           cwTicket.ID,
 		Summary:      cwTicket.Summary,
 		BoardID:      cwTicket.Board.ID,
@@ -192,7 +191,7 @@ func cwTicketToStoreTicket(cwTicket *connectwise.Ticket, latestNote *connectwise
 		OwnerID:      cwTicket.Owner.ID,
 		Resources:    cwTicket.Resources,
 		UpdatedBy:    cwTicket.Info.UpdatedBy,
-		TimeDetails: types.TimeDetails{
+		TimeDetails: TimeDetails{
 			UpdatedAt: cwTicket.Info.LastUpdated,
 		},
 	}
