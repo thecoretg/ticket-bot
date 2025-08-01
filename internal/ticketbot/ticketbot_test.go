@@ -17,7 +17,13 @@ func TestPrepServer(t *testing.T) {
 	}
 
 	s := newServer(config, store.NewInMemoryStore())
-	if err := s.prep(true); err != nil {
+	if err := s.prep(true, false); err != nil {
 		t.Fatalf("preparing server: %v", err)
+	}
+}
+
+func TestRunServer(t *testing.T) {
+	if err := Run(); err != nil {
+		t.Fatalf("error running server: %v", err)
 	}
 }

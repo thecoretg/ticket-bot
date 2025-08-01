@@ -35,7 +35,7 @@ func Run() error {
 	slog.Debug("DEBUG ON") // only prints if debug is on...so clever
 
 	s := newServer(config, store.NewInMemoryStore())
-	if err := s.prep(true); err != nil {
+	if err := s.prep(true, true); err != nil {
 		return fmt.Errorf("preparing server: %w", err)
 	}
 
@@ -47,14 +47,14 @@ func Run() error {
 	return nil
 }
 
-func (s *server) prep(preloadOpenTickets bool) error {
+func (s *server) prep(preloadBoards, preloadTickets bool) error {
 	if err := s.initiateCWHooks(); err != nil {
 		return fmt.Errorf("initiating connectwise webhooks: %w", err)
 	}
 
-	if preloadOpenTickets {
-		if err := s.preloadOpenTickets(); err != nil {
-			return fmt.Errorf("preloading existing open tickets: %w", err)
+	if preloadBoards || preloadTickets {
+		if err := s.preloadFromConnectwise(preloadBoards, preloadTickets); err != nil {
+			return fmt.Errorf("preloading from connectwise: %w", err)
 		}
 	}
 
