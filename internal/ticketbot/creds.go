@@ -8,12 +8,12 @@ import (
 )
 
 type creds struct {
-	webexSecret string
-	cwPubKey    string
-	cwPrivKey   string
-	cwClientID  string
-	cwCompanyID string
-	postgresDSN string
+	WebexSecret string `json:"webex_secret" mapstructure:"webex_secret"`
+	CwPubKey    string `json:"cw_pub_key" mapstructure:"cw_pub_key"`
+	CwPrivKey   string `json:"cw_priv_key" mapstructure:"cw_priv_key"`
+	CwClientID  string `json:"cw_client_id" mapstructure:"cw_client_id"`
+	CwCompanyID string `json:"cw_company_id" mapstructure:"cw_company_id"`
+	PostgresDSN string `json:"postgres_dsn" mapstructure:"postgres_dsn"`
 }
 
 const (
@@ -75,11 +75,11 @@ func getCreds(ctx context.Context, o *onepassword.Client) (*creds, error) {
 	}
 
 	return &creds{
-		webexSecret: webexSecret,
-		cwPubKey:    cwPubKey,
-		cwPrivKey:   cwPrivKey,
-		cwClientID:  cwClientID,
-		cwCompanyID: cwCompanyID,
-		postgresDSN: postgresDSN,
+		WebexSecret: webexSecret,
+		CwPubKey:    cwPubKey,
+		CwPrivKey:   cwPrivKey,
+		CwClientID:  cwClientID,
+		CwCompanyID: cwCompanyID,
+		PostgresDSN: postgresDSN,
 	}, nil
 }

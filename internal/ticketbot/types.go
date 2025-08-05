@@ -6,9 +6,18 @@ type Store interface {
 	UpsertTicket(ticket *Ticket) error
 	GetTicket(ticketID int) (*Ticket, error)
 	ListTickets() ([]Ticket, error)
+
 	UpsertBoard(board *Board) error
 	GetBoard(boardID int) (*Board, error)
 	ListBoards() ([]Board, error)
+
+	UpsertUser(user *User) error
+	GetUser(userID int) (*User, error)
+	ListUsers() ([]User, error)
+
+	UpsertAPIKey(apiKey *APIKey) error
+	GetAPIKey(keyID int) (*APIKey, error)
+	ListAPIKeys() ([]APIKey, error)
 }
 
 type TimeDetails struct {
@@ -31,4 +40,16 @@ type Board struct {
 	Name          string `json:"name"`
 	NotifyEnabled bool   `json:"notify_enabled"`
 	WebexRoomID   string `json:"webex_room_id"`
+}
+
+type User struct {
+	ID int `json:"id"`
+}
+
+type APIKey struct {
+	ID        int       `json:"id"`
+	UserID    int       `json:"user_id"`
+	Key       string    `json:"key"`
+	CreatedAt time.Time `json:"created_at"`
+	Revoked   bool      `json:"revoked"`
 }

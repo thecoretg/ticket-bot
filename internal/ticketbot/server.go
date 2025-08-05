@@ -25,7 +25,7 @@ type server struct {
 
 func RunServer() error {
 	ctx := context.Background()
-	config, err := InitCfg()
+	config, err := InitCfg(ctx)
 	if err != nil {
 		return fmt.Errorf("initializing config: %w", err)
 	}
@@ -35,22 +35,12 @@ func RunServer() error {
 	}
 	slog.Debug("DEBUG ON") // only prints if debug is on...so clever
 
-	opClient, err := new1PasswordClient(ctx, config.OPSvcToken)
-	if err != nil {
-		return fmt.Errorf("creating 1password client: %w", err)
-	}
-
-	allCreds, err := getCreds(ctx, opClient)
-	if err != nil {
-		return fmt.Errorf("getting credentials from 1password")
-	}
-
-	store, err := createStore(allCreds.postgresDSN)
+	store, err := createStore(config.Creds.PostgresDSN)
 	if err != nil {
 		return fmt.Errorf("creating store: %w", err)
 	}
 
-	s, err := newServer(allCreds, config, store)
+	s, err := newServer(config, store)
 	if err != nil {
 		return fmt.Errorf("creating server: %w", err)
 	}
@@ -93,20 +83,19 @@ func (s *server) addAllRoutes() {
 	s.addBoardsGroup()
 }
 
-func newServer(creds *creds, cfg *Cfg, store Store) (*server, error) {
+func newServer(cfg *Cfg, store Store) (*server, error) {
 
 	cwCreds := &connectwise.Creds{
-		PublicKey:  creds.cwPubKey,
-		PrivateKey: creds.cwPrivKey,
-		ClientId:   creds.cwClientID,
-		CompanyId:  creds.cwCompanyID,
+		PublicKey:  cfg.Creds.CwPubKey,
+		PrivateKey: cfg.Creds.CwPrivKey,
+		ClientId:   cfg.Creds.CwClientID,
+		CompanyId:  cfg.Creds.CwCompanyID,
 	}
 
 	return &server{
 		config:      cfg,
 		cwClient:    connectwise.NewClient(cwCreds),
-		cwCompanyID: creds.cwCompanyID,
-		webexClient: webex.NewClient(http.DefaultClient, creds.webexSecret),
+		webexClient: webex.NewClient(http.DefaultClient, cfg.Creds.WebexSecret),
 		dataStore:   store,
 		ginEngine:   gin.Default(),
 	}, nil
@@ -115,7 +104,7 @@ func newServer(creds *creds, cfg *Cfg, store Store) (*server, error) {
 // createStore creates an in-memory store, or attempts to connect to a Postgres store if in the config.
 func createStore(dsn string) (Store, error) {
 	var store Store
-	store = NewInMemoryStore()
+	//store = NewInMemoryStore()
 	if dsn != "" {
 		slog.Debug("database connection string provided in config")
 

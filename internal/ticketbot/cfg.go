@@ -1,34 +1,36 @@
 package ticketbot
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/spf13/viper"
+	"log/slog"
 )
 
 type Cfg struct {
-	Debug       bool   `json:"debug,omitempty" mapstructure:"debug"`
-	ExitOnError bool   `json:"exit_on_error,omitempty" mapstructure:"exit_on_error"`
-	LogToFile   bool   `json:"log_to_file,omitempty" mapstructure:"log_to_file"`
-	LogFilePath string `json:"log_file_path,omitempty" mapstructure:"log_file_path"`
+	Debug       bool   `json:"debug" mapstructure:"debug"`
+	ExitOnError bool   `json:"exit_on_error" mapstructure:"exit_on_error"`
+	LogToFile   bool   `json:"log_to_file" mapstructure:"log_to_file"`
+	LogFilePath string `json:"log_file_path" mapstructure:"log_file_path"`
 
-	RootURL     string `json:"root_url,omitempty" mapstructure:"root_url"`
+	RootURL     string `json:"root_url" mapstructure:"root_url"`
 	UseAutocert bool   `json:"use_autocert" mapstructure:"use_autocert"`
 
+	// OP is used to fetch creds from 1Password but the creds are then saved into the config
 	OPSvcToken string `json:"op_svc_token" mapstructure:"op_svc_token"`
+	Creds      *creds `json:"creds" mapstructur:"creds"`
 
 	// Max message length before ticket notifications get a "..." at the end instead of the whole message.
-	MaxMsgLength int `json:"max_msg_length,omitempty" mapstructure:"max_msg_length"`
+	MaxMsgLength int `json:"max_msg_length" mapstructure:"max_msg_length"`
 
 	// Members who we don't want to receive Webex messages.
 	ExcludedCWMembers []string `json:"excluded_cw_members" mapstructure:"excluded_cw_members"`
-
-	StopIfUpdatedBy []string `json:"stop_if_updated_by" mapstructure:"stop_if_updated_by"`
-	PreloadBoards   bool
-	PreloadTickets  bool
+	PreloadBoards     bool     `json:"preload_boards" mapstructure:"preload_boards"`
+	PreloadTickets    bool     `json:"preload_tickets" mapstructure:"preload_tickets"`
 }
 
-func InitCfg() (*Cfg, error) {
+func InitCfg(ctx context.Context) (*Cfg, error) {
 	viper.SetConfigType("json")
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
@@ -50,24 +52,54 @@ func InitCfg() (*Cfg, error) {
 		return nil, fmt.Errorf("writing config file: %w", err)
 	}
 
-	if err := c.validateFields(); err != nil {
-		return nil, fmt.Errorf("validating config fields: %w", err)
+	if c.OPSvcToken == "" {
+		return nil, errors.New("1Password service account token is empty, please go to config and fill out the op_svc_token field")
+	}
+
+	if !c.validateFields() {
+		opClient, err := new1PasswordClient(ctx, c.OPSvcToken)
+		if err != nil {
+			return nil, fmt.Errorf("creating 1password client: %w", err)
+		}
+		slog.Debug("1Password client created successfully")
+
+		creds, err := getCreds(ctx, opClient)
+		if err != nil {
+			return nil, fmt.Errorf("getting credentials from 1password: %w", err)
+		}
+		slog.Debug("credentials fetched from 1Password successfully")
+
+		c.Creds = creds
+		if !c.validateFields() {
+			return nil, errors.New("config is still missing required fields after fetching from 1Password, please check config.json")
+		}
+		slog.Debug("config fields validated successfully")
+
+		if err := viper.WriteConfigAs("config.json"); err != nil {
+			return nil, fmt.Errorf("writing updated config file: %w", err)
+		}
+		slog.Debug("updated config file written successfully")
 	}
 
 	return &c, nil
 }
 
-func (cfg *Cfg) validateFields() error {
+func (cfg *Cfg) validateFields() bool {
 	vals := map[string]string{
-		"root_url":     cfg.RootURL,
-		"op_svc_token": cfg.OPSvcToken,
+		"root_url":      cfg.RootURL,
+		"cw_pub_key":    cfg.Creds.CwPubKey,
+		"cw_priv_key":   cfg.Creds.CwPrivKey,
+		"cw_client_id":  cfg.Creds.CwClientID,
+		"cw_company_id": cfg.Creds.CwCompanyID,
+		"postgres_dsn":  cfg.Creds.PostgresDSN,
+		"webex_secret":  cfg.Creds.WebexSecret,
 	}
 
 	if err := checkEmptyFields(vals); err != nil {
-		return fmt.Errorf("validating fields: %w", err)
+		return false
 	}
 
-	return nil
+	return true
 }
 
 func checkEmptyFields(vals map[string]string) error {
@@ -80,8 +112,18 @@ func checkEmptyFields(vals map[string]string) error {
 }
 
 func setConfigDefaults() {
+	viper.SetDefault("debug", false)
+	viper.SetDefault("exit_on_error", false)
+	viper.SetDefault("log_to_file", false)
+	viper.SetDefault("log_file_path", "ticketbot.log")
 	viper.SetDefault("root_url", "")
+	viper.SetDefault("use_autocert", false)
+	viper.SetDefault("max_msg_length", 300)
+	viper.SetDefault("excluded_cw_members", []string{})
 	viper.SetDefault("op_svc_token", "")
+	viper.SetDefault("creds", &creds{})
+	viper.SetDefault("preload_boards", true)
+	viper.SetDefault("preload_tickets", true)
 }
 
 func isEmpty(s string) bool {

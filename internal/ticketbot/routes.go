@@ -20,6 +20,16 @@ func (s *server) addBoardsGroup() {
 	boards.PUT(":board_id", s.putBoard)
 }
 
+func (s *server) addUsersGroup() {
+	users := s.ginEngine.Group("/users", ErrorHandler(s.config.ExitOnError))
+
+	users.GET("", s.getUsers)
+	users.GET(":user_id", s.getUser)
+	users.POST("", s.postUser)
+	users.PUT(":user_id", s.putUser)
+	//users.DELETE(":user_id")
+}
+
 func (s *server) getTickets(c *gin.Context) {
 	slog.Debug("get tickets called")
 	tickets, err := s.dataStore.ListTickets()
@@ -97,4 +107,83 @@ func (s *server) putBoard(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, updatedBoard)
+}
+func (s *server) getUsers(c *gin.Context) {
+	users, err := s.dataStore.ListUsers()
+	if err != nil {
+		c.Error(fmt.Errorf("getting list of users: %w", err))
+		return
+	}
+	slog.Debug("got users", "total_users", len(users))
+
+	c.JSON(http.StatusOK, users)
+}
+
+func (s *server) getUser(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Param("user_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, errorOutput("user id must be a valid integer"))
+		return
+	}
+
+	user, err := s.dataStore.GetUser(userID)
+	if err != nil {
+		c.Error(fmt.Errorf("getting user: %w", err))
+		return
+	}
+
+	if user == nil {
+		c.JSON(http.StatusNotFound, errorOutput(fmt.Sprintf("user with id %d not found", userID)))
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+
+func (s *server) postUser(c *gin.Context) {
+	user := &User{}
+	if err := c.ShouldBindJSON(user); err != nil {
+		c.Error(fmt.Errorf("unmarshaling user data: %w", err))
+		return
+	}
+
+	if err := s.dataStore.UpsertUser(user); err != nil {
+		c.Error(fmt.Errorf("upserting user: %w", err))
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+
+func (s *server) putUser(c *gin.Context) {
+	slog.Debug("put user called")
+	userID, err := strconv.Atoi(c.Param("user_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, errorOutput("user id must be a valid integer"))
+		return
+	}
+
+	storeUser, err := s.dataStore.GetUser(userID)
+	if err != nil {
+		c.Error(fmt.Errorf("getting user: %w", err))
+		return
+	}
+
+	if storeUser == nil {
+		c.JSON(http.StatusNotFound, errorOutput(fmt.Sprintf("user with id %d not found", userID)))
+		return
+	}
+
+	updatedUser := &User{}
+	if err := c.ShouldBindJSON(updatedUser); err != nil {
+		c.Error(fmt.Errorf("unmarshaling user data: %w", err))
+		return
+	}
+
+	if err := s.dataStore.UpsertUser(updatedUser); err != nil {
+		c.Error(fmt.Errorf("upserting user: %w", err))
+		return
+	}
+
+	c.JSON(http.StatusOK, updatedUser)
 }

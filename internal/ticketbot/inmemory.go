@@ -7,15 +7,21 @@ import (
 type InMemoryStore struct {
 	tickets map[int]*Ticket
 	boards  map[int]*Board
+	users   map[int]*User
+	apiKeys map[int]*APIKey
 	mu      sync.RWMutex
 }
 
 func NewInMemoryStore() *InMemoryStore {
 	t := make(map[int]*Ticket)
 	b := make(map[int]*Board)
+	u := make(map[int]*User)
+	a := make(map[int]*APIKey)
 	return &InMemoryStore{
 		tickets: t,
 		boards:  b,
+		users:   u,
+		apiKeys: a,
 	}
 }
 
@@ -79,4 +85,62 @@ func (m *InMemoryStore) ListBoards() ([]Board, error) {
 	}
 
 	return boards, nil
+}
+
+func (m *InMemoryStore) UpsertUser(user *User) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.users[user.ID] = user
+	return nil
+}
+
+func (m *InMemoryStore) GetUser(userID int) (*User, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if user, exists := m.users[userID]; exists {
+		return user, nil
+	}
+	return nil, nil
+}
+
+func (m *InMemoryStore) ListUsers() ([]User, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var users []User
+	for _, user := range m.users {
+		users = append(users, *user)
+	}
+	if users == nil {
+		users = []User{}
+	}
+	return users, nil
+}
+
+func (m *InMemoryStore) UpsertAPIKey(apiKey *APIKey) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.apiKeys[apiKey.ID] = apiKey
+	return nil
+}
+
+func (m *InMemoryStore) GetAPIKey(apiKeyID int) (*APIKey, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if apiKey, exists := m.apiKeys[apiKeyID]; exists {
+		return apiKey, nil
+	}
+	return nil, nil
+}
+
+func (m *InMemoryStore) ListAPIKeys() ([]APIKey, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var apiKeys []APIKey
+	for _, apiKey := range m.apiKeys {
+		apiKeys = append(apiKeys, *apiKey)
+	}
+	if apiKeys == nil {
+		apiKeys = []APIKey{}
+	}
+	return apiKeys, nil
 }
