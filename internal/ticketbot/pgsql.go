@@ -43,6 +43,10 @@ func createTables(db *gorm.DB) error {
 	if err := db.AutoMigrate(&APIKey{}); err != nil {
 		return fmt.Errorf("automigrate api key table: %w", err)
 	}
+
+	if err := db.AutoMigrate(&TicketNote{}); err != nil {
+		return fmt.Errorf("automigrate ticket_note table: %w", err)
+	}
 	return nil
 }
 
@@ -184,4 +188,34 @@ func (p *PostgresStore) ListAPIKeys() ([]APIKey, error) {
 	}
 
 	return apiKeys, nil
+}
+
+func (p *PostgresStore) UpsertTicketNote(ticketNote *TicketNote) error {
+	result := p.db.Save(ticketNote)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+}
+
+func (p *PostgresStore) GetTicketNote(ticketNoteID int) (*TicketNote, error) {
+	ticketNote := &TicketNote{}
+	if err := p.db.First(ticketNote, ticketNoteID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return ticketNote, nil
+}
+
+func (p *PostgresStore) ListTicketNotes(ticketID int) ([]TicketNote, error) {
+	var notes []TicketNote
+	if err := p.db.Where("ticket_id = ?", ticketID).Find(&notes).Error; err != nil {
+		return nil, err
+	}
+	if len(notes) == 0 {
+		notes = []TicketNote{}
+	}
+	return notes, nil
 }

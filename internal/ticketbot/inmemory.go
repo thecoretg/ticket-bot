@@ -5,11 +5,12 @@ import (
 )
 
 type InMemoryStore struct {
-	tickets map[int]*Ticket
-	boards  map[int]*Board
-	users   map[int]*User
-	apiKeys map[int]*APIKey
-	mu      sync.RWMutex
+	tickets     map[int]*Ticket
+	boards      map[int]*Board
+	users       map[int]*User
+	apiKeys     map[int]*APIKey
+	ticketNotes map[int]*TicketNote
+	mu          sync.RWMutex
 }
 
 func NewInMemoryStore() *InMemoryStore {
@@ -17,11 +18,13 @@ func NewInMemoryStore() *InMemoryStore {
 	b := make(map[int]*Board)
 	u := make(map[int]*User)
 	a := make(map[int]*APIKey)
+	n := make(map[int]*TicketNote)
 	return &InMemoryStore{
-		tickets: t,
-		boards:  b,
-		users:   u,
-		apiKeys: a,
+		tickets:     t,
+		boards:      b,
+		users:       u,
+		apiKeys:     a,
+		ticketNotes: n,
 	}
 }
 
@@ -143,4 +146,35 @@ func (m *InMemoryStore) ListAPIKeys() ([]APIKey, error) {
 		apiKeys = []APIKey{}
 	}
 	return apiKeys, nil
+}
+
+func (m *InMemoryStore) UpsertTicketNote(ticketNote *TicketNote) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.ticketNotes[ticketNote.ID] = ticketNote
+	return nil
+}
+
+func (m *InMemoryStore) GetTicketNote(ticketNoteID int) (*TicketNote, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if note, exists := m.ticketNotes[ticketNoteID]; exists {
+		return note, nil
+	}
+	return nil, nil
+}
+
+func (m *InMemoryStore) ListTicketNotes(ticketID int) ([]TicketNote, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var notes []TicketNote
+	for _, note := range m.ticketNotes {
+		if note.TicketID == ticketID {
+			notes = append(notes, *note)
+		}
+	}
+	if notes == nil {
+		notes = []TicketNote{}
+	}
+	return notes, nil
 }

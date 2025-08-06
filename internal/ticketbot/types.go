@@ -7,6 +7,10 @@ type Store interface {
 	GetTicket(ticketID int) (*Ticket, error)
 	ListTickets() ([]Ticket, error)
 
+	UpsertTicketNote(ticketNote *TicketNote) error
+	GetTicketNote(ticketNoteID int) (*TicketNote, error)
+	ListTicketNotes(ticketID int) ([]TicketNote, error)
+
 	UpsertBoard(board *Board) error
 	GetBoard(boardID int) (*Board, error)
 	ListBoards() ([]Board, error)
@@ -25,14 +29,21 @@ type TimeDetails struct {
 }
 
 type Ticket struct {
-	ID           int    `json:"id"`
-	Summary      string `json:"summary"`
-	BoardID      int    `json:"board_id"`
-	LatestNoteID int    `json:"latest_note_id"`
-	OwnerID      int    `json:"owner_id"`
-	Resources    string `json:"resources"`
-	UpdatedBy    string `json:"updated_by"`
+	ID           int          `json:"id"`
+	Summary      string       `json:"summary"`
+	BoardID      int          `json:"board_id"`
+	TicketNotes  []TicketNote `json:"ticket_notes"`
+	LatestNoteID int          `json:"latest_note_id"`
+	OwnerID      int          `json:"owner_id"`
+	Resources    string       `json:"resources"`
+	UpdatedBy    string       `json:"updated_by"`
 	TimeDetails
+}
+
+type TicketNote struct {
+	ID       int  `json:"id"`
+	TicketID int  `json:"ticket_id"`
+	Notified bool `json:"notified"`
 }
 
 type Board struct {
