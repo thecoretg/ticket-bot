@@ -14,14 +14,6 @@ type Store interface {
 	UpsertBoard(board *Board) error
 	GetBoard(boardID int) (*Board, error)
 	ListBoards() ([]Board, error)
-
-	UpsertUser(user *User) error
-	GetUser(userID int) (*User, error)
-	ListUsers() ([]User, error)
-
-	UpsertAPIKey(apiKey *APIKey) error
-	GetAPIKey(keyID int) (*APIKey, error)
-	ListAPIKeys() ([]APIKey, error)
 }
 
 type TimeDetails struct {
@@ -29,14 +21,13 @@ type TimeDetails struct {
 }
 
 type Ticket struct {
-	ID           int          `json:"id"`
-	Summary      string       `json:"summary"`
-	BoardID      int          `json:"board_id"`
-	TicketNotes  []TicketNote `json:"ticket_notes"`
-	LatestNoteID int          `json:"latest_note_id"`
-	OwnerID      int          `json:"owner_id"`
-	Resources    string       `json:"resources"`
-	UpdatedBy    string       `json:"updated_by"`
+	ID          int          `json:"id"`
+	Summary     string       `json:"summary"`
+	BoardID     int          `json:"board_id"`
+	TicketNotes []TicketNote `json:"ticket_notes"`
+	OwnerID     int          `json:"owner_id"`
+	Resources   string       `json:"resources"`
+	UpdatedBy   string       `json:"updated_by"`
 	TimeDetails
 }
 
@@ -51,16 +42,4 @@ type Board struct {
 	Name          string `json:"name"`
 	NotifyEnabled bool   `json:"notify_enabled"`
 	WebexRoomID   string `json:"webex_room_id"`
-}
-
-type User struct {
-	ID int `json:"id"`
-}
-
-type APIKey struct {
-	ID        int       `json:"id"`
-	UserID    int       `json:"user_id"`
-	Key       string    `json:"key"`
-	CreatedAt time.Time `json:"created_at"`
-	Revoked   bool      `json:"revoked"`
 }

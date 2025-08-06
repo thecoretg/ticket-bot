@@ -36,14 +36,6 @@ func createTables(db *gorm.DB) error {
 		return fmt.Errorf("automigrate board table: %w", err)
 	}
 
-	if err := db.AutoMigrate(&User{}); err != nil {
-		return fmt.Errorf("automigrate user table: %w", err)
-	}
-
-	if err := db.AutoMigrate(&APIKey{}); err != nil {
-		return fmt.Errorf("automigrate api key table: %w", err)
-	}
-
 	if err := db.AutoMigrate(&TicketNote{}); err != nil {
 		return fmt.Errorf("automigrate ticket_note table: %w", err)
 	}
@@ -118,76 +110,6 @@ func (p *PostgresStore) ListBoards() ([]Board, error) {
 	}
 
 	return boards, nil
-}
-
-func (p *PostgresStore) UpsertUser(user *User) error {
-	result := p.db.Save(user)
-	if result.Error != nil {
-		return result.Error
-	}
-
-	return nil
-}
-
-func (p *PostgresStore) GetUser(userID int) (*User, error) {
-	user := &User{}
-	if err := p.db.First(user, userID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-
-		return nil, err
-	}
-
-	return user, nil
-}
-
-func (p *PostgresStore) ListUsers() ([]User, error) {
-	var users []User
-	if err := p.db.Find(&users).Error; err != nil {
-		return nil, err
-	}
-
-	if len(users) == 0 {
-		users = []User{}
-	}
-
-	return users, nil
-}
-
-func (p *PostgresStore) UpsertAPIKey(apiKey *APIKey) error {
-	result := p.db.Save(apiKey)
-	if result.Error != nil {
-		return result.Error
-	}
-
-	return nil
-}
-
-func (p *PostgresStore) GetAPIKey(apiKeyID int) (*APIKey, error) {
-	apiKey := &APIKey{}
-	if err := p.db.First(apiKey, apiKeyID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-
-		return nil, err
-	}
-
-	return apiKey, nil
-}
-
-func (p *PostgresStore) ListAPIKeys() ([]APIKey, error) {
-	var apiKeys []APIKey
-	if err := p.db.Find(&apiKeys).Error; err != nil {
-		return nil, err
-	}
-
-	if len(apiKeys) == 0 {
-		apiKeys = []APIKey{}
-	}
-
-	return apiKeys, nil
 }
 
 func (p *PostgresStore) UpsertTicketNote(ticketNote *TicketNote) error {

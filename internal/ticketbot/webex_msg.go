@@ -1,12 +1,31 @@
 package ticketbot
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strings"
 	"tctg-automation/pkg/connectwise"
 	"tctg-automation/pkg/webex"
 )
+
+func (s *server) makeAndSendWebexMsgs(ctx context.Context, action string, workingTicket *Ticket, cwTicketData *connectwise.Ticket, board *Board, note *connectwise.ServiceTicketNote) error {
+	messages, err := s.makeWebexMsgs(action, workingTicket.UpdatedBy, board, cwTicketData, note)
+	if err != nil {
+		return fmt.Errorf("creating webex messages: %w", err)
+	}
+
+	for _, msg := range messages {
+		if err := s.webexClient.SendMessage(ctx, msg); err != nil {
+			// Don't fully exit, just warn, if a message isn't sent. Sometimes, this will happen if
+			// the person on the ticket doesn't have an account, or the same email address, in Webex.
+			slog.Warn("error sending webex message", "ticket_id", workingTicket.ID, "room_id", msg.RoomId, "person", msg.Person, "error", err)
+		}
+	}
+
+	return nil
+}
 
 // makeWebexMsgs constructs a message - it handles new tickets and updated tickets, and determines which Webex room, or which people,
 // the message should be sent to.
