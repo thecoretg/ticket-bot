@@ -11,7 +11,7 @@ import (
 
 const maxConcurrentPreload = 10
 
-func (s *server) preloadFromConnectwise(ctx context.Context, preloadBoards, preloadTickets bool) error {
+func (s *Server) PreloadAll(ctx context.Context, preloadBoards, preloadTickets bool) error {
 	if preloadBoards {
 		slog.Debug("preload boards enabled")
 		time.Sleep(2 * time.Second)
@@ -31,7 +31,7 @@ func (s *server) preloadFromConnectwise(ctx context.Context, preloadBoards, prel
 	return nil
 }
 
-func (s *server) preloadBoards() error {
+func (s *Server) preloadBoards() error {
 	params := map[string]string{
 		"conditions": "inactiveFlag = false",
 	}
@@ -73,7 +73,7 @@ func (s *server) preloadBoards() error {
 	return nil
 }
 
-func (s *server) preloadOpenTickets(ctx context.Context) error {
+func (s *Server) preloadOpenTickets(ctx context.Context) error {
 	params := map[string]string{
 		"pageSize":   "100",
 		"conditions": "closedFlag = false and board/id = 34",

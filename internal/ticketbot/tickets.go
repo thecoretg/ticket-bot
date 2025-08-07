@@ -24,13 +24,13 @@ type storedData struct {
 	board  *Board
 }
 
-func (s *server) addHooksGroup() {
+func (s *Server) addHooksGroup() {
 	hooks := s.ginEngine.Group("/hooks")
 	cw := hooks.Group("/cw", requireValidCWSignature(), ErrorHandler(s.config.ExitOnError))
 	cw.POST("/tickets", s.handleTickets)
 }
 
-func (s *server) handleTickets(c *gin.Context) {
+func (s *Server) handleTickets(c *gin.Context) {
 	w := &connectwise.WebhookPayload{}
 	if err := c.ShouldBindJSON(w); err != nil {
 		c.Error(fmt.Errorf("unmarshaling connectwise webhook payload: %w", err))
@@ -55,14 +55,14 @@ func (s *server) handleTickets(c *gin.Context) {
 	}
 }
 
-func (s *server) getTicketLock(ticketID int) *sync.Mutex {
+func (s *Server) getTicketLock(ticketID int) *sync.Mutex {
 	lockIface, _ := s.ticketLocks.LoadOrStore(ticketID, &sync.Mutex{})
 	return lockIface.(*sync.Mutex)
 }
 
 // addOrUpdateTicket serves as the primary handler for updating the data store with ticket data. It also will handle
 // extra functionality such as ticket notifications.
-func (s *server) addOrUpdateTicket(ctx context.Context, ticketID int, action string, assumeNotify bool) error {
+func (s *Server) addOrUpdateTicket(ctx context.Context, ticketID int, action string, assumeNotify bool) error {
 	// Lock the ticket so that extra calls don't interfere. Due to the nature of Connectwise updates will often
 	// result in other hooks and actions taking place, which means a ticket rarely only sends one webhook payload.
 	lock := s.getTicketLock(ticketID)
@@ -119,7 +119,7 @@ func (s *server) addOrUpdateTicket(ctx context.Context, ticketID int, action str
 	return nil
 }
 
-func (s *server) getCwData(ticketID int) (*cwData, error) {
+func (s *Server) getCwData(ticketID int) (*cwData, error) {
 	ticket, err := s.cwClient.GetTicket(ticketID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("getting ticket: %w", err)
@@ -140,7 +140,7 @@ func (s *server) getCwData(ticketID int) (*cwData, error) {
 	}, nil
 }
 
-func (s *server) getStoredData(cwData *cwData, assumeNotified bool) (*storedData, error) {
+func (s *Server) getStoredData(cwData *cwData, assumeNotified bool) (*storedData, error) {
 	// Get existing ticket from store - will be nil if it doesn't already exist.
 	ticket, err := s.ensureTicketInStore(cwData)
 	if err != nil {
@@ -167,7 +167,7 @@ func (s *server) getStoredData(cwData *cwData, assumeNotified bool) (*storedData
 	}, nil
 }
 
-func (s *server) ensureTicketInStore(cwData *cwData) (*Ticket, error) {
+func (s *Server) ensureTicketInStore(cwData *cwData) (*Ticket, error) {
 	ticket, err := s.dataStore.GetTicket(cwData.ticket.ID)
 	if err != nil {
 		return nil, fmt.Errorf("getting ticket from storage: %w", err)

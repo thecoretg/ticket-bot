@@ -10,7 +10,7 @@ import (
 	"tctg-automation/pkg/webex"
 )
 
-func (s *server) makeAndSendWebexMsgs(ctx context.Context, action string, cwData *cwData, storedData *storedData) error {
+func (s *Server) makeAndSendWebexMsgs(ctx context.Context, action string, cwData *cwData, storedData *storedData) error {
 	messages, err := s.makeWebexMsgs(action, cwData, storedData)
 	if err != nil {
 		return fmt.Errorf("creating webex messages: %w", err)
@@ -29,7 +29,7 @@ func (s *server) makeAndSendWebexMsgs(ctx context.Context, action string, cwData
 
 // makeWebexMsgs constructs a message - it handles new tickets and updated tickets, and determines which Webex room, or which people,
 // the message should be sent to.
-func (s *server) makeWebexMsgs(action string, cwData *cwData, storedData *storedData) ([]webex.MessagePostBody, error) {
+func (s *Server) makeWebexMsgs(action string, cwData *cwData, storedData *storedData) ([]webex.MessagePostBody, error) {
 	var body string
 	body += s.messageHeader(action, cwData)
 
@@ -66,7 +66,7 @@ func (s *server) makeWebexMsgs(action string, cwData *cwData, storedData *stored
 
 // getSendTo creates a list of emails to send notifications to, factoring in who made the most
 // recent update and any other exclusions passed in by the config.
-func (s *server) getSendTo(storedData *storedData) ([]string, error) {
+func (s *Server) getSendTo(storedData *storedData) ([]string, error) {
 	var excludedMembers []string
 	for _, m := range s.config.ExcludedCWMembers {
 		excludedMembers = append(excludedMembers, m)
@@ -103,7 +103,7 @@ func (s *server) getSendTo(storedData *storedData) ([]string, error) {
 	return emails, nil
 }
 
-func (s *server) messageHeader(action string, cwData *cwData) string {
+func (s *Server) messageHeader(action string, cwData *cwData) string {
 	var header string
 	if action == "added" {
 		header += "**New Ticket:** "
@@ -116,7 +116,7 @@ func (s *server) messageHeader(action string, cwData *cwData) string {
 	return header
 }
 
-func (s *server) messageText(cwData *cwData) string {
+func (s *Server) messageText(cwData *cwData) string {
 	var body string
 	sender := getSenderName(cwData)
 	if sender != nil {

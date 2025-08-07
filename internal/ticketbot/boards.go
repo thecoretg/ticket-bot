@@ -7,12 +7,12 @@ import (
 	"strconv"
 )
 
-func (s *server) addBoardsGroup() {
+func (s *Server) addBoardsGroup() {
 	boards := s.ginEngine.Group("/boards", ErrorHandler(s.config.ExitOnError))
 	boards.PUT("/:board_id", s.putBoard)
 }
 
-func (s *server) putBoard(c *gin.Context) {
+func (s *Server) putBoard(c *gin.Context) {
 	boardID, err := strconv.Atoi(c.Param("board_id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, errorOutput("board id must be a valid integer"))
@@ -44,7 +44,7 @@ func (s *server) putBoard(c *gin.Context) {
 	c.JSON(http.StatusOK, updatedBoard)
 }
 
-func (s *server) ensureBoardInStore(cwData *cwData) (*Board, error) {
+func (s *Server) ensureBoardInStore(cwData *cwData) (*Board, error) {
 	board, err := s.dataStore.GetBoard(cwData.ticket.Board.ID)
 	if err != nil {
 		return nil, fmt.Errorf("getting board from storage: %w", err)
@@ -62,7 +62,7 @@ func (s *server) ensureBoardInStore(cwData *cwData) (*Board, error) {
 
 // addBoard adds Connecwise boards to the data store, with a default of
 // notifications not enabled.
-func (s *server) addBoard(boardID int) (*Board, error) {
+func (s *Server) addBoard(boardID int) (*Board, error) {
 	cwBoard, err := s.cwClient.GetBoard(boardID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("getting board from connectwise: %w", err)

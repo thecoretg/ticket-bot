@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type server struct {
+type Server struct {
 	config      *Cfg
 	dataStore   Store
 	cwClient    *connectwise.Client
@@ -31,45 +31,35 @@ func GetGinEngine() (*gin.Engine, error) {
 
 	slog.Debug("DEBUG ON") // only prints if debug is on...so clever
 
-	store, err := createStore(config.Creds.PostgresDSN)
+	s, err := NewServer(config)
 	if err != nil {
-		return nil, fmt.Errorf("creating store: %w", err)
+		return nil, fmt.Errorf("creating Server: %w", err)
 	}
 
-	s, err := newServer(config, store)
-	if err != nil {
-		return nil, fmt.Errorf("creating server: %w", err)
+	if err := s.initiateCWHooks(); err != nil {
+		return nil, fmt.Errorf("initiating connectwise webhooks: %w", err)
 	}
 
-	if err := s.prep(ctx, s.config.PreloadBoards, s.config.PreloadTickets); err != nil {
-		return nil, fmt.Errorf("preparing server: %w", err)
+	if !s.config.Debug {
+		gin.SetMode(gin.ReleaseMode)
 	}
 
+	s.ginEngine = gin.Default()
 	s.addAllRoutes()
 
 	return s.ginEngine, nil
 }
 
-func (s *server) prep(ctx context.Context, preloadBoards, preloadTickets bool) error {
-	if err := s.initiateCWHooks(); err != nil {
-		return fmt.Errorf("initiating connectwise webhooks: %w", err)
-	}
-
-	if preloadBoards || preloadTickets {
-		if err := s.preloadFromConnectwise(ctx, preloadBoards, preloadTickets); err != nil {
-			return fmt.Errorf("preloading from connectwise: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func (s *server) addAllRoutes() {
+func (s *Server) addAllRoutes() {
 	s.addHooksGroup()
 	s.addBoardsGroup()
 }
 
-func newServer(cfg *Cfg, store Store) (*server, error) {
+func NewServer(cfg *Cfg) (*Server, error) {
+	store, err := createStore(cfg.Creds.PostgresDSN)
+	if err != nil {
+		return nil, fmt.Errorf("setting up postgres connection: %w", err)
+	}
 
 	cwCreds := &connectwise.Creds{
 		PublicKey:  cfg.Creds.CwPubKey,
@@ -78,12 +68,11 @@ func newServer(cfg *Cfg, store Store) (*server, error) {
 		CompanyId:  cfg.Creds.CwCompanyID,
 	}
 
-	return &server{
+	return &Server{
 		config:      cfg,
 		cwClient:    connectwise.NewClient(cwCreds),
 		webexClient: webex.NewClient(http.DefaultClient, cfg.Creds.WebexSecret),
 		dataStore:   store,
-		ginEngine:   gin.Default(),
 	}, nil
 }
 

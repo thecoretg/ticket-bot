@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (s *server) initiateCWHooks() error {
+func (s *Server) initiateCWHooks() error {
 	params := map[string]string{
 		"pageSize": "1000",
 	}
@@ -27,7 +27,7 @@ func (s *server) initiateCWHooks() error {
 	return nil
 }
 
-func (s *server) processCwHook(url, entity, level string, objectID int, currentHooks []connectwise.Callback) error {
+func (s *Server) processCwHook(url, entity, level string, objectID int, currentHooks []connectwise.Callback) error {
 	hook := &connectwise.Callback{
 		URL:      fmt.Sprintf("https://%s", url),
 		Type:     entity,
@@ -64,7 +64,7 @@ func (s *server) processCwHook(url, entity, level string, objectID int, currentH
 	return nil
 }
 
-func (s *server) ticketsWebhookURL() string {
+func (s *Server) ticketsWebhookURL() string {
 	return fmt.Sprintf("%s/hooks/cw/tickets", s.config.RootURL)
 }
 
