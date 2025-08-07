@@ -36,6 +36,10 @@ func GetGinEngine() (*gin.Engine, error) {
 		return nil, fmt.Errorf("creating Server: %w", err)
 	}
 
+	if err := s.preloadAll(ctx, config.PreloadBoards, config.PreloadTickets); err != nil {
+		return nil, fmt.Errorf("preloading data: %s", err)
+	}
+
 	if err := s.initiateCWHooks(); err != nil {
 		return nil, fmt.Errorf("initiating connectwise webhooks: %w", err)
 	}

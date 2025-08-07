@@ -11,7 +11,7 @@ import (
 
 const maxConcurrentPreload = 10
 
-func (s *Server) PreloadAll(ctx context.Context, preloadBoards, preloadTickets bool) error {
+func (s *Server) preloadAll(ctx context.Context, preloadBoards, preloadTickets bool) error {
 	if preloadBoards {
 		slog.Debug("preload boards enabled")
 		time.Sleep(2 * time.Second)
