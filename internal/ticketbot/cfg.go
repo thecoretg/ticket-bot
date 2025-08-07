@@ -31,55 +31,36 @@ type Cfg struct {
 }
 
 func InitCfg(ctx context.Context) (*Cfg, error) {
-	viper.SetConfigType("json")
-	viper.SetConfigName("config")
-	viper.AddConfigPath(".")
-
 	setConfigDefaults()
-	if err := viper.ReadInConfig(); err != nil {
-		var configFileNotFoundError viper.ConfigFileNotFoundError
-		if !errors.As(err, &configFileNotFoundError) {
-			return nil, fmt.Errorf("reading in config: %w", err)
-		}
-	}
+	viper.AutomaticEnv()
+	viper.SetEnvPrefix("TICKETBOT")
 
 	var c Cfg
 	if err := viper.Unmarshal(&c); err != nil {
 		return nil, fmt.Errorf("unmarshaling config: %w", err)
 	}
 
-	if err := viper.WriteConfigAs("config.json"); err != nil {
-		return nil, fmt.Errorf("writing config file: %w", err)
-	}
-
 	if c.OPSvcToken == "" {
 		return nil, errors.New("1Password service account token is empty, please go to config and fill out the op_svc_token field")
 	}
 
-	if !c.validateFields() {
-		opClient, err := new1PasswordClient(ctx, c.OPSvcToken)
-		if err != nil {
-			return nil, fmt.Errorf("creating 1password client: %w", err)
-		}
-		slog.Debug("1Password client created successfully")
-
-		creds, err := getCreds(ctx, opClient)
-		if err != nil {
-			return nil, fmt.Errorf("getting credentials from 1password: %w", err)
-		}
-		slog.Debug("credentials fetched from 1Password successfully")
-
-		c.Creds = creds
-		if !c.validateFields() {
-			return nil, errors.New("config is still missing required fields after fetching from 1Password, please check config.json")
-		}
-		slog.Debug("config fields validated successfully")
-
-		if err := viper.WriteConfigAs("config.json"); err != nil {
-			return nil, fmt.Errorf("writing updated config file: %w", err)
-		}
-		slog.Debug("updated config file written successfully")
+	opClient, err := new1PasswordClient(ctx, c.OPSvcToken)
+	if err != nil {
+		return nil, fmt.Errorf("creating 1password client: %w", err)
 	}
+	slog.Debug("1Password client created successfully")
+
+	creds, err := getCreds(ctx, opClient)
+	if err != nil {
+		return nil, fmt.Errorf("getting credentials from 1password: %w", err)
+	}
+	slog.Debug("credentials fetched from 1Password successfully")
+
+	c.Creds = creds
+	if !c.validateFields() {
+		return nil, errors.New("config is still missing required fields after fetching from 1Password, please check config.json")
+	}
+	slog.Debug("config fields validated successfully")
 
 	return &c, nil
 }
@@ -96,6 +77,7 @@ func (cfg *Cfg) validateFields() bool {
 	}
 
 	if err := checkEmptyFields(vals); err != nil {
+		slog.Error(err.Error())
 		return false
 	}
 
