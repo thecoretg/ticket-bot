@@ -1,0 +1,92 @@
+package ticketbot
+
+import (
+	"bytes"
+	"fmt"
+	"github.com/gin-gonic/gin"
+	"io"
+	"log/slog"
+	connectwise2 "tctg-automation/connectwise"
+)
+
+func (s *Server) initiateCWHooks() error {
+	params := map[string]string{
+		"pageSize": "1000",
+	}
+	cwHooks, err := s.cwClient.ListCallbacks(params)
+	if err != nil {
+		return fmt.Errorf("listing callbacks: %w", err)
+	}
+	slog.Debug("got existing webhooks", "total", len(cwHooks))
+
+	if err := s.processCwHook(s.ticketsWebhookURL(), "ticket", "owner", 1, cwHooks); err != nil {
+		return fmt.Errorf("processing tickets hook: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Server) processCwHook(url, entity, level string, objectID int, currentHooks []connectwise2.Callback) error {
+	hook := &connectwise2.Callback{
+		URL:      fmt.Sprintf("https://%s", url),
+		Type:     entity,
+		Level:    level,
+		ObjectId: objectID,
+	}
+
+	slog.Debug("expected connectwise webhook", "url", url, "entity", entity, "level", level, "objectID", objectID)
+	found := false
+	for _, c := range currentHooks {
+		slog.Debug("checking connectwise webhook", "id", c.ID, "url", c.URL, "type", c.Type, "level", c.Level, "inactiveFlag", c.InactiveFlag)
+		if c.URL == hook.URL {
+			slog.Debug("found matching url for webhook")
+			if c.Type == hook.Type && c.Level == hook.Level && c.InactiveFlag == hook.InactiveFlag && !found {
+				slog.Debug("found existing connectwise webhook", "id", c.ID, "entity", entity, "level", level, "url", url)
+				found = true
+				continue
+			} else {
+				if err := s.cwClient.DeleteCallback(c.ID); err != nil {
+					return fmt.Errorf("deleting webhook %d: %w", c.ID, err)
+				}
+				slog.Debug("deleted unused connectwise webhook", "id", c.ID, "url", c.URL)
+			}
+		}
+	}
+
+	if !found {
+		newHook, err := s.cwClient.PostCallback(hook)
+		if err != nil {
+			return fmt.Errorf("posting webhook: %w", err)
+		}
+		slog.Info("added new connectwise hook", "id", newHook.ID, "url", url, "entity", entity, "level", level, "objectID", objectID)
+	}
+	return nil
+}
+
+func (s *Server) ticketsWebhookURL() string {
+	return fmt.Sprintf("%s/hooks/cw/tickets", s.config.RootURL)
+}
+
+func requireValidCWSignature() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		bodyBytes, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.Error(fmt.Errorf("reading request body: %w", err))
+			c.Next()
+			c.Abort()
+			return
+		}
+
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		valid, err := connectwise2.ValidateWebhook(c.Request)
+		if err != nil || !valid {
+			c.Error(fmt.Errorf("invalid ConnectWise webhook signature: %w", err))
+			c.Next()
+			c.Abort()
+			return
+		}
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes)) // Restore body for further processing
+		c.Next()
+	}
+}

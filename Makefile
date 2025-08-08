@@ -1,4 +1,5 @@
-.PHONY: run
+update-lambda:
+	scripts/deploy_lambda.sh
 
-run:
-	go run $(DIR)/main.go
+gensql:
+	sqlc generate -f db/sqlc.yaml
