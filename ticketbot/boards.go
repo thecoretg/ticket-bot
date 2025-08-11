@@ -13,7 +13,7 @@ import (
 )
 
 func (s *Server) addBoardsGroup() {
-	boards := s.ginEngine.Group("/boards", ErrorHandler(s.config.ExitOnError))
+	boards := s.GinEngine.Group("/boards", ErrorHandler(s.config.ExitOnError))
 	boards.PUT("/:board_id", s.putBoard)
 }
 
@@ -53,6 +53,7 @@ func (s *Server) ensureBoardInStore(ctx context.Context, cwData *cwData) (db.Boa
 	board, err := s.queries.GetBoard(ctx, cwData.ticket.Board.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			slog.Debug("board not in store, attempting insert", "board_id", cwData.ticket.Board.ID)
 			p := db.InsertBoardParams{
 				ID:            cwData.ticket.Board.ID,
 				Name:          cwData.ticket.Board.Name,

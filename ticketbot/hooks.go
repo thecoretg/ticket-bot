@@ -9,6 +9,11 @@ import (
 	"log/slog"
 )
 
+func (s *Server) InitAllHooks() error {
+	// this will eventually include webex hooks
+	return s.initiateCWHooks()
+}
+
 func (s *Server) initiateCWHooks() error {
 	params := map[string]string{
 		"pageSize": "1000",
@@ -41,14 +46,14 @@ func (s *Server) processCwHook(url, entity, level string, objectID int, currentH
 		if c.URL == hook.URL {
 			slog.Debug("found matching url for webhook")
 			if c.Type == hook.Type && c.Level == hook.Level && c.InactiveFlag == hook.InactiveFlag && !found {
-				slog.Debug("found existing connectwise webhook", "id", c.ID, "entity", entity, "level", level, "url", url)
+				slog.Info("found existing connectwise webhook", "id", c.ID, "entity", entity, "level", level, "url", url)
 				found = true
 				continue
 			} else {
 				if err := s.cwClient.DeleteCallback(c.ID); err != nil {
 					return fmt.Errorf("deleting webhook %d: %w", c.ID, err)
 				}
-				slog.Debug("deleted unused connectwise webhook", "id", c.ID, "url", c.URL)
+				slog.Info("deleted unused connectwise webhook", "id", c.ID, "url", c.URL)
 			}
 		}
 	}

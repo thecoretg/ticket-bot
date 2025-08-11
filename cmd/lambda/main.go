@@ -14,12 +14,18 @@ var ginLambda *ginadapter.GinLambda
 
 func init() {
 	slog.Info("lambda cold start")
-	g, err := ticketbot.GetGinEngine()
+	ctx := context.Background()
+	cfg, err := ticketbot.InitCfg()
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatalf("initializing config: %v", err)
 	}
 
-	ginLambda = ginadapter.New(g)
+	s, err := ticketbot.NewServer(ctx, cfg, true)
+	if err != nil {
+		log.Fatalf("initializing server: %v", err)
+	}
+
+	ginLambda = ginadapter.New(s.GinEngine)
 }
 
 func main() {

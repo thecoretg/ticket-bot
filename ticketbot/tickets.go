@@ -27,7 +27,7 @@ type storedData struct {
 }
 
 func (s *Server) addHooksGroup() {
-	hooks := s.ginEngine.Group("/hooks")
+	hooks := s.GinEngine.Group("/hooks")
 	cw := hooks.Group("/cw", requireValidCWSignature(), ErrorHandler(s.config.ExitOnError))
 	cw.POST("/tickets", s.handleTickets)
 }
@@ -46,7 +46,7 @@ func (s *Server) handleTickets(c *gin.Context) {
 
 	slog.Info("received ticket webhook", "id", w.ID, "action", w.Action)
 	if w.Action == "added" || w.Action == "updated" {
-		if err := s.addOrUpdateTicket(c.Request.Context(), w.ID, w.Action, false); err != nil {
+		if err := s.addOrUpdateTicket(c.Request.Context(), w.ID, w.Action, false, s.config.AttemptNotify); err != nil {
 			c.Error(fmt.Errorf("adding or updating the ticket into data storage: %w", err))
 			return
 		}
@@ -64,7 +64,7 @@ func (s *Server) getTicketLock(ticketID int) *sync.Mutex {
 
 // addOrUpdateTicket serves as the primary handler for updating the data store with ticket data. It also will handle
 // extra functionality such as ticket notifications.
-func (s *Server) addOrUpdateTicket(ctx context.Context, ticketID int, action string, assumeNotify bool) error {
+func (s *Server) addOrUpdateTicket(ctx context.Context, ticketID int, action string, overrideNotify, attemptNotify bool) error {
 	// Lock the ticket so that extra calls don't interfere. Due to the nature of Connectwise updates will often
 	// result in other hooks and actions taking place, which means a ticket rarely only sends one webhook payload.
 	lock := s.getTicketLock(ticketID)
@@ -83,7 +83,7 @@ func (s *Server) addOrUpdateTicket(ctx context.Context, ticketID int, action str
 		return fmt.Errorf("getting data from connectwise: %w", err)
 	}
 
-	storedData, err := s.getStoredData(ctx, cwData, assumeNotify)
+	storedData, err := s.getStoredData(ctx, cwData, overrideNotify)
 	if err != nil {
 		return fmt.Errorf("getting or creating stored data: %w", err)
 	}
@@ -104,9 +104,7 @@ func (s *Server) addOrUpdateTicket(ctx context.Context, ticketID int, action str
 		return fmt.Errorf("updating ticket in store: %w", err)
 	}
 
-	// Use the action from the CW hook, whether the note is considered new, and if the board
-	// has notifications enabled to determine what type of notification will be sent, if any.
-	if meetsMessageCriteria(action, storedData) {
+	if meetsMessageCriteria(action, storedData) && attemptNotify {
 		if err := s.makeAndSendWebexMsgs(action, cwData, storedData); err != nil {
 			return fmt.Errorf("processing webex messages: %w", err)
 		}
@@ -114,7 +112,7 @@ func (s *Server) addOrUpdateTicket(ctx context.Context, ticketID int, action str
 
 	// Log the result
 	if s.config.Debug {
-		slog.Debug("ticket processed", "ticket_id", storedData.ticket.ID, "action", action, "latest_note_id", storedData.note.ID, "assume_notify", assumeNotify,
+		slog.Debug("ticket processed", "ticket_id", storedData.ticket.ID, "action", action, "latest_note_id", storedData.note.ID, "assume_notify", overrideNotify,
 			"notified", storedData.note.Notified, "board_notify_enbabled", storedData.board.NotifyEnabled, "meets_message_criteria", meetsMessageCriteria(action, storedData),
 		)
 	} else {
@@ -152,24 +150,29 @@ func (s *Server) getCwData(ticketID int) (*cwData, error) {
 	}, nil
 }
 
-func (s *Server) getStoredData(ctx context.Context, cwData *cwData, assumeNotified bool) (*storedData, error) {
-	// Get existing ticket from store - will be nil if it doesn't already exist.
+func (s *Server) getStoredData(ctx context.Context, cwData *cwData, overrideNotify bool) (*storedData, error) {
+	// first check for or create board since it needs to exist before the ticket
+	board, err := s.ensureBoardInStore(ctx, cwData)
+	if err != nil {
+		return nil, fmt.Errorf("ensuring board in store: %w", err)
+	}
+
+	// check for, or create ticket
 	ticket, err := s.ensureTicketInStore(ctx, cwData)
 	if err != nil {
 		return nil, fmt.Errorf("ensuring ticket in store: %w", err)
 	}
 
+	// start with empty note, use existing or created note if there is a note in the ticket
 	note := db.TicketNote{}
 	if cwData.note.ID != 0 {
-		note, err = s.ensureNoteInStore(ctx, cwData)
+		slog.Debug("ticket note id exists - checking or updating store", "ticket_id", cwData.ticket.ID, "note_id", cwData.note.ID)
+		note, err = s.ensureNoteInStore(ctx, cwData, overrideNotify)
 		if err != nil {
 			return nil, fmt.Errorf("ensuring note in store: %w", err)
 		}
-	}
-
-	board, err := s.ensureBoardInStore(ctx, cwData)
-	if err != nil {
-		return nil, fmt.Errorf("ensuring board in store: %w", err)
+	} else {
+		slog.Debug("no note found", "ticket_id", cwData.ticket.ID)
 	}
 
 	return &storedData{
@@ -202,8 +205,8 @@ func (s *Server) ensureTicketInStore(ctx context.Context, cwData *cwData) (db.Ti
 			return db.Ticket{}, fmt.Errorf("getting ticket from storage: %w", err)
 		}
 	}
-	slog.Debug("got existing ticket from store", "ticket_id", ticket.ID, "summary", ticket.Summary)
 
+	slog.Debug("got existing ticket from store", "ticket_id", ticket.ID, "summary", ticket.Summary)
 	return ticket, nil
 }
 
