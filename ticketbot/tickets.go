@@ -40,14 +40,14 @@ func (s *Server) handleTickets(c *gin.Context) {
 	}
 
 	if w.ID == 0 {
-		c.Error(errors.New("ticket ID cannot be 0"))
+		c.Error(errors.New("received no ticket ID or zero"))
 		return
 	}
 
 	switch w.Action {
 	case "added", "updated":
 		if err := s.processTicketPayload(c.Request.Context(), w.ID, w.Action, false, s.config.AttemptNotify); err != nil {
-			c.Error(fmt.Errorf("adding or updating the ticket into data storage: %w", err))
+			c.Error(fmt.Errorf("ticket %d: adding or updating the ticket into data storage: %w", w.ID, err))
 			return
 		}
 
@@ -55,7 +55,7 @@ func (s *Server) handleTickets(c *gin.Context) {
 
 	case "deleted":
 		if err := s.deleteTicketAndNotes(c.Request.Context(), w.ID); err != nil {
-			c.Error(fmt.Errorf("deleting ticket and its notes: %w", err))
+			c.Error(fmt.Errorf("ticket %d: deleting ticket and its notes: %w", w.ID, err))
 			return
 		}
 
@@ -66,29 +66,6 @@ func (s *Server) handleTickets(c *gin.Context) {
 func (s *Server) getTicketLock(ticketID int) *sync.Mutex {
 	lockIface, _ := s.ticketLocks.LoadOrStore(ticketID, &sync.Mutex{})
 	return lockIface.(*sync.Mutex)
-}
-
-func (s *Server) deleteTicketAndNotes(ctx context.Context, ticketID int) error {
-	notes, err := s.queries.ListTicketNotesByTicket(ctx, ticketID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			slog.Debug("found no notes for ticket deletion", "ticket_id", ticketID)
-			notes = []db.TicketNote{}
-		}
-		return fmt.Errorf("getting list of notes for ticket: %w", err)
-	}
-
-	for _, n := range notes {
-		if err := s.queries.DeleteTicketNote(ctx, n.ID); err != nil {
-			return fmt.Errorf("deleting ticket note %d for ticket %d: %w", n.ID, ticketID, err)
-		}
-	}
-
-	if err := s.queries.DeleteTicket(ctx, ticketID); err != nil {
-		return fmt.Errorf("deleting ticket: %w", err)
-	}
-
-	return nil
 }
 
 // processTicketPayload serves as the primary handler for updating the data store with ticket data. It also will handle
@@ -137,6 +114,28 @@ func (s *Server) processTicketPayload(ctx context.Context, ticketID int, action 
 		if err := s.setNotified(ctx, storedData.note.ID, true); err != nil {
 			return fmt.Errorf("setting notified to true: %w", err)
 		}
+	}
+
+	return nil
+}
+
+func (s *Server) deleteTicketAndNotes(ctx context.Context, ticketID int) error {
+	notes, err := s.queries.ListTicketNotesByTicket(ctx, ticketID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			notes = []db.TicketNote{}
+		}
+		return fmt.Errorf("getting list of notes for ticket: %w", err)
+	}
+
+	for _, n := range notes {
+		if err := s.queries.DeleteTicketNote(ctx, n.ID); err != nil {
+			return fmt.Errorf("deleting ticket note %d for ticket %d: %w", n.ID, ticketID, err)
+		}
+	}
+
+	if err := s.queries.DeleteTicket(ctx, ticketID); err != nil {
+		return fmt.Errorf("deleting ticket: %w", err)
 	}
 
 	return nil
@@ -221,13 +220,7 @@ func (s *Server) ensureTicketInStore(ctx context.Context, cwData *cwData) (db.Ti
 }
 
 func (s *Server) logTicketResult(action string, storedData *storedData) {
-	if s.config.Debug {
-		slog.Debug("ticket processed", "ticket_id", storedData.ticket.ID, "action", action, "latest_note_id", storedData.note.ID,
-			"notified", storedData.note.Notified, "board_notify_enbabled", storedData.board.NotifyEnabled, "meets_message_criteria", meetsMessageCriteria(action, storedData),
-		)
-	} else {
-		slog.Info("ticket processed", "ticket_id", storedData.ticket.ID, "action", action, "notified", storedData.note.Notified)
-	}
+	slog.Info("ticket processed", "ticket_id", storedData.ticket.ID, "action", action, "notified", storedData.note.Notified)
 }
 
 // meetsMessageCriteria checks if a message would be allowed to send a notification,

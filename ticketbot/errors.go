@@ -24,12 +24,9 @@ func ErrorHandler(exitOnError bool) gin.HandlerFunc {
 
 		if len(c.Errors) > 0 {
 			err := c.Errors.Last().Err
-			c.JSON(http.StatusInternalServerError, map[string]any{
-				"success": false,
-				"message": err.Error(),
-			})
-			c.Abort()
 			slog.Error("error occurred in request", "error", err, "exitOnError", exitOnError)
+			c.Status(http.StatusInternalServerError)
+			c.Abort()
 			c.Writer.Flush()
 			if exitOnError {
 				os.Exit(1)
