@@ -4,6 +4,9 @@ install-cli:
 update-lambda:
 	scripts/deploy_lambda.sh
 
+tail-lambda-logs:
+	aws logs tail /aws/lambda/ticketbot --follow
+
 gensql:
 	sqlc generate -f db/sqlc.yaml
 
