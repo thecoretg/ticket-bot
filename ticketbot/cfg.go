@@ -73,7 +73,7 @@ func InitCfg() (*Cfg, error) {
 	if !c.validateFields() {
 		return nil, errors.New("config is missing required fields, please verify env variables")
 	}
-	slog.Debug("config fields validated successfully")
+	slog.Info("config fields validated successfully")
 
 	return c, nil
 }

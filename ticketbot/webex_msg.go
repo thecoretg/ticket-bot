@@ -66,7 +66,6 @@ func (s *Server) makeWebexMsgs(action string, cwData *cwData, storedData *stored
 	var messages []webex.Message
 	if action == "added" {
 		slog.Debug("creating message for new ticket", "ticket_id", storedData.ticket.ID, "board_name", storedData.board.Name, "webex_room_id", storedData.board.WebexRoomID)
-		slog.Debug("message body", "body", body)
 		messages = append(messages, webex.NewMessageToRoom(*storedData.board.WebexRoomID, body))
 	} else if action == "updated" {
 		sendTo, err := s.getSendTo(storedData)

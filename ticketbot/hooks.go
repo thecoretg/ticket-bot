@@ -46,7 +46,7 @@ func (s *Server) processCwHook(url, entity, level string, objectID int, currentH
 		if c.URL == hook.URL {
 			slog.Debug("found matching url for webhook")
 			if c.Type == hook.Type && c.Level == hook.Level && c.InactiveFlag == hook.InactiveFlag && !found {
-				slog.Info("found existing connectwise webhook", "id", c.ID, "entity", entity, "level", level, "url", url)
+				slog.Debug("found existing connectwise webhook", "id", c.ID, "entity", entity, "level", level, "url", url)
 				found = true
 				continue
 			} else {

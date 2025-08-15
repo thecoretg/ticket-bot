@@ -44,6 +44,7 @@ func (s *Server) handleTickets(c *gin.Context) {
 		return
 	}
 
+	slog.Info("received payload from connectwise", "ticket_id", w.ID, "action", w.Action)
 	switch w.Action {
 	case "added", "updated":
 		if err := s.processTicketPayload(c.Request.Context(), w.ID, w.Action, false, s.Config.AttemptNotify); err != nil {
@@ -120,23 +121,10 @@ func (s *Server) processTicketPayload(ctx context.Context, ticketID int, action 
 }
 
 func (s *Server) deleteTicketAndNotes(ctx context.Context, ticketID int) error {
-	notes, err := s.Queries.ListTicketNotesByTicket(ctx, ticketID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			notes = []db.TicketNote{}
-		}
-		return fmt.Errorf("getting list of notes for ticket: %w", err)
-	}
-
-	for _, n := range notes {
-		if err := s.Queries.DeleteTicketNote(ctx, n.ID); err != nil {
-			return fmt.Errorf("deleting ticket note %d for ticket %d: %w", n.ID, ticketID, err)
-		}
-	}
-
 	if err := s.Queries.DeleteTicket(ctx, ticketID); err != nil {
 		return fmt.Errorf("deleting ticket: %w", err)
 	}
+	slog.Debug("ticket deleted from store", "ticket_id", ticketID)
 
 	return nil
 }

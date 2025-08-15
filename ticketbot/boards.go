@@ -64,7 +64,7 @@ func (s *Server) ensureBoardInStore(ctx context.Context, cwData *cwData) (db.Boa
 			if err != nil {
 				return db.Board{}, fmt.Errorf("inserting board into db: %w", err)
 			}
-			slog.Debug("inserted board into store", "board_id", board.ID, "name", board.Name)
+			slog.Info("inserted board into store", "board_id", board.ID, "name", board.Name)
 			return board, nil
 		} else {
 			return db.Board{}, fmt.Errorf("getting board from storage: %w", err)

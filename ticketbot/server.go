@@ -7,6 +7,7 @@ import (
 	"github.com/thecoretg/ticketbot/connectwise"
 	"github.com/thecoretg/ticketbot/db"
 	"github.com/thecoretg/ticketbot/webex"
+	"log/slog"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -37,6 +38,7 @@ func (s *Server) addAllRoutes() {
 }
 
 func NewServer(ctx context.Context, cfg *Cfg, initHooks bool) (*Server, error) {
+	slog.Info("beginning server initialization")
 	dbConn, err := pgxpool.New(ctx, cfg.PostgresDSN)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to database: %w", err)
@@ -58,6 +60,7 @@ func NewServer(ctx context.Context, cfg *Cfg, initHooks bool) (*Server, error) {
 	}
 
 	if initHooks {
+		slog.Info("initializing webhooks")
 		if err := s.InitAllHooks(); err != nil {
 			return nil, fmt.Errorf("initiating webhooks: %w", err)
 		}

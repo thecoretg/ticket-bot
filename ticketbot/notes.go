@@ -17,6 +17,7 @@ func (s *Server) getLatestNoteFromCW(ticketID int) (*connectwise.ServiceTicketNo
 	}
 
 	if note == nil {
+		slog.Debug("no most recent note found", "ticket_id", ticketID)
 		note = &connectwise.ServiceTicketNote{}
 	}
 

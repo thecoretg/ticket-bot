@@ -14,7 +14,6 @@ import (
 
 func (s *Server) PreloadData(ctx context.Context, preloadBoards, preloadTickets bool, maxConcurrent int) error {
 	if preloadBoards {
-		slog.Debug("preload boards enabled")
 		time.Sleep(2 * time.Second)
 		if err := s.preloadBoards(ctx, maxConcurrent); err != nil {
 			return fmt.Errorf("preloading active boards: %w", err)
@@ -22,7 +21,6 @@ func (s *Server) PreloadData(ctx context.Context, preloadBoards, preloadTickets 
 	}
 
 	if preloadTickets {
-		slog.Debug("preload tickets enabled")
 		time.Sleep(2 * time.Second)
 		if err := s.preloadOpenTickets(ctx, maxConcurrent); err != nil {
 			return fmt.Errorf("preloading open tickets: %w", err)
@@ -33,16 +31,17 @@ func (s *Server) PreloadData(ctx context.Context, preloadBoards, preloadTickets 
 }
 
 func (s *Server) preloadBoards(ctx context.Context, maxConcurrent int) error {
+	slog.Info("beginning preloading boards")
 	params := map[string]string{
 		"conditions": "inactiveFlag = false",
 	}
 
-	slog.Info("loading existing boards")
+	slog.Debug("loading existing boards from connectwise")
 	boards, err := s.CWClient.ListBoards(params)
 	if err != nil {
 		return fmt.Errorf("getting boards from CW: %w", err)
 	}
-	slog.Info("got boards", "total_boards", len(boards))
+	slog.Info("got boards from connectwise", "total_boards", len(boards))
 	sem := make(chan struct{}, maxConcurrent)
 	var wg sync.WaitGroup
 	for _, board := range boards {
@@ -79,17 +78,18 @@ func (s *Server) preloadBoards(ctx context.Context, maxConcurrent int) error {
 }
 
 func (s *Server) preloadOpenTickets(ctx context.Context, maxConcurrent int) error {
+	slog.Info("beginning preloading tickets")
 	params := map[string]string{
 		"pageSize":   "100",
 		"conditions": "closedFlag = false",
 	}
 
-	slog.Info("loading existing open tickets")
+	slog.Debug("loading existing open tickets")
 	openTickets, err := s.CWClient.ListTickets(params)
 	if err != nil {
 		return fmt.Errorf("getting open tickets from CW: %w", err)
 	}
-	slog.Info("got open tickets", "total_tickets", len(openTickets))
+	slog.Info("got open tickets from connectwise", "total_tickets", len(openTickets))
 	sem := make(chan struct{}, maxConcurrent)
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(openTickets))
