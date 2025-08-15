@@ -15,6 +15,11 @@ func (s *Server) makeAndSendWebexMsgs(action string, cwData *cwData, storedData 
 		return fmt.Errorf("creating webex messages: %w", err)
 	}
 
+	if messages == nil {
+		slog.Debug("no messages to send", "ticket_id", storedData.ticket.ID, "note_id", storedData.note.ID)
+		return nil
+	}
+
 	slog.Debug("created webex messages", "action", action, "ticket_id", storedData.ticket.ID, "board_name", storedData.board.Name, "total_messages", len(messages))
 	for _, msg := range messages {
 		_, err := s.WebexClient.PostMessage(&msg)
@@ -65,6 +70,13 @@ func (s *Server) makeWebexMsgs(action string, cwData *cwData, storedData *stored
 		messages = append(messages, webex.NewMessageToRoom(*storedData.board.WebexRoomID, body))
 	} else if action == "updated" {
 		sendTo, err := s.getSendTo(storedData)
+		if len(sendTo) > 0 {
+			slog.Debug("got send-to list", "ticket_id", storedData.ticket.ID, "note_id", storedData.note.ID, "send_to", sendTo)
+		} else {
+			slog.Debug("send-to list is empty", "ticket_id", storedData.ticket.ID, "note_id", storedData.note.ID)
+			return nil, nil
+		}
+
 		if err != nil {
 			return nil, fmt.Errorf("getting users to send to: %w", err)
 		}
@@ -91,10 +103,12 @@ func (s *Server) getSendTo(storedData *storedData) ([]string, error) {
 
 	identifiers := filterOutExcluded(excludedMembers, *storedData.ticket.Resources, storedData)
 	if identifiers == "" {
+		slog.Debug("no members to notify", "ticket_id", storedData.ticket.ID, "note_id", storedData.note.ID)
 		return nil, nil
 	}
 
 	condition := fmt.Sprintf("identifier in (%s)", identifiers)
+	slog.Debug("created members condition query param", "ticket_id", storedData.ticket.ID, "note_id", storedData.note.ID, "query_param", condition)
 
 	params := map[string]string{
 		"conditions": condition,
@@ -148,7 +162,7 @@ func filterOutExcluded(excluded []string, identifiers string, storedData *stored
 	var parts []string
 	for _, i := range strings.Split(identifiers, ",") {
 		if !slices.Contains(excluded, i) {
-			slog.Debug("filterOutExcluded: excluding member from notifications", "ticket_id", storedData.ticket.ID, "note_id", storedData.note.ID)
+			slog.Debug("filterOutExcluded: excluding member from notifications", "ticket_id", storedData.ticket.ID, "note_id", storedData.note.ID, "excluded_member", i)
 			parts = append(parts, i)
 		}
 	}
