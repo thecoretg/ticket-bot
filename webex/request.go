@@ -1,12 +1,18 @@
 package webex
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
 const (
 	baseUrl = "https://webexapis.com/v1"
+)
+
+var (
+	ErrNotFound = errors.New("404 status received")
 )
 
 func GetOne[T any](c *Client, endpoint string, params map[string]string) (*T, error) {
@@ -21,6 +27,9 @@ func GetOne[T any](c *Client, endpoint string, params map[string]string) (*T, er
 	}
 
 	if res.IsError() {
+		if res.StatusCode() == http.StatusNotFound {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("error response from Webex API: %s", res.String())
 	}
 
@@ -43,6 +52,9 @@ func GetMany[T any](c *Client, endpoint string, params map[string]string) ([]T, 
 		}
 
 		if res.IsError() {
+			if res.StatusCode() == http.StatusNotFound {
+				return nil, ErrNotFound
+			}
 			return nil, fmt.Errorf("error response from Webex API: %s", res.String())
 		}
 
@@ -69,6 +81,9 @@ func Put[T any](c *Client, endpoint string, body any) (*T, error) {
 	}
 
 	if res.IsError() {
+		if res.StatusCode() == http.StatusNotFound {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("error response from ConnectWise API: %s", res.String())
 	}
 
@@ -102,6 +117,9 @@ func Delete(c *Client, endpoint string) error {
 	}
 
 	if res.IsError() {
+		if res.StatusCode() == http.StatusNotFound {
+			return ErrNotFound
+		}
 		return fmt.Errorf("error response from ConnectWise API: %s", res.String())
 	}
 
