@@ -1,13 +1,19 @@
 package connectwise
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
 // TODO: implement retry handling
 const (
 	baseUrl = "https://api-na.myconnectwise.net/v4_6_release/apis/3.0"
+)
+
+var (
+	ErrNotFound = errors.New("404 status returned")
 )
 
 func GetOne[T any](c *Client, endpoint string, params map[string]string) (*T, error) {
@@ -22,6 +28,9 @@ func GetOne[T any](c *Client, endpoint string, params map[string]string) (*T, er
 	}
 
 	if res.IsError() {
+		if res.StatusCode() == http.StatusNotFound {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("error response from ConnectWise API: %s", res.String())
 	}
 
@@ -44,6 +53,9 @@ func GetMany[T any](c *Client, endpoint string, params map[string]string) ([]T, 
 		}
 
 		if res.IsError() {
+			if res.StatusCode() == http.StatusNotFound {
+				return nil, ErrNotFound
+			}
 			return nil, fmt.Errorf("error response from ConnectWise API: %s", res.String())
 		}
 
@@ -88,6 +100,9 @@ func Put[T any](c *Client, endpoint string, body any) (*T, error) {
 	}
 
 	if res.IsError() {
+		if res.StatusCode() == http.StatusNotFound {
+			return nil, ErrNotFound
+		}
 		return nil, fmt.Errorf("error response from ConnectWise API: %s", res.String())
 	}
 
@@ -121,6 +136,9 @@ func Delete(c *Client, endpoint string) error {
 	}
 
 	if res.IsError() {
+		if res.StatusCode() == http.StatusNotFound {
+			return ErrNotFound
+		}
 		return fmt.Errorf("error response from ConnectWise API: %s", res.String())
 	}
 

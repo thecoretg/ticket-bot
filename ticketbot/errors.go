@@ -1,7 +1,9 @@
 package ticketbot
 
 import (
+	"errors"
 	"fmt"
+	"github.com/thecoretg/ticketbot/connectwise"
 	"log/slog"
 	"net/http"
 	"os"
@@ -24,6 +26,11 @@ func ErrorHandler(exitOnError bool) gin.HandlerFunc {
 
 		if len(c.Errors) > 0 {
 			err := c.Errors.Last().Err
+			if errors.Is(err, connectwise.ErrNotFound) {
+				slog.Debug("ErrorHandler: connectwise 404 status received, not returning error")
+				c.Status(http.StatusNoContent)
+				return
+			}
 			slog.Error("error occurred in request", "error", err, "exitOnError", exitOnError)
 			c.Status(http.StatusInternalServerError)
 			c.Abort()
