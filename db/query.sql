@@ -51,6 +51,12 @@ SET
 WHERE id = $1
 RETURNING *;
 
+-- name: SoftDeleteTicket :exec
+UPDATE tickets
+SET
+    deleted = TRUE
+WHERE id = $1;
+
 -- name: DeleteTicket :exec
 DELETE FROM tickets
 WHERE id = $1;

@@ -58,7 +58,7 @@ func (q *Queries) GetBoard(ctx context.Context, id int) (Board, error) {
 }
 
 const getTicket = `-- name: GetTicket :one
-SELECT id, summary, board_id, owner_id, resources, updated_by, added_to_store FROM tickets
+SELECT id, summary, board_id, owner_id, resources, updated_by, added_to_store, deleted FROM tickets
 WHERE id = $1 LIMIT 1
 `
 
@@ -73,6 +73,7 @@ func (q *Queries) GetTicket(ctx context.Context, id int) (Ticket, error) {
 		&i.Resources,
 		&i.UpdatedBy,
 		&i.AddedToStore,
+		&i.Deleted,
 	)
 	return i, err
 }
@@ -130,7 +131,7 @@ const insertTicket = `-- name: InsertTicket :one
 INSERT INTO tickets
 (id, summary, board_id, owner_id, resources, updated_by, added_to_store)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, summary, board_id, owner_id, resources, updated_by, added_to_store
+RETURNING id, summary, board_id, owner_id, resources, updated_by, added_to_store, deleted
 `
 
 type InsertTicketParams struct {
@@ -162,6 +163,7 @@ func (q *Queries) InsertTicket(ctx context.Context, arg InsertTicketParams) (Tic
 		&i.Resources,
 		&i.UpdatedBy,
 		&i.AddedToStore,
+		&i.Deleted,
 	)
 	return i, err
 }
@@ -294,7 +296,7 @@ func (q *Queries) ListTicketNotesByTicket(ctx context.Context, ticketID int) ([]
 }
 
 const listTickets = `-- name: ListTickets :many
-SELECT id, summary, board_id, owner_id, resources, updated_by, added_to_store FROM tickets
+SELECT id, summary, board_id, owner_id, resources, updated_by, added_to_store, deleted FROM tickets
 ORDER BY id
 `
 
@@ -315,6 +317,7 @@ func (q *Queries) ListTickets(ctx context.Context) ([]Ticket, error) {
 			&i.Resources,
 			&i.UpdatedBy,
 			&i.AddedToStore,
+			&i.Deleted,
 		); err != nil {
 			return nil, err
 		}
@@ -350,6 +353,18 @@ func (q *Queries) SetNoteNotified(ctx context.Context, arg SetNoteNotifiedParams
 		&i.Contact,
 	)
 	return i, err
+}
+
+const softDeleteTicket = `-- name: SoftDeleteTicket :exec
+UPDATE tickets
+SET
+    deleted = TRUE
+WHERE id = $1
+`
+
+func (q *Queries) SoftDeleteTicket(ctx context.Context, id int) error {
+	_, err := q.db.Exec(ctx, softDeleteTicket, id)
+	return err
 }
 
 const updateBoard = `-- name: UpdateBoard :one
@@ -396,7 +411,7 @@ SET
     updated_by = $6,
     added_to_store = $7
 WHERE id = $1
-RETURNING id, summary, board_id, owner_id, resources, updated_by, added_to_store
+RETURNING id, summary, board_id, owner_id, resources, updated_by, added_to_store, deleted
 `
 
 type UpdateTicketParams struct {
@@ -428,6 +443,7 @@ func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (Tic
 		&i.Resources,
 		&i.UpdatedBy,
 		&i.AddedToStore,
+		&i.Deleted,
 	)
 	return i, err
 }

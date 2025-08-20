@@ -23,6 +23,7 @@ type Ticket struct {
 	Resources    *string   `json:"resources"`
 	UpdatedBy    *string   `json:"updated_by"`
 	AddedToStore time.Time `json:"added_to_store"`
+	Deleted      bool      `json:"deleted"`
 }
 
 type TicketNote struct {

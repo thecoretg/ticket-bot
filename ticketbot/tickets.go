@@ -55,7 +55,7 @@ func (s *Server) handleTickets(c *gin.Context) {
 		c.Status(http.StatusNoContent)
 
 	case "deleted":
-		if err := s.deleteTicketAndNotes(c.Request.Context(), w.ID); err != nil {
+		if err := s.softDeleteTicket(c.Request.Context(), w.ID); err != nil {
 			c.Error(fmt.Errorf("ticket %d: deleting ticket and its notes: %w", w.ID, err))
 			return
 		}
@@ -120,11 +120,11 @@ func (s *Server) processTicketPayload(ctx context.Context, ticketID int, action 
 	return nil
 }
 
-func (s *Server) deleteTicketAndNotes(ctx context.Context, ticketID int) error {
-	if err := s.Queries.DeleteTicket(ctx, ticketID); err != nil {
-		return fmt.Errorf("deleting ticket: %w", err)
+func (s *Server) softDeleteTicket(ctx context.Context, ticketID int) error {
+	if err := s.Queries.SoftDeleteTicket(ctx, ticketID); err != nil {
+		return fmt.Errorf("soft deleting ticket: %w", err)
 	}
-	slog.Debug("ticket deleted from store", "ticket_id", ticketID)
+	slog.Debug("ticket soft deleted", "ticket_id", ticketID)
 
 	return nil
 }
