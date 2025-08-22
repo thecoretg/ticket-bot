@@ -24,37 +24,28 @@ func (s *Server) getLatestNoteFromCW(ticketID int) (*connectwise.ServiceTicketNo
 	return note, nil
 }
 
-func (s *Server) ensureNoteInStore(ctx context.Context, cwData *cwData, overrideNotify bool) (db.TicketNote, error) {
+func (s *Server) ensureNoteInStore(ctx context.Context, cwData *cwData, overrideNotify bool) (db.CwTicketNote, error) {
 	note, err := s.Queries.GetTicketNote(ctx, cwData.note.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			slog.Debug("note not found in store, attempting insert", "ticket_id", cwData.ticket.ID, "note_id", cwData.note.ID)
 			note, err = s.Queries.InsertTicketNote(ctx, db.InsertTicketNoteParams{
-				ID:       cwData.note.ID,
-				TicketID: cwData.note.TicketId,
-				Notified: overrideNotify,
-				Member:   getMemberIdentifier(cwData),
-				Contact:  getContactName(cwData),
+				ID:        cwData.note.ID,
+				TicketID:  cwData.note.TicketId,
+				Notified:  overrideNotify,
+				MemberID:  getMemberID(cwData),
+				ContactID: getContactID(cwData),
 			})
 
 			if err != nil {
-				return db.TicketNote{}, fmt.Errorf("inserting ticket note into db: %w", err)
+				return db.CwTicketNote{}, fmt.Errorf("inserting ticket note into db: %w", err)
 			}
 
-			sender := ""
-			if note.Member != nil {
-				sender = fmt.Sprintf("%s (member)", *note.Member)
-			}
-
-			if note.Contact != nil {
-				sender = fmt.Sprintf("%s (contact)", *note.Contact)
-			}
-
-			slog.Info("inserted note into store", "ticket_id", cwData.ticket.ID, "note_id", cwData.note.ID, "sender", sender)
+			slog.Info("inserted note into store", "ticket_id", cwData.ticket.ID, "note_id")
 			return note, nil
 
 		} else {
-			return db.TicketNote{}, fmt.Errorf("getting note from store: %w", err)
+			return db.CwTicketNote{}, fmt.Errorf("getting note from store: %w", err)
 		}
 	}
 
@@ -75,17 +66,17 @@ func (s *Server) setNotified(ctx context.Context, noteID int, notified bool) err
 	return nil
 }
 
-func getMemberIdentifier(cwData *cwData) *string {
-	if cwData.note.Member.Identifier != "" {
-		return &cwData.note.Member.Identifier
+func getMemberID(cwData *cwData) *int {
+	if cwData.note.Member.ID != 0 {
+		return &cwData.note.Member.ID
 	}
 
 	return nil
 }
 
-func getContactName(cwData *cwData) *string {
-	if cwData.note.Contact.Name != "" {
-		return &cwData.note.Contact.Name
+func getContactID(cwData *cwData) *int {
+	if cwData.note.Contact.ID != 0 {
+		return &cwData.note.Contact.ID
 	}
 
 	return nil

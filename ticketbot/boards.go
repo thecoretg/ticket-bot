@@ -49,7 +49,7 @@ func (s *Server) putBoard(c *gin.Context) {
 	c.JSON(http.StatusOK, updatedBoard)
 }
 
-func (s *Server) ensureBoardInStore(ctx context.Context, cwData *cwData) (db.Board, error) {
+func (s *Server) ensureBoardInStore(ctx context.Context, cwData *cwData) (db.CwBoard, error) {
 	board, err := s.Queries.GetBoard(ctx, cwData.ticket.Board.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -62,12 +62,12 @@ func (s *Server) ensureBoardInStore(ctx context.Context, cwData *cwData) (db.Boa
 			}
 			board, err = s.Queries.InsertBoard(ctx, p)
 			if err != nil {
-				return db.Board{}, fmt.Errorf("inserting board into db: %w", err)
+				return db.CwBoard{}, fmt.Errorf("inserting board into db: %w", err)
 			}
 			slog.Info("inserted board into store", "board_id", board.ID, "name", board.Name)
 			return board, nil
 		} else {
-			return db.Board{}, fmt.Errorf("getting board from storage: %w", err)
+			return db.CwBoard{}, fmt.Errorf("getting board from storage: %w", err)
 		}
 	}
 

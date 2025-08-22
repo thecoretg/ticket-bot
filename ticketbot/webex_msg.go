@@ -91,13 +91,13 @@ func (s *Server) makeWebexMsgs(action string, cwData *cwData, storedData *stored
 // getSendTo creates a list of emails to send notifications to, factoring in who made the most
 // recent update and any other exclusions passed in by the Config.
 func (s *Server) getSendTo(storedData *storedData) ([]string, error) {
-	var excludedMembers []string
+	var excludedMembers []int
 	for _, m := range s.Config.ExcludedCWMembers {
 		excludedMembers = append(excludedMembers, m)
 	}
 
-	if storedData.note.Member != nil {
-		excludedMembers = append(excludedMembers, *storedData.note.Member)
+	if storedData.note.MemberID != nil {
+		excludedMembers = append(excludedMembers, *storedData.note.MemberID)
 	}
 
 	identifiers := filterOutExcluded(excludedMembers, *storedData.ticket.Resources, storedData)
@@ -157,10 +157,10 @@ func (s *Server) messageText(cwData *cwData) string {
 	return body
 }
 
-func filterOutExcluded(excluded []string, identifiers string, storedData *storedData) string {
+func filterOutExcluded(excludedIDs []int, identifiers string, storedData *storedData) string {
 	var parts []string
 	for _, i := range strings.Split(identifiers, ",") {
-		if !slices.Contains(excluded, i) {
+		if !slices.Contains(excludedIDs, i) {
 			parts = append(parts, i)
 		} else {
 			slog.Debug("filterOutExcluded: excluding member from notifications", "ticket_id", storedData.ticket.ID, "note_id", storedData.note.ID, "excluded_member", i)

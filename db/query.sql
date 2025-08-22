@@ -17,7 +17,8 @@ UPDATE cw_board
 SET
     name = $2,
     notify_enabled = $3,
-    webex_room_id = $4
+    webex_room_id = $4,
+    updated_on = NOW()
 WHERE id = $1
 RETURNING *;
 
@@ -36,8 +37,8 @@ ORDER BY id;
 
 -- name: InsertTicket :one
 INSERT INTO cw_ticket
-(id, summary, board_id, owner_id, contact_id, resources, updated_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+(id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING *;
 
 -- name: UpdateTicket :one
@@ -46,9 +47,11 @@ SET
     summary = $2,
     board_id = $3,
     owner_id = $4,
-    contact_id = $5,
-    resources = $6,
-    updated_by = $7
+    company_id = $5,
+    contact_id = $6,
+    resources = $7,
+    updated_by = $8,
+    updated_on = NOW()
 WHERE id = $1
 RETURNING *;
 
@@ -87,7 +90,8 @@ SET
     ticket_id = $2,
     member_id = $3,
     contact_id = $4,
-    notified = $5
+    notified = $5,
+    updated_on = NOW()
 WHERE id = $1
 RETURNING *;
 
@@ -121,7 +125,8 @@ RETURNING *;
 -- name: UpdateCompany :one
 UPDATE cw_company
 SET
-    name = $2
+    name = $2,
+    updated_on = NOW()
 WHERE id = $1
 RETURNING *;
 
@@ -155,7 +160,8 @@ UPDATE cw_contact
 SET
     first_name = $2,
     last_name = $3,
-    company_id = $4
+    company_id = $4,
+    updated_on = NOW()
 WHERE id = $1
 RETURNING *;
 
@@ -190,7 +196,8 @@ SET
     identifier = $2,
     first_name = $3,
     last_name = $4,
-    primary_email = $5
+    primary_email = $5,
+    updated_on = NOW()
 WHERE id = $1
 RETURNING *;
 

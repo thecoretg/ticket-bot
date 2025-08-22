@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS cw_ticket (
     summary TEXT NOT NULL,
     board_id INT REFERENCES cw_board(id) NOT NULL,
     owner_id INT REFERENCES cw_member(id),
+    company_id INT REFERENCES cw_company(id) NOT NULL,
     contact_id INT REFERENCES cw_contact(id),
     resources TEXT,
     updated_by TEXT,

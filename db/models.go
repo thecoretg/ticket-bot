@@ -30,7 +30,7 @@ type CwContact struct {
 	ID        int       `json:"id"`
 	FirstName string    `json:"first_name"`
 	LastName  *string   `json:"last_name"`
-	CompanyID *int32    `json:"company_id"`
+	CompanyID *int      `json:"company_id"`
 	UpdatedOn time.Time `json:"updated_on"`
 	AddedOn   time.Time `json:"added_on"`
 	Deleted   bool      `json:"deleted"`
@@ -51,8 +51,9 @@ type CwTicket struct {
 	ID        int       `json:"id"`
 	Summary   string    `json:"summary"`
 	BoardID   int       `json:"board_id"`
-	OwnerID   *int32    `json:"owner_id"`
-	ContactID *int32    `json:"contact_id"`
+	OwnerID   *int      `json:"owner_id"`
+	CompanyID int       `json:"company_id"`
+	ContactID *int      `json:"contact_id"`
 	Resources *string   `json:"resources"`
 	UpdatedBy *string   `json:"updated_by"`
 	UpdatedOn time.Time `json:"updated_on"`
@@ -63,8 +64,8 @@ type CwTicket struct {
 type CwTicketNote struct {
 	ID        int       `json:"id"`
 	TicketID  int       `json:"ticket_id"`
-	MemberID  *int32    `json:"member_id"`
-	ContactID *int32    `json:"contact_id"`
+	MemberID  *int      `json:"member_id"`
+	ContactID *int      `json:"contact_id"`
 	Notified  bool      `json:"notified"`
 	UpdatedOn time.Time `json:"updated_on"`
 	AddedOn   time.Time `json:"added_on"`

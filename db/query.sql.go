@@ -156,7 +156,7 @@ func (q *Queries) GetMember(ctx context.Context, id int) (CwMember, error) {
 }
 
 const getTicket = `-- name: GetTicket :one
-SELECT id, summary, board_id, owner_id, contact_id, resources, updated_by, updated_on, added_on, deleted FROM cw_ticket
+SELECT id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on, deleted FROM cw_ticket
 WHERE id = $1 LIMIT 1
 `
 
@@ -168,6 +168,7 @@ func (q *Queries) GetTicket(ctx context.Context, id int) (CwTicket, error) {
 		&i.Summary,
 		&i.BoardID,
 		&i.OwnerID,
+		&i.CompanyID,
 		&i.ContactID,
 		&i.Resources,
 		&i.UpdatedBy,
@@ -269,7 +270,7 @@ type InsertContactParams struct {
 	ID        int     `json:"id"`
 	FirstName string  `json:"first_name"`
 	LastName  *string `json:"last_name"`
-	CompanyID *int32  `json:"company_id"`
+	CompanyID *int    `json:"company_id"`
 }
 
 func (q *Queries) InsertContact(ctx context.Context, arg InsertContactParams) (CwContact, error) {
@@ -331,17 +332,18 @@ func (q *Queries) InsertMember(ctx context.Context, arg InsertMemberParams) (CwM
 
 const insertTicket = `-- name: InsertTicket :one
 INSERT INTO cw_ticket
-(id, summary, board_id, owner_id, contact_id, resources, updated_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, summary, board_id, owner_id, contact_id, resources, updated_by, updated_on, added_on, deleted
+(id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on, deleted
 `
 
 type InsertTicketParams struct {
 	ID        int     `json:"id"`
 	Summary   string  `json:"summary"`
 	BoardID   int     `json:"board_id"`
-	OwnerID   *int32  `json:"owner_id"`
-	ContactID *int32  `json:"contact_id"`
+	OwnerID   *int    `json:"owner_id"`
+	CompanyID int     `json:"company_id"`
+	ContactID *int    `json:"contact_id"`
 	Resources *string `json:"resources"`
 	UpdatedBy *string `json:"updated_by"`
 }
@@ -352,6 +354,7 @@ func (q *Queries) InsertTicket(ctx context.Context, arg InsertTicketParams) (CwT
 		arg.Summary,
 		arg.BoardID,
 		arg.OwnerID,
+		arg.CompanyID,
 		arg.ContactID,
 		arg.Resources,
 		arg.UpdatedBy,
@@ -362,6 +365,7 @@ func (q *Queries) InsertTicket(ctx context.Context, arg InsertTicketParams) (CwT
 		&i.Summary,
 		&i.BoardID,
 		&i.OwnerID,
+		&i.CompanyID,
 		&i.ContactID,
 		&i.Resources,
 		&i.UpdatedBy,
@@ -380,11 +384,11 @@ RETURNING id, ticket_id, member_id, contact_id, notified, updated_on, added_on, 
 `
 
 type InsertTicketNoteParams struct {
-	ID        int    `json:"id"`
-	TicketID  int    `json:"ticket_id"`
-	MemberID  *int32 `json:"member_id"`
-	ContactID *int32 `json:"contact_id"`
-	Notified  bool   `json:"notified"`
+	ID        int  `json:"id"`
+	TicketID  int  `json:"ticket_id"`
+	MemberID  *int `json:"member_id"`
+	ContactID *int `json:"contact_id"`
+	Notified  bool `json:"notified"`
 }
 
 func (q *Queries) InsertTicketNote(ctx context.Context, arg InsertTicketNoteParams) (CwTicketNote, error) {
@@ -610,7 +614,7 @@ func (q *Queries) ListTicketNotesByTicket(ctx context.Context, ticketID int) ([]
 }
 
 const listTickets = `-- name: ListTickets :many
-SELECT id, summary, board_id, owner_id, contact_id, resources, updated_by, updated_on, added_on, deleted FROM cw_ticket
+SELECT id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on, deleted FROM cw_ticket
 ORDER BY id
 `
 
@@ -628,6 +632,7 @@ func (q *Queries) ListTickets(ctx context.Context) ([]CwTicket, error) {
 			&i.Summary,
 			&i.BoardID,
 			&i.OwnerID,
+			&i.CompanyID,
 			&i.ContactID,
 			&i.Resources,
 			&i.UpdatedBy,
@@ -735,7 +740,8 @@ UPDATE cw_board
 SET
     name = $2,
     notify_enabled = $3,
-    webex_room_id = $4
+    webex_room_id = $4,
+    updated_on = NOW()
 WHERE id = $1
 RETURNING id, name, notify_enabled, webex_room_id, updated_on, added_on, deleted
 `
@@ -770,7 +776,8 @@ func (q *Queries) UpdateBoard(ctx context.Context, arg UpdateBoardParams) (CwBoa
 const updateCompany = `-- name: UpdateCompany :one
 UPDATE cw_company
 SET
-    name = $2
+    name = $2,
+    updated_on = NOW()
 WHERE id = $1
 RETURNING id, name, updated_on, added_on, deleted
 `
@@ -798,7 +805,8 @@ UPDATE cw_contact
 SET
     first_name = $2,
     last_name = $3,
-    company_id = $4
+    company_id = $4,
+    updated_on = NOW()
 WHERE id = $1
 RETURNING id, first_name, last_name, company_id, updated_on, added_on, deleted
 `
@@ -807,7 +815,7 @@ type UpdateContactParams struct {
 	ID        int     `json:"id"`
 	FirstName string  `json:"first_name"`
 	LastName  *string `json:"last_name"`
-	CompanyID *int32  `json:"company_id"`
+	CompanyID *int    `json:"company_id"`
 }
 
 func (q *Queries) UpdateContact(ctx context.Context, arg UpdateContactParams) (CwContact, error) {
@@ -836,7 +844,8 @@ SET
     identifier = $2,
     first_name = $3,
     last_name = $4,
-    primary_email = $5
+    primary_email = $5,
+    updated_on = NOW()
 WHERE id = $1
 RETURNING id, identifier, first_name, last_name, primary_email, updated_on, added_on, deleted
 `
@@ -877,19 +886,22 @@ SET
     summary = $2,
     board_id = $3,
     owner_id = $4,
-    contact_id = $5,
-    resources = $6,
-    updated_by = $7
+    company_id = $5,
+    contact_id = $6,
+    resources = $7,
+    updated_by = $8,
+    updated_on = NOW()
 WHERE id = $1
-RETURNING id, summary, board_id, owner_id, contact_id, resources, updated_by, updated_on, added_on, deleted
+RETURNING id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on, deleted
 `
 
 type UpdateTicketParams struct {
 	ID        int     `json:"id"`
 	Summary   string  `json:"summary"`
 	BoardID   int     `json:"board_id"`
-	OwnerID   *int32  `json:"owner_id"`
-	ContactID *int32  `json:"contact_id"`
+	OwnerID   *int    `json:"owner_id"`
+	CompanyID int     `json:"company_id"`
+	ContactID *int    `json:"contact_id"`
 	Resources *string `json:"resources"`
 	UpdatedBy *string `json:"updated_by"`
 }
@@ -900,6 +912,7 @@ func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (CwT
 		arg.Summary,
 		arg.BoardID,
 		arg.OwnerID,
+		arg.CompanyID,
 		arg.ContactID,
 		arg.Resources,
 		arg.UpdatedBy,
@@ -910,6 +923,7 @@ func (q *Queries) UpdateTicket(ctx context.Context, arg UpdateTicketParams) (CwT
 		&i.Summary,
 		&i.BoardID,
 		&i.OwnerID,
+		&i.CompanyID,
 		&i.ContactID,
 		&i.Resources,
 		&i.UpdatedBy,
@@ -926,17 +940,18 @@ SET
     ticket_id = $2,
     member_id = $3,
     contact_id = $4,
-    notified = $5
+    notified = $5,
+    updated_on = NOW()
 WHERE id = $1
 RETURNING id, ticket_id, member_id, contact_id, notified, updated_on, added_on, deleted
 `
 
 type UpdateTicketNoteParams struct {
-	ID        int    `json:"id"`
-	TicketID  int    `json:"ticket_id"`
-	MemberID  *int32 `json:"member_id"`
-	ContactID *int32 `json:"contact_id"`
-	Notified  bool   `json:"notified"`
+	ID        int  `json:"id"`
+	TicketID  int  `json:"ticket_id"`
+	MemberID  *int `json:"member_id"`
+	ContactID *int `json:"contact_id"`
+	Notified  bool `json:"notified"`
 }
 
 func (q *Queries) UpdateTicketNote(ctx context.Context, arg UpdateTicketNoteParams) (CwTicketNote, error) {
