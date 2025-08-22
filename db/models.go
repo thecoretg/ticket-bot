@@ -8,28 +8,65 @@ import (
 	"time"
 )
 
-type Board struct {
-	ID            int     `json:"id"`
-	Name          string  `json:"name"`
-	NotifyEnabled bool    `json:"notify_enabled"`
-	WebexRoomID   *string `json:"webex_room_id"`
+type CwBoard struct {
+	ID            int       `json:"id"`
+	Name          string    `json:"name"`
+	NotifyEnabled bool      `json:"notify_enabled"`
+	WebexRoomID   *string   `json:"webex_room_id"`
+	UpdatedOn     time.Time `json:"updated_on"`
+	AddedOn       time.Time `json:"added_on"`
+	Deleted       bool      `json:"deleted"`
 }
 
-type Ticket struct {
+type CwCompany struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	UpdatedOn time.Time `json:"updated_on"`
+	AddedOn   time.Time `json:"added_on"`
+	Deleted   bool      `json:"deleted"`
+}
+
+type CwContact struct {
+	ID        int       `json:"id"`
+	FirstName string    `json:"first_name"`
+	LastName  *string   `json:"last_name"`
+	CompanyID *int32    `json:"company_id"`
+	UpdatedOn time.Time `json:"updated_on"`
+	AddedOn   time.Time `json:"added_on"`
+	Deleted   bool      `json:"deleted"`
+}
+
+type CwMember struct {
 	ID           int       `json:"id"`
-	Summary      string    `json:"summary"`
-	BoardID      int       `json:"board_id"`
-	OwnerID      *int32    `json:"owner_id"`
-	Resources    *string   `json:"resources"`
-	UpdatedBy    *string   `json:"updated_by"`
-	AddedToStore time.Time `json:"added_to_store"`
+	Identifier   string    `json:"identifier"`
+	FirstName    string    `json:"first_name"`
+	LastName     string    `json:"last_name"`
+	PrimaryEmail string    `json:"primary_email"`
+	UpdatedOn    time.Time `json:"updated_on"`
+	AddedOn      time.Time `json:"added_on"`
 	Deleted      bool      `json:"deleted"`
 }
 
-type TicketNote struct {
-	ID       int     `json:"id"`
-	TicketID int     `json:"ticket_id"`
-	Notified bool    `json:"notified"`
-	Member   *string `json:"member"`
-	Contact  *string `json:"contact"`
+type CwTicket struct {
+	ID        int       `json:"id"`
+	Summary   string    `json:"summary"`
+	BoardID   int       `json:"board_id"`
+	OwnerID   *int32    `json:"owner_id"`
+	ContactID *int32    `json:"contact_id"`
+	Resources *string   `json:"resources"`
+	UpdatedBy *string   `json:"updated_by"`
+	UpdatedOn time.Time `json:"updated_on"`
+	AddedOn   time.Time `json:"added_on"`
+	Deleted   bool      `json:"deleted"`
+}
+
+type CwTicketNote struct {
+	ID        int       `json:"id"`
+	TicketID  int       `json:"ticket_id"`
+	MemberID  *int32    `json:"member_id"`
+	ContactID *int32    `json:"contact_id"`
+	Notified  bool      `json:"notified"`
+	UpdatedOn time.Time `json:"updated_on"`
+	AddedOn   time.Time `json:"added_on"`
+	Deleted   bool      `json:"deleted"`
 }
