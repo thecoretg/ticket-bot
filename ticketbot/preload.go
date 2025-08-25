@@ -77,6 +77,52 @@ func (s *Server) preloadBoards(ctx context.Context, maxConcurrent int) error {
 	return nil
 }
 
+func (s *Server) preloadMembers(ctx context.Context, maxConcurrent int) error {
+	slog.Info("beginning preloading members")
+	slog.Debug("loading existing members from connectwise")
+
+	members, err := s.CWClient.ListMembers(nil)
+	if err != nil {
+		return fmt.Errorf("getting members from CW: %w", err)
+	}
+	slog.Info("got members from connectwise", "total_members", len(members))
+
+	sem := make(chan struct{}, maxConcurrent)
+	var wg sync.WaitGroup
+	for _, member := range members {
+		_, err := s.Queries.GetMember(ctx, member.ID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				slog.Info("member not found in data store - adding", "member_id", member.ID, "member_identifier", member.Identifier)
+				sem <- struct{}{}
+				wg.Add(1)
+				go func(member connectwise.Member) {
+					defer wg.Done()
+					defer func() { <-sem }()
+					p := db.InsertMemberParams{
+						ID:           member.ID,
+						Identifier:   member.Identifier,
+						FirstName:    member.FirstName,
+						LastName:     member.LastName,
+						PrimaryEmail: member.PrimaryEmail,
+					}
+					if _, err := s.Queries.InsertMember(ctx, p); err != nil {
+						slog.Warn("error preloading member", "member_id", member.ID, "member_identifier", member.Identifier, "error", err)
+					}
+					slog.Info("preloaded member", "member_id", member.ID, "member_identifier", member.Identifier)
+				}(member)
+			} else {
+				slog.Warn("an error occured trying to check if a member exists", "member_id", member.ID, "member_identifier", member.Identifier, "error", err)
+			}
+		} else {
+			slog.Info("member is already in data store", "member_id", member.ID, "member_identifier", member.Identifier)
+		}
+	}
+
+	wg.Wait()
+	return nil
+}
+
 func (s *Server) preloadOpenTickets(ctx context.Context, maxConcurrent int) error {
 	slog.Info("beginning preloading tickets")
 	params := map[string]string{
