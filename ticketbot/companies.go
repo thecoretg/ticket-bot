@@ -5,20 +5,24 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
-	"github.com/thecoretg/ticketbot/connectwise"
 	"github.com/thecoretg/ticketbot/db"
 	"log/slog"
 )
 
-func (s *Server) ensureCompanyInStore(ctx context.Context, cwComp *connectwise.Company) (db.CwCompany, error) {
-	company, err := s.Queries.GetCompany(ctx, cwComp.Id)
+func (s *Server) ensureCompanyInStore(ctx context.Context, id int) (db.CwCompany, error) {
+	company, err := s.Queries.GetCompany(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			slog.Debug("company not in store, attempting insert", "company_id", cwComp.Id, "company_name", cwComp.Name)
+			slog.Debug("company not in store, attempting insert", "company_id", id)
+			cwComp, err := s.CWClient.GetCompany(id, nil)
+			if err != nil {
+				return db.CwCompany{}, fmt.Errorf("getting company from cw: %w", err)
+			}
 			p := db.InsertCompanyParams{
 				ID:   cwComp.Id,
 				Name: cwComp.Name,
 			}
+			slog.Debug("created insert company params", "id", p.ID, "name", p.Name)
 
 			company, err = s.Queries.InsertCompany(ctx, p)
 			if err != nil {

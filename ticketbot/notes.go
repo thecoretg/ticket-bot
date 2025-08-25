@@ -25,17 +25,29 @@ func (s *Server) getLatestNoteFromCW(ticketID int) (*connectwise.ServiceTicketNo
 }
 
 func (s *Server) ensureNoteInStore(ctx context.Context, cwData *cwData, overrideNotify bool) (db.CwTicketNote, error) {
+	memberID, err := s.getMemberID(ctx, cwData)
+	if err != nil {
+		return db.CwTicketNote{}, fmt.Errorf("getting member data: %w", err)
+	}
+
+	contactID, err := s.getContactID(ctx, cwData)
+	if err != nil {
+		return db.CwTicketNote{}, fmt.Errorf("getting contact data: %w", err)
+	}
+
 	note, err := s.Queries.GetTicketNote(ctx, cwData.note.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			slog.Debug("note not found in store, attempting insert", "ticket_id", cwData.ticket.ID, "note_id", cwData.note.ID)
-			note, err = s.Queries.InsertTicketNote(ctx, db.InsertTicketNoteParams{
+			p := db.InsertTicketNoteParams{
 				ID:        cwData.note.ID,
 				TicketID:  cwData.note.TicketId,
+				MemberID:  memberID,
+				ContactID: contactID,
 				Notified:  overrideNotify,
-				MemberID:  getMemberID(cwData),
-				ContactID: getContactID(cwData),
-			})
+			}
+			slog.Debug("created insert note params", "id", p.ID, "ticket_id", p.TicketID, "member_id", p.MemberID, "contact_id", p.ContactID, "notified", p.Notified)
+			note, err = s.Queries.InsertTicketNote(ctx, p)
 
 			if err != nil {
 				return db.CwTicketNote{}, fmt.Errorf("inserting ticket note into db: %w", err)
@@ -66,18 +78,29 @@ func (s *Server) setNotified(ctx context.Context, noteID int, notified bool) err
 	return nil
 }
 
-func getMemberID(cwData *cwData) *int {
-	if cwData.note.Member.ID != 0 {
-		return &cwData.note.Member.ID
+func (s *Server) getMemberID(ctx context.Context, cwData *cwData) (*int, error) {
+	if cwData.note.Contact.ID != 0 {
+		c, err := s.ensureContactInStore(ctx, cwData.note.Contact.ID)
+		if err != nil {
+			return nil, fmt.Errorf("ensuring contact in store: %w", err)
+		}
+
+		return intToPtr(c.ID), nil
 	}
 
-	return nil
+	return nil, nil
+
 }
 
-func getContactID(cwData *cwData) *int {
-	if cwData.note.Contact.ID != 0 {
-		return &cwData.note.Contact.ID
+func (s *Server) getContactID(ctx context.Context, cwData *cwData) (*int, error) {
+	if cwData.note.Member.ID != 0 {
+		m, err := s.ensureMemberInStore(ctx, cwData.note.Member.ID)
+		if err != nil {
+			return nil, fmt.Errorf("ensuring member in store: %w", err)
+		}
+
+		return intToPtr(m.ID), nil
 	}
 
-	return nil
+	return nil, nil
 }

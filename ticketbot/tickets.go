@@ -19,9 +19,12 @@ type cwData struct {
 }
 
 type storedData struct {
-	ticket db.CwTicket
-	note   db.CwTicketNote
-	board  db.CwBoard
+	ticket  db.CwTicket
+	company db.CwCompany
+	contact db.CwContact
+	owner   db.CwMember
+	note    db.CwTicketNote
+	board   db.CwBoard
 }
 
 func (s *Server) addHooksGroup() {
@@ -101,7 +104,7 @@ func (s *Server) processTicketPayload(ctx context.Context, ticketID int, action 
 	}
 
 	if meetsMessageCriteria(action, storedData) && attemptNotify {
-		if err := s.makeAndSendWebexMsgs(action, cwData, storedData); err != nil {
+		if err := s.makeAndSendWebexMsgs(ctx, action, cwData, storedData); err != nil {
 			return fmt.Errorf("processing webex messages: %w", err)
 		}
 	}
@@ -155,6 +158,27 @@ func (s *Server) getStoredData(ctx context.Context, cwData *cwData, overrideNoti
 		return nil, fmt.Errorf("ensuring board in store: %w", err)
 	}
 
+	company, err := s.ensureCompanyInStore(ctx, cwData.ticket.Company.ID)
+	if err != nil {
+		return nil, fmt.Errorf("ensuring company in store: %w", err)
+	}
+
+	contact := db.CwContact{}
+	if cwData.ticket.Contact.ID != 0 {
+		contact, err = s.ensureContactInStore(ctx, cwData.ticket.Contact.ID)
+		if err != nil {
+			return nil, fmt.Errorf("ensuring contact in store: %w", err)
+		}
+	}
+
+	owner := db.CwMember{}
+	if cwData.ticket.Owner.ID != 0 {
+		owner, err = s.ensureMemberInStore(ctx, cwData.ticket.Owner.ID)
+		if err != nil {
+			return nil, fmt.Errorf("ensuring owner in store: %w", err)
+		}
+	}
+
 	// check for, or create ticket
 	ticket, err := s.ensureTicketInStore(ctx, cwData)
 	if err != nil {
@@ -171,9 +195,12 @@ func (s *Server) getStoredData(ctx context.Context, cwData *cwData, overrideNoti
 	}
 
 	return &storedData{
-		ticket: ticket,
-		note:   note,
-		board:  board,
+		ticket:  ticket,
+		company: company,
+		contact: contact,
+		owner:   owner,
+		note:    note,
+		board:   board,
 	}, nil
 }
 
@@ -181,7 +208,7 @@ func (s *Server) ensureTicketInStore(ctx context.Context, cwData *cwData) (db.Cw
 	ticket, err := s.Queries.GetTicket(ctx, cwData.ticket.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			ticket, err = s.Queries.InsertTicket(ctx, db.InsertTicketParams{
+			p := db.InsertTicketParams{
 				ID:        cwData.ticket.ID,
 				Summary:   cwData.ticket.Summary,
 				BoardID:   cwData.ticket.Board.ID,
@@ -190,7 +217,9 @@ func (s *Server) ensureTicketInStore(ctx context.Context, cwData *cwData) (db.Cw
 				ContactID: intToPtr(cwData.ticket.Contact.ID),
 				Resources: &cwData.ticket.Resources,
 				UpdatedBy: &cwData.ticket.Info.UpdatedBy,
-			})
+			}
+			slog.Debug("created insert ticket params", "id", p.ID, "summary", p.Summary, "board_id", p.BoardID, "owner_id", p.OwnerID, "company_id", p.CompanyID, "contact_id", p.ContactID, "resources", p.Resources, "updated_by", p.UpdatedBy)
+			ticket, err = s.Queries.InsertTicket(ctx, p)
 			if err != nil {
 				return db.CwTicket{}, fmt.Errorf("inserting ticket into db: %w", err)
 			}

@@ -5,22 +5,27 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5"
-	"github.com/thecoretg/ticketbot/connectwise"
 	"github.com/thecoretg/ticketbot/db"
 	"log/slog"
 )
 
-func (s *Server) ensureContactInStore(ctx context.Context, cwContact *connectwise.Contact) (db.CwContact, error) {
-	contact, err := s.Queries.GetContact(ctx, cwContact.ID)
+func (s *Server) ensureContactInStore(ctx context.Context, id int) (db.CwContact, error) {
+	contact, err := s.Queries.GetContact(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			slog.Debug("contact not in store, attempting insert", "contact_id", cwContact.ID, "first_name", cwContact.FirstName, "last_name", cwContact.LastName)
+			slog.Debug("contact not in store, attempting insert", "contact_id", id)
+			cwContact, err := s.CWClient.GetContact(id, nil)
+			if err != nil {
+				return db.CwContact{}, fmt.Errorf("getting contact from cw: %w", err)
+			}
+
 			p := db.InsertContactParams{
 				ID:        cwContact.ID,
 				FirstName: cwContact.FirstName,
 				LastName:  strToPtr(cwContact.LastName),
 				CompanyID: intToPtr(cwContact.Company.ID),
 			}
+			slog.Debug("created insert contact params", "id", p.ID, "first_name", p.FirstName, "last_name", p.LastName, "company_id", p.CompanyID)
 
 			contact, err = s.Queries.InsertContact(ctx, p)
 			if err != nil {
