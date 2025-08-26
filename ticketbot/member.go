@@ -4,10 +4,33 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/thecoretg/ticketbot/db"
-	"log/slog"
 )
+
+func (s *Server) ensureMemberByIdentifier(ctx context.Context, identifier string) (db.CwMember, error) {
+	member, err := s.Queries.GetMemberByIdentifier(ctx, identifier)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			slog.Debug("member not in store, attempting insert", "member_identifier", identifier)
+			cwMember, err := s.CWClient.GetMemberByIdentifier(identifier)
+			if err != nil {
+				return db.CwMember{}, fmt.Errorf("getting member from cw by identifier: %w", err)
+			}
+
+			if cwMember == nil {
+				return db.CwMember{}, fmt.Errorf("member %s not found", identifier)
+			}
+
+			return s.ensureMemberInStore(ctx, cwMember.ID)
+		}
+		return db.CwMember{}, fmt.Errorf("querying db for member: %w", err)
+	}
+
+	return member, nil
+}
 
 func (s *Server) ensureMemberInStore(ctx context.Context, id int) (db.CwMember, error) {
 	member, err := s.Queries.GetMember(ctx, id)
