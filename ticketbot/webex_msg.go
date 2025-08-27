@@ -103,7 +103,12 @@ func (s *Server) getSendTo(ctx context.Context, storedData *storedData) ([]strin
 		excludedMembers = append(excludedMembers, *storedData.note.MemberID)
 	}
 
+	// if there are multiple resources in the string, there are spaces after commas - trim those out
 	resources := strings.Split(*storedData.ticket.Resources, ",")
+	for i, r := range resources {
+		resources[i] = strings.TrimSpace(r)
+	}
+
 	for _, r := range resources {
 		m, err := s.Queries.GetMemberByIdentifier(ctx, r)
 		if err != nil {
