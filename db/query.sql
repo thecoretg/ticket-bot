@@ -1,3 +1,69 @@
+-- name: GetUser :one
+SELECT * FROM api_user
+WHERE id = $1 LIMIT 1;
+
+-- name: GetUserByEmail :one
+SELECT * FROM api_user
+WHERE email_address = $1 LIMIT 1;
+
+-- name: ListUsers :many
+SELECT * FROM api_user
+ORDER BY email_address;
+
+-- name: InsertUser :one
+INSERT INTO api_user
+(first_name, last_name, email_address)
+VALUES ($1, $2, $3)
+RETURNING *;
+
+-- name: UpdateUser :one
+UPDATE api_user
+SET
+    first_name = $2,
+    last_name = $3,
+    email_address = $4,
+    updated_on = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: SoftDeleteUser :one
+UPDATE api_user
+SET
+    deleted = true,
+    updated_on = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: DeleteUser :exec
+DELETE FROM api_user
+WHERE id = $1;
+
+-- name: GetAPILKey :one
+SELECT * FROM api_key
+WHERE id = $1;
+
+-- name: ListAPIKeys :many
+SELECT * FROM api_key
+ORDER BY created_on;
+
+-- name: InsertAPIKey :one
+INSERT INTO api_key
+(user_id, key_hash)
+VALUES ($1, $2)
+RETURNING *;
+
+-- name: SoftDeleteAPIKey :one
+UPDATE api_key
+SET
+    delete = true,
+    updated_on = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: DeleteAPIKey :exec
+DELETE FROM api_key
+WHERE id = $1;
+
 -- name: GetBoard :one
 SELECT * FROM cw_board
 WHERE id = $1 LIMIT 1;
@@ -22,9 +88,15 @@ SET
 WHERE id = $1
 RETURNING *;
 
--- name: DeleteBoard :exec
+-- name: SoftDeleteBoard :exec
 UPDATE cw_board
-SET deleted = TRUE
+SET
+    deleted = TRUE,
+    updated_on = NOW()
+WHERE id = $1;
+
+-- name: DeleteBoard :exec
+DELETE FROM cw_board
 WHERE id = $1;
 
 -- name: GetTicket :one
@@ -58,7 +130,8 @@ RETURNING *;
 -- name: SoftDeleteTicket :exec
 UPDATE cw_ticket
 SET
-    deleted = TRUE
+    deleted = TRUE,
+    updated_on = NOW()
 WHERE id = $1;
 
 -- name: DeleteTicket :exec
