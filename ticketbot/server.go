@@ -30,6 +30,10 @@ func (s *Server) Run() error {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	if err := s.BootstrapAdmin(context.Background()); err != nil {
+		return fmt.Errorf("boostrapping admin: %w", err)
+	}
+
 	return s.GinEngine.Run()
 }
 

@@ -19,8 +19,6 @@ type ApiKey struct {
 
 type ApiUser struct {
 	ID           int32     `json:"id"`
-	FirstName    string    `json:"first_name"`
-	LastName     string    `json:"last_name"`
 	EmailAddress string    `json:"email_address"`
 	CreatedOn    time.Time `json:"created_on"`
 	UpdatedOn    time.Time `json:"updated_on"`

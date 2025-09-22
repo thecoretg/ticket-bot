@@ -10,11 +10,12 @@ import (
 )
 
 type Cfg struct {
-	VerboseLogging bool   `json:"verbose" mapstructure:"verbose"`
-	Debug          bool   `json:"debug" mapstructure:"debug"`
-	ExitOnError    bool   `json:"exit_on_error" mapstructure:"exit_on_error"`
-	LogToFile      bool   `json:"log_to_file" mapstructure:"log_to_file"`
-	LogFilePath    string `json:"log_file_path" mapstructure:"log_file_path"`
+	VerboseLogging    bool   `json:"verbose" mapstructure:"verbose"`
+	Debug             bool   `json:"debug" mapstructure:"debug"`
+	ExitOnError       bool   `json:"exit_on_error" mapstructure:"exit_on_error"`
+	LogToFile         bool   `json:"log_to_file" mapstructure:"log_to_file"`
+	LogFilePath       string `json:"log_file_path" mapstructure:"log_file_path"`
+	InitialAdminEmail string `json:"initial_admin_email" mapstructure:"initial_admin_email"`
 
 	RootURL string `json:"root_url" mapstructure:"root_url"`
 
@@ -54,6 +55,7 @@ func InitCfg() (*Cfg, error) {
 		ExitOnError:       viper.GetBool("exit_on_error"),
 		LogToFile:         viper.GetBool("log_to_file"),
 		LogFilePath:       viper.GetString("log_file_path"),
+		InitialAdminEmail: viper.GetString("initial_admin_email"),
 		RootURL:           viper.GetString("root_url"),
 		WebexSecret:       viper.GetString("webex_secret"),
 		CwPubKey:          viper.GetString("cw_pub_key"),
@@ -81,13 +83,14 @@ func InitCfg() (*Cfg, error) {
 
 func (cfg *Cfg) validateFields() bool {
 	vals := map[string]string{
-		"root_url":      cfg.RootURL,
-		"cw_pub_key":    cfg.CwPubKey,
-		"cw_priv_key":   cfg.CwPrivKey,
-		"cw_client_id":  cfg.CwClientID,
-		"cw_company_id": cfg.CwCompanyID,
-		"postgres_dsn":  cfg.PostgresDSN,
-		"webex_secret":  cfg.WebexSecret,
+		"root_url":            cfg.RootURL,
+		"initial_admin_email": cfg.InitialAdminEmail,
+		"cw_pub_key":          cfg.CwPubKey,
+		"cw_priv_key":         cfg.CwPrivKey,
+		"cw_client_id":        cfg.CwClientID,
+		"cw_company_id":       cfg.CwCompanyID,
+		"postgres_dsn":        cfg.PostgresDSN,
+		"webex_secret":        cfg.WebexSecret,
 	}
 
 	if err := checkEmptyFields(vals); err != nil {

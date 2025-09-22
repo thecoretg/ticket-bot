@@ -2,8 +2,6 @@
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS api_user (
     id SERIAL PRIMARY KEY,
-    first_name TEXT NOT NULL,
-    last_name TEXT NOT NULL,
     email_address TEXT UNIQUE NOT NULL,
     created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -87,8 +85,8 @@ CREATE TABLE IF NOT EXISTS cw_ticket_note (
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS user;
 DROP TABLE IF EXISTS api_key;
+DROP TABLE IF EXISTS api_user;
 DROP TABLE IF EXISTS cw_ticket_note;
 DROP TABLE IF EXISTS cw_ticket;
 DROP TABLE IF EXISTS cw_member;

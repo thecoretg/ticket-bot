@@ -260,7 +260,7 @@ func (q *Queries) GetTicketNote(ctx context.Context, id int) (CwTicketNote, erro
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, first_name, last_name, email_address, created_on, updated_on, deleted FROM api_user
+SELECT id, email_address, created_on, updated_on, deleted FROM api_user
 WHERE id = $1 LIMIT 1
 `
 
@@ -269,8 +269,6 @@ func (q *Queries) GetUser(ctx context.Context, id int32) (ApiUser, error) {
 	var i ApiUser
 	err := row.Scan(
 		&i.ID,
-		&i.FirstName,
-		&i.LastName,
 		&i.EmailAddress,
 		&i.CreatedOn,
 		&i.UpdatedOn,
@@ -280,7 +278,7 @@ func (q *Queries) GetUser(ctx context.Context, id int32) (ApiUser, error) {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, first_name, last_name, email_address, created_on, updated_on, deleted FROM api_user
+SELECT id, email_address, created_on, updated_on, deleted FROM api_user
 WHERE email_address = $1 LIMIT 1
 `
 
@@ -289,8 +287,6 @@ func (q *Queries) GetUserByEmail(ctx context.Context, emailAddress string) (ApiU
 	var i ApiUser
 	err := row.Scan(
 		&i.ID,
-		&i.FirstName,
-		&i.LastName,
 		&i.EmailAddress,
 		&i.CreatedOn,
 		&i.UpdatedOn,
@@ -540,24 +536,16 @@ func (q *Queries) InsertTicketNote(ctx context.Context, arg InsertTicketNotePara
 
 const insertUser = `-- name: InsertUser :one
 INSERT INTO api_user
-(first_name, last_name, email_address)
-VALUES ($1, $2, $3)
-RETURNING id, first_name, last_name, email_address, created_on, updated_on, deleted
+(email_address)
+VALUES ($1)
+RETURNING id, email_address, created_on, updated_on, deleted
 `
 
-type InsertUserParams struct {
-	FirstName    string `json:"first_name"`
-	LastName     string `json:"last_name"`
-	EmailAddress string `json:"email_address"`
-}
-
-func (q *Queries) InsertUser(ctx context.Context, arg InsertUserParams) (ApiUser, error) {
-	row := q.db.QueryRow(ctx, insertUser, arg.FirstName, arg.LastName, arg.EmailAddress)
+func (q *Queries) InsertUser(ctx context.Context, emailAddress string) (ApiUser, error) {
+	row := q.db.QueryRow(ctx, insertUser, emailAddress)
 	var i ApiUser
 	err := row.Scan(
 		&i.ID,
-		&i.FirstName,
-		&i.LastName,
 		&i.EmailAddress,
 		&i.CreatedOn,
 		&i.UpdatedOn,
@@ -836,7 +824,7 @@ func (q *Queries) ListTickets(ctx context.Context) ([]CwTicket, error) {
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, first_name, last_name, email_address, created_on, updated_on, deleted FROM api_user
+SELECT id, email_address, created_on, updated_on, deleted FROM api_user
 ORDER BY email_address
 `
 
@@ -851,8 +839,6 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ApiUser, error) {
 		var i ApiUser
 		if err := rows.Scan(
 			&i.ID,
-			&i.FirstName,
-			&i.LastName,
 			&i.EmailAddress,
 			&i.CreatedOn,
 			&i.UpdatedOn,
@@ -996,7 +982,7 @@ SET
     deleted = true,
     updated_on = NOW()
 WHERE id = $1
-RETURNING id, first_name, last_name, email_address, created_on, updated_on, deleted
+RETURNING id, email_address, created_on, updated_on, deleted
 `
 
 func (q *Queries) SoftDeleteUser(ctx context.Context, id int32) (ApiUser, error) {
@@ -1004,8 +990,6 @@ func (q *Queries) SoftDeleteUser(ctx context.Context, id int32) (ApiUser, error)
 	var i ApiUser
 	err := row.Scan(
 		&i.ID,
-		&i.FirstName,
-		&i.LastName,
 		&i.EmailAddress,
 		&i.CreatedOn,
 		&i.UpdatedOn,
@@ -1258,33 +1242,17 @@ func (q *Queries) UpdateTicketNote(ctx context.Context, arg UpdateTicketNotePara
 const updateUser = `-- name: UpdateUser :one
 UPDATE api_user
 SET
-    first_name = $2,
-    last_name = $3,
-    email_address = $4,
+    email_address = $1,
     updated_on = NOW()
 WHERE id = $1
-RETURNING id, first_name, last_name, email_address, created_on, updated_on, deleted
+RETURNING id, email_address, created_on, updated_on, deleted
 `
 
-type UpdateUserParams struct {
-	ID           int32  `json:"id"`
-	FirstName    string `json:"first_name"`
-	LastName     string `json:"last_name"`
-	EmailAddress string `json:"email_address"`
-}
-
-func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (ApiUser, error) {
-	row := q.db.QueryRow(ctx, updateUser,
-		arg.ID,
-		arg.FirstName,
-		arg.LastName,
-		arg.EmailAddress,
-	)
+func (q *Queries) UpdateUser(ctx context.Context, emailAddress string) (ApiUser, error) {
+	row := q.db.QueryRow(ctx, updateUser, emailAddress)
 	var i ApiUser
 	err := row.Scan(
 		&i.ID,
-		&i.FirstName,
-		&i.LastName,
 		&i.EmailAddress,
 		&i.CreatedOn,
 		&i.UpdatedOn,

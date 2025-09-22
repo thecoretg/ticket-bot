@@ -12,16 +12,14 @@ ORDER BY email_address;
 
 -- name: InsertUser :one
 INSERT INTO api_user
-(first_name, last_name, email_address)
-VALUES ($1, $2, $3)
+(email_address)
+VALUES ($1)
 RETURNING *;
 
 -- name: UpdateUser :one
 UPDATE api_user
 SET
-    first_name = $2,
-    last_name = $3,
-    email_address = $4,
+    email_address = $1,
     updated_on = NOW()
 WHERE id = $1
 RETURNING *;
