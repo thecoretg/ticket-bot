@@ -1,17 +1,11 @@
 install-cli:
-	go build -o ~/bin/tbot ./cmd/cli/main.go
-
-update-lambda:
-	scripts/deploy_lambda.sh
-
-tail-lambda-logs:
-	aws logs tail /aws/lambda/ticketbot --follow
+	go build -o ~/bin/ticketbot ./cmd/cli/main.go
 
 gensql:
-	sqlc generate -f db/sqlc.yaml
+	sqlc generate -f internal/db/sqlc.yaml
 
-init-hooks:
-	go run cmd/cli/main.go init-hooks
+run:
+	go run main.go
 
 up:
 	goose up
