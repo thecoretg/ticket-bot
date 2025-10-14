@@ -15,22 +15,20 @@ func SetLogger(verbose, debug, toFile bool, logFilePath string) error {
 		}
 	}
 
-	var err error
-	handler := newStdoutHandler(level)
 	if toFile {
 		if logFilePath == "" {
 			logFilePath = "ticketbot.log"
 		}
 
-		handler, err = newFileHandler(logFilePath, level)
+		fh, err := newFileHandler(logFilePath, level)
 		if err != nil {
 			return fmt.Errorf("creating file handler: %w", err)
 		}
+		slog.SetDefault(slog.New(fh))
+		return nil
 	}
 
-	// this only shows if debug is enabled
-	// you can tell by the way that it is
-	slog.Debug("debug enabled")
+	handler := newStdoutHandler(level)
 	slog.SetDefault(slog.New(handler))
 	return nil
 }
@@ -46,8 +44,8 @@ func newFileHandler(filePath string, level slog.Level) (*slog.JSONHandler, error
 	}), nil
 }
 
-func newStdoutHandler(level slog.Level) *slog.JSONHandler {
-	return slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+func newStdoutHandler(level slog.Level) *slog.TextHandler {
+	return slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: level,
 	})
 }
