@@ -39,7 +39,7 @@ func parseRootFlags(ctx context.Context) error {
 		return fmt.Errorf("initializing config: %w", err)
 	}
 
-	d, err := server.ConnectToDB(ctx, c.PostgresDSN)
+	d, err := server.ConnectToDB(ctx, c.Creds.PostgresDSN)
 	if err != nil {
 		return fmt.Errorf("connecting to database: %w", err)
 	}

@@ -30,7 +30,7 @@ type storedData struct {
 
 func (s *Server) addHooksGroup() {
 	hooks := s.GinEngine.Group("/hooks")
-	cw := hooks.Group("/cw", requireValidCWSignature(), ErrorHandler(s.Config.ExitOnError))
+	cw := hooks.Group("/cw", requireValidCWSignature(), ErrorHandler(s.Config.General.ExitOnError))
 	cw.POST("/tickets", s.handleTickets)
 }
 
@@ -49,7 +49,7 @@ func (s *Server) handleTickets(c *gin.Context) {
 	slog.Info("received payload from connectwise", "ticket_id", w.ID, "action", w.Action)
 	switch w.Action {
 	case "added", "updated":
-		if err := s.processTicketPayload(c.Request.Context(), w.ID, w.Action, false, s.Config.AttemptNotify); err != nil {
+		if err := s.processTicketPayload(c.Request.Context(), w.ID, w.Action, false, s.Config.Messages.AttemptNotify); err != nil {
 			c.Error(fmt.Errorf("ticket %d: adding or updating the ticket into data storage: %w", w.ID, err))
 			return
 		}

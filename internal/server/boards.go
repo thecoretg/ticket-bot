@@ -14,7 +14,7 @@ import (
 )
 
 func (s *Server) addBoardsGroup() {
-	boards := s.GinEngine.Group("/boards", ErrorHandler(s.Config.ExitOnError))
+	boards := s.GinEngine.Group("/boards", ErrorHandler(s.Config.General.ExitOnError))
 	boards.PUT("/:board_id", s.putBoard)
 }
 

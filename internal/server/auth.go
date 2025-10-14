@@ -22,7 +22,7 @@ type APIKeyPayload struct {
 }
 
 func (s *Server) addKeysGroup() {
-	keys := s.GinEngine.Group("/keys", s.APIKeyAuth(), ErrorHandler(s.Config.ExitOnError))
+	keys := s.GinEngine.Group("/keys", s.APIKeyAuth(), ErrorHandler(s.Config.General.ExitOnError))
 	keys.POST("/", s.CreateAPIKeyHandler)
 }
 func (s *Server) APIKeyAuth() gin.HandlerFunc {
@@ -89,7 +89,7 @@ func (s *Server) CreateAPIKeyHandler(c *gin.Context) {
 }
 
 func (s *Server) BootstrapAdmin(ctx context.Context) error {
-	email := s.Config.InitialAdminEmail
+	email := s.Config.General.InitialAdminEmail
 	if email == "" {
 		return errors.New("initial admin config field must not be blank")
 	}

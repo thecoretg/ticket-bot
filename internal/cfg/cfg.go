@@ -13,23 +13,42 @@ import (
 )
 
 type Cfg struct {
-	VerboseLogging    bool   `json:"verbose" mapstructure:"verbose"`
-	Debug             bool   `json:"debug" mapstructure:"debug"`
-	ExitOnError       bool   `json:"exit_on_error" mapstructure:"exit_on_error"`
-	LogToFile         bool   `json:"log_to_file" mapstructure:"log_to_file"`
-	LogFilePath       string `json:"log_file_path" mapstructure:"log_file_path"`
+	General  GeneralCfg `json:"general" mapstructure:"general"`
+	Logging  LoggingCfg `json:"logging" mapstructure:"logging"`
+	Creds    CredsCfg   `json:"creds" mapstucture:"creds"`
+	Messages MessageCfg `json:"messages" mapstructure:"messages"`
+}
+
+type GeneralCfg struct {
+	RootURL           string `json:"root_url" mapstructure:"root_url"`
 	InitialAdminEmail string `json:"initial_admin_email" mapstructure:"initial_admin_email"`
+	ExitOnError       bool   `json:"exit_on_error" mapstructure:"exit_on_error"`
+}
 
-	RootURL string `json:"root_url" mapstructure:"root_url"`
+type LoggingCfg struct {
+	VerboseLogging bool `json:"verbose" mapstructure:"verbose"`
+	Debug          bool `json:"debug" mapstructure:"debug"`
 
-	WebexSecret string `json:"webex_secret" mapstructure:"webex_secret"`
-	CwPubKey    string `json:"cw_pub_key" mapstructure:"cw_pub_key"`
-	CwPrivKey   string `json:"cw_priv_key" mapstructure:"cw_priv_key"`
-	CwClientID  string `json:"cw_client_id" mapstructure:"cw_client_id"`
-	CwCompanyID string `json:"cw_company_id" mapstructure:"cw_company_id"`
-	PostgresDSN string `json:"postgres_dsn" mapstructure:"postgres_dsn"`
+	LogToFile   bool   `json:"log_to_file" mapstructure:"log_to_file"`
+	LogFilePath string `json:"log_file_path" mapstructure:"log_file_path"`
+}
 
+type CredsCfg struct {
+	CW          CWCreds `json:"connectwise" mapstructure:"connectwise"`
+	WebexSecret string  `json:"webex_secret" mapstructure:"webex_secret"`
+	PostgresDSN string  `json:"postgres_dsn" mapstructure:"postgres_dsn"`
+}
+
+type CWCreds struct {
+	PubKey    string `json:"pub_key" mapstructure:"pub_key"`
+	PrivKey   string `json:"priv_key" mapstructure:"priv_key"`
+	ClientID  string `json:"client_id" mapstructure:"client_id"`
+	CompanyID string `json:"company_id" mapstructure:"company_id"`
+}
+
+type MessageCfg struct {
 	AttemptNotify bool `json:"attempt_notify" mapstructure:"attempt_notify"`
+
 	// Max message length before ticket notifications get a "..." at the end instead of the whole message.
 	MaxMsgLength int `json:"max_msg_length" mapstructure:"max_msg_length"`
 
@@ -42,7 +61,7 @@ func InitCfg() (*Cfg, error) {
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return nil, fmt.Errorf("getting user home directory: %w", err)
+		return nil, fmt.Errorf("getting user config directory: %w", err)
 	}
 
 	cfgDir := filepath.Join(home, ".config", "ticketbot")
@@ -71,19 +90,19 @@ func InitCfg() (*Cfg, error) {
 		return nil, fmt.Errorf("unmarshaling config to json: %w", err)
 	}
 
-	if err := logger.SetLogger(c.VerboseLogging, c.Debug, c.LogToFile, c.LogFilePath); err != nil {
+	if err := logger.SetLogger(c.Logging.VerboseLogging, c.Logging.Debug, c.Logging.LogToFile, c.Logging.LogFilePath); err != nil {
 		return nil, fmt.Errorf("error setting logger: %w", err)
 	}
 
-	slog.Info("logger set", "debug", c.Debug, "log_to_file", c.LogToFile, "log_file_path", c.LogFilePath)
+	slog.Info("logger set", "debug", c.Logging.Debug, "log_to_file", c.Logging.LogToFile, "log_file_path", c.Logging.LogFilePath)
 
-	slog.Info("config initialized", "debug", c.Debug, "exit_on_error", c.ExitOnError,
-		"log_to_file", c.LogToFile, "log_file_path", c.LogFilePath,
-		"root_url", c.RootURL, "max_msg_length", c.MaxMsgLength,
-		"excluded_cw_members", c.ExcludedCWMembers,
-		"attempt_notify", c.AttemptNotify)
+	slog.Info("config initialized", "debug", c.Logging.Debug, "exit_on_error", c.General.ExitOnError,
+		"log_to_file", c.Logging.LogToFile, "log_file_path", c.Logging.LogFilePath,
+		"root_url", c.General.RootURL, "max_msg_length", c.Messages.MaxMsgLength,
+		"excluded_cw_members", c.Messages.ExcludedCWMembers,
+		"attempt_notify", c.Messages.AttemptNotify)
 
-	if !c.validateFields() {
+	if !c.fieldsAreValid() {
 		return nil, errors.New("config is missing required fields, please verify env variables")
 	}
 	slog.Info("config fields validated successfully")
@@ -91,53 +110,53 @@ func InitCfg() (*Cfg, error) {
 	return &c, nil
 }
 
-func (cfg *Cfg) validateFields() bool {
+func (cfg *Cfg) fieldsAreValid() bool {
 	vals := map[string]string{
-		"root_url":            cfg.RootURL,
-		"initial_admin_email": cfg.InitialAdminEmail,
-		"cw_pub_key":          cfg.CwPubKey,
-		"cw_priv_key":         cfg.CwPrivKey,
-		"cw_client_id":        cfg.CwClientID,
-		"cw_company_id":       cfg.CwCompanyID,
-		"postgres_dsn":        cfg.PostgresDSN,
-		"webex_secret":        cfg.WebexSecret,
+		"root_url":            cfg.General.RootURL,
+		"initial_admin_email": cfg.General.InitialAdminEmail,
+		"cw_pub_key":          cfg.Creds.CW.PubKey,
+		"cw_priv_key":         cfg.Creds.CW.PrivKey,
+		"cw_client_id":        cfg.Creds.CW.ClientID,
+		"cw_company_id":       cfg.Creds.CW.CompanyID,
+		"postgres_dsn":        cfg.Creds.PostgresDSN,
+		"webex_secret":        cfg.Creds.WebexSecret,
 	}
 
-	if err := checkEmptyFields(vals); err != nil {
-		slog.Error(err.Error())
+	var empty []string
+	for k, v := range vals {
+		if isEmpty(v) {
+			empty = append(empty, k)
+		}
+	}
+
+	if len(empty) > 0 {
+		fmt.Println("Empty required fields found in config:")
+		for _, f := range empty {
+			fmt.Println(f)
+		}
 		return false
 	}
 
 	return true
 }
 
-func checkEmptyFields(vals map[string]string) error {
-	for k, v := range vals {
-		if isEmpty(v) {
-			slog.Error("required field is empty", "key", k)
-			return fmt.Errorf("required field is empty: %s", k)
-		}
-	}
-	return nil
-}
-
 func setConfigDefaults() {
-	viper.SetDefault("verbose", false)
-	viper.SetDefault("debug", false)
-	viper.SetDefault("exit_on_error", false)
-	viper.SetDefault("log_to_file", false)
-	viper.SetDefault("log_file_path", "ticketbot.log")
-	viper.SetDefault("initial_admin_email", "")
-	viper.SetDefault("root_url", "")
-	viper.SetDefault("cw_pub_key", "")
-	viper.SetDefault("cw_priv_key", "")
-	viper.SetDefault("cw_client_id", "")
-	viper.SetDefault("cw_company_id", "")
-	viper.SetDefault("webex_secret", "")
-	viper.SetDefault("postgres_dsn", "")
-	viper.SetDefault("attempt_notify", false)
-	viper.SetDefault("max_msg_length", 300)
-	viper.SetDefault("excluded_cw_members", []string{})
+	viper.SetDefault("general.exit_on_error", false)
+	viper.SetDefault("general.initial_admin_email", "")
+	viper.SetDefault("general.root_url", "")
+	viper.SetDefault("logging.log_to_file", false)
+	viper.SetDefault("logging.log_file_path", "ticketbot.log")
+	viper.SetDefault("logging.verbose", false)
+	viper.SetDefault("logging.debug", false)
+	viper.SetDefault("creds.connectwise.pub_key", "")
+	viper.SetDefault("creds.connectwise.priv_key", "")
+	viper.SetDefault("creds.connectwise.client_id", "")
+	viper.SetDefault("creds.connectwise.company_id", "")
+	viper.SetDefault("creds.webex_secret", "")
+	viper.SetDefault("creds.postgres_dsn", "")
+	viper.SetDefault("messages.attempt_notify", false)
+	viper.SetDefault("messages.max_msg_length", 300)
+	viper.SetDefault("messages.excluded_cw_members", []string{})
 }
 
 func isEmpty(s string) bool {

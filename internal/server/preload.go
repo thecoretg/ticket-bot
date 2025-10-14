@@ -161,7 +161,7 @@ func (s *Server) PreloadOpenTickets(ctx context.Context, maxConcurrent int) erro
 	for err := range errCh {
 		if err != nil {
 			slog.Error("preloading ticket", "error", err)
-			if s.Config.ExitOnError {
+			if s.Config.General.ExitOnError {
 				slog.Info("exiting because EXIT_ON_ERROR is enabled")
 				return err
 			}

@@ -32,7 +32,7 @@ func InitAndRun(ctx context.Context) error {
 		return fmt.Errorf("initializing config: %w", err)
 	}
 
-	dbConn, err := ConnectToDB(ctx, c.PostgresDSN)
+	dbConn, err := ConnectToDB(ctx, c.Creds.PostgresDSN)
 	if err != nil {
 		return fmt.Errorf("connecting to db: %w", err)
 	}
@@ -58,7 +58,7 @@ func InitAndRun(ctx context.Context) error {
 // Run just runs the server, and does not do the initialization steps. Good if it went down and you just need to
 // restart it
 func (s *Server) Run() error {
-	if !s.Config.Debug {
+	if !s.Config.Logging.Debug {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
@@ -81,16 +81,16 @@ func ConnectToDB(ctx context.Context, dsn string) (*db.Queries, error) {
 
 func NewServer(cfg *cfg.Cfg, dbConn *db.Queries) *Server {
 	cwCreds := &psa.Creds{
-		PublicKey:  cfg.CwPubKey,
-		PrivateKey: cfg.CwPrivKey,
-		ClientId:   cfg.CwClientID,
-		CompanyId:  cfg.CwCompanyID,
+		PublicKey:  cfg.Creds.CW.PubKey,
+		PrivateKey: cfg.Creds.CW.PrivKey,
+		ClientId:   cfg.Creds.CW.ClientID,
+		CompanyId:  cfg.Creds.CW.CompanyID,
 	}
 
 	s := &Server{
 		Config:      cfg,
 		CWClient:    psa.NewClient(cwCreds),
-		WebexClient: webex.NewClient(cfg.WebexSecret),
+		WebexClient: webex.NewClient(cfg.Creds.WebexSecret),
 		Queries:     dbConn,
 		GinEngine:   gin.Default(),
 	}

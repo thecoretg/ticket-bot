@@ -1,11 +1,8 @@
-install-cli:
-	go build -o ~/bin/ticketbot ./cmd/cli/main.go
+build:
+	go build -o ~/bin/tbot main.go
 
 gensql:
 	sqlc generate -f internal/db/sqlc.yaml
-
-run:
-	go run main.go
 
 up:
 	goose up

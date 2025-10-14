@@ -152,8 +152,8 @@ func (s *Server) messageText(cwData *cwData) string {
 	}
 
 	text := cwData.note.Text
-	if len(text) > s.Config.MaxMsgLength {
-		text = text[:s.Config.MaxMsgLength] + "..."
+	if len(text) > s.Config.Messages.MaxMsgLength {
+		text = text[:s.Config.Messages.MaxMsgLength] + "..."
 	}
 	body += fmt.Sprintf("\n%s", blockQuoteText(text))
 	return body
