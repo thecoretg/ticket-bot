@@ -36,11 +36,12 @@ func (s *Server) Run() error {
 	s.GinEngine = gin.Default()
 	s.addAllRoutes()
 
-	slog.Info("running server", "auto_tls", s.Config.General.UseAutoTLS)
 	if s.Config.General.UseAutoTLS {
+		slog.Info("running server with auto tls", "url", s.Config.General.RootURL)
 		return autotls.Run(s.GinEngine, s.Config.General.RootURL)
 	}
 
+	slog.Info("running server without auto tls")
 	return s.GinEngine.Run()
 }
 
