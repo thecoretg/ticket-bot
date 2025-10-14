@@ -7,7 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/jackc/pgx/v5"
-	db2 "github.com/thecoretg/ticketbot/internal/db"
+	"github.com/thecoretg/ticketbot/internal/db"
 	"github.com/thecoretg/ticketbot/internal/psa"
 )
 
@@ -25,22 +25,22 @@ func (s *Server) getLatestNoteFromCW(ticketID int) (*psa.ServiceTicketNote, erro
 	return note, nil
 }
 
-func (s *Server) ensureNoteInStore(ctx context.Context, cwData *cwData, overrideNotify bool) (db2.CwTicketNote, error) {
+func (s *Server) ensureNoteInStore(ctx context.Context, cwData *cwData, overrideNotify bool) (db.CwTicketNote, error) {
 	memberID, err := s.getMemberID(ctx, cwData)
 	if err != nil {
-		return db2.CwTicketNote{}, fmt.Errorf("getting member data: %w", err)
+		return db.CwTicketNote{}, fmt.Errorf("getting member data: %w", err)
 	}
 
 	contactID, err := s.getContactID(ctx, cwData)
 	if err != nil {
-		return db2.CwTicketNote{}, fmt.Errorf("getting contact data: %w", err)
+		return db.CwTicketNote{}, fmt.Errorf("getting contact data: %w", err)
 	}
 
 	note, err := s.Queries.GetTicketNote(ctx, cwData.note.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			slog.Debug("note not found in store, attempting insert", "ticket_id", cwData.ticket.ID, "note_id", cwData.note.ID)
-			p := db2.InsertTicketNoteParams{
+			p := db.InsertTicketNoteParams{
 				ID:        cwData.note.ID,
 				TicketID:  cwData.note.TicketId,
 				MemberID:  memberID,
@@ -51,14 +51,14 @@ func (s *Server) ensureNoteInStore(ctx context.Context, cwData *cwData, override
 			note, err = s.Queries.InsertTicketNote(ctx, p)
 
 			if err != nil {
-				return db2.CwTicketNote{}, fmt.Errorf("inserting ticket note into db: %w", err)
+				return db.CwTicketNote{}, fmt.Errorf("inserting ticket note into db: %w", err)
 			}
 
 			slog.Info("inserted note into store", "ticket_id", cwData.ticket.ID, "note_id", cwData.note.ID)
 			return note, nil
 
 		} else {
-			return db2.CwTicketNote{}, fmt.Errorf("getting note from store: %w", err)
+			return db.CwTicketNote{}, fmt.Errorf("getting note from store: %w", err)
 		}
 	}
 
@@ -67,7 +67,7 @@ func (s *Server) ensureNoteInStore(ctx context.Context, cwData *cwData, override
 }
 
 func (s *Server) setNotified(ctx context.Context, noteID int, notified bool) error {
-	_, err := s.Queries.SetNoteNotified(ctx, db2.SetNoteNotifiedParams{
+	_, err := s.Queries.SetNoteNotified(ctx, db.SetNoteNotifiedParams{
 		ID:       noteID,
 		Notified: notified,
 	})

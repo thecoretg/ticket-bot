@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
-	db2 "github.com/thecoretg/ticketbot/internal/db"
+	"github.com/thecoretg/ticketbot/internal/db"
 	"github.com/thecoretg/ticketbot/internal/psa"
 )
 
@@ -20,12 +20,12 @@ type cwData struct {
 }
 
 type storedData struct {
-	ticket  db2.CwTicket
-	company db2.CwCompany
-	contact db2.CwContact
-	owner   db2.CwMember
-	note    db2.CwTicketNote
-	board   db2.CwBoard
+	ticket  db.CwTicket
+	company db.CwCompany
+	contact db.CwContact
+	owner   db.CwMember
+	note    db.CwTicketNote
+	board   db.CwBoard
 }
 
 func (s *Server) addHooksGroup() {
@@ -164,7 +164,7 @@ func (s *Server) getStoredData(ctx context.Context, cwData *cwData, overrideNoti
 		return nil, fmt.Errorf("ensuring company in store: %w", err)
 	}
 
-	contact := db2.CwContact{}
+	contact := db.CwContact{}
 	if cwData.ticket.Contact.ID != 0 {
 		contact, err = s.ensureContactInStore(ctx, cwData.ticket.Contact.ID)
 		if err != nil {
@@ -172,7 +172,7 @@ func (s *Server) getStoredData(ctx context.Context, cwData *cwData, overrideNoti
 		}
 	}
 
-	owner := db2.CwMember{}
+	owner := db.CwMember{}
 	if cwData.ticket.Owner.ID != 0 {
 		owner, err = s.ensureMemberInStore(ctx, cwData.ticket.Owner.ID)
 		if err != nil {
@@ -187,7 +187,7 @@ func (s *Server) getStoredData(ctx context.Context, cwData *cwData, overrideNoti
 	}
 
 	// start with empty note, use existing or created note if there is a note in the ticket
-	note := db2.CwTicketNote{}
+	note := db.CwTicketNote{}
 	if cwData.note.ID != 0 {
 		note, err = s.ensureNoteInStore(ctx, cwData, overrideNotify)
 		if err != nil {
@@ -205,11 +205,11 @@ func (s *Server) getStoredData(ctx context.Context, cwData *cwData, overrideNoti
 	}, nil
 }
 
-func (s *Server) ensureTicketInStore(ctx context.Context, cwData *cwData) (db2.CwTicket, error) {
+func (s *Server) ensureTicketInStore(ctx context.Context, cwData *cwData) (db.CwTicket, error) {
 	ticket, err := s.Queries.GetTicket(ctx, cwData.ticket.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			p := db2.InsertTicketParams{
+			p := db.InsertTicketParams{
 				ID:        cwData.ticket.ID,
 				Summary:   cwData.ticket.Summary,
 				BoardID:   cwData.ticket.Board.ID,
@@ -222,12 +222,12 @@ func (s *Server) ensureTicketInStore(ctx context.Context, cwData *cwData) (db2.C
 			slog.Debug("created insert ticket params", "id", p.ID, "summary", p.Summary, "board_id", p.BoardID, "owner_id", p.OwnerID, "company_id", p.CompanyID, "contact_id", p.ContactID, "resources", p.Resources, "updated_by", p.UpdatedBy)
 			ticket, err = s.Queries.InsertTicket(ctx, p)
 			if err != nil {
-				return db2.CwTicket{}, fmt.Errorf("inserting ticket into db: %w", err)
+				return db.CwTicket{}, fmt.Errorf("inserting ticket into db: %w", err)
 			}
 			slog.Debug("inserted ticket into db", "ticket_id", ticket.ID, "summary", ticket.Summary)
 			return ticket, nil
 		} else {
-			return db2.CwTicket{}, fmt.Errorf("getting ticket from storage: %w", err)
+			return db.CwTicket{}, fmt.Errorf("getting ticket from storage: %w", err)
 		}
 	}
 
@@ -253,8 +253,8 @@ func meetsMessageCriteria(action string, storedData *storedData) bool {
 	return false
 }
 
-func cwDataToUpdateTicketParams(cwData *cwData) db2.UpdateTicketParams {
-	return db2.UpdateTicketParams{
+func cwDataToUpdateTicketParams(cwData *cwData) db.UpdateTicketParams {
+	return db.UpdateTicketParams{
 		ID:        cwData.ticket.ID,
 		Summary:   cwData.ticket.Summary,
 		BoardID:   cwData.ticket.Board.ID,

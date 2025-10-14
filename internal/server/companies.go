@@ -7,19 +7,19 @@ import (
 	"log/slog"
 
 	"github.com/jackc/pgx/v5"
-	db2 "github.com/thecoretg/ticketbot/internal/db"
+	"github.com/thecoretg/ticketbot/internal/db"
 )
 
-func (s *Server) ensureCompanyInStore(ctx context.Context, id int) (db2.CwCompany, error) {
+func (s *Server) ensureCompanyInStore(ctx context.Context, id int) (db.CwCompany, error) {
 	company, err := s.Queries.GetCompany(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			slog.Debug("company not in store, attempting insert", "company_id", id)
 			cwComp, err := s.CWClient.GetCompany(id, nil)
 			if err != nil {
-				return db2.CwCompany{}, fmt.Errorf("getting company from cw: %w", err)
+				return db.CwCompany{}, fmt.Errorf("getting company from cw: %w", err)
 			}
-			p := db2.InsertCompanyParams{
+			p := db.InsertCompanyParams{
 				ID:   cwComp.Id,
 				Name: cwComp.Name,
 			}
@@ -27,12 +27,12 @@ func (s *Server) ensureCompanyInStore(ctx context.Context, id int) (db2.CwCompan
 
 			company, err = s.Queries.InsertCompany(ctx, p)
 			if err != nil {
-				return db2.CwCompany{}, fmt.Errorf("inserting company into db: %w", err)
+				return db.CwCompany{}, fmt.Errorf("inserting company into db: %w", err)
 			}
 			slog.Info("inserted company into store", "company_id", company.ID, "company_name", company.Name)
 			return company, nil
 		} else {
-			return db2.CwCompany{}, fmt.Errorf("getting company from db: %w", err)
+			return db.CwCompany{}, fmt.Errorf("getting company from db: %w", err)
 		}
 	}
 

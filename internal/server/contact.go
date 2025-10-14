@@ -7,26 +7,26 @@ import (
 	"log/slog"
 
 	"github.com/jackc/pgx/v5"
-	db2 "github.com/thecoretg/ticketbot/internal/db"
+	"github.com/thecoretg/ticketbot/internal/db"
 )
 
-func (s *Server) ensureContactInStore(ctx context.Context, id int) (db2.CwContact, error) {
+func (s *Server) ensureContactInStore(ctx context.Context, id int) (db.CwContact, error) {
 	contact, err := s.Queries.GetContact(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			slog.Debug("contact not in store, attempting insert", "contact_id", id)
 			cwContact, err := s.CWClient.GetContact(id, nil)
 			if err != nil {
-				return db2.CwContact{}, fmt.Errorf("getting contact from cw: %w", err)
+				return db.CwContact{}, fmt.Errorf("getting contact from cw: %w", err)
 			}
 
 			if cwContact.Company.ID != 0 {
 				if _, err := s.ensureCompanyInStore(ctx, cwContact.Company.ID); err != nil {
-					return db2.CwContact{}, fmt.Errorf("ensuring contact's company in store: %w", err)
+					return db.CwContact{}, fmt.Errorf("ensuring contact's company in store: %w", err)
 				}
 			}
 
-			p := db2.InsertContactParams{
+			p := db.InsertContactParams{
 				ID:        cwContact.ID,
 				FirstName: cwContact.FirstName,
 				LastName:  strToPtr(cwContact.LastName),
@@ -36,12 +36,12 @@ func (s *Server) ensureContactInStore(ctx context.Context, id int) (db2.CwContac
 
 			contact, err = s.Queries.InsertContact(ctx, p)
 			if err != nil {
-				return db2.CwContact{}, fmt.Errorf("inserting contact into db: %w", err)
+				return db.CwContact{}, fmt.Errorf("inserting contact into db: %w", err)
 			}
 			slog.Info("inserted contact into store", "contact_id", contact.ID, "first_name", contact.FirstName, "last_name", contact.LastName)
 			return contact, nil
 		} else {
-			return db2.CwContact{}, fmt.Errorf("getting contact from db: %w", err)
+			return db.CwContact{}, fmt.Errorf("getting contact from db: %w", err)
 		}
 	}
 

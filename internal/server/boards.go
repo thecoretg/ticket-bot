@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
-	db2 "github.com/thecoretg/ticketbot/internal/db"
+	"github.com/thecoretg/ticketbot/internal/db"
 )
 
 func (s *Server) addBoardsGroup() {
@@ -40,7 +40,7 @@ func (s *Server) putBoard(c *gin.Context) {
 		return
 	}
 
-	updatedBoard, err := s.Queries.UpdateBoard(c.Request.Context(), db2.UpdateBoardParams{
+	updatedBoard, err := s.Queries.UpdateBoard(c.Request.Context(), db.UpdateBoardParams{
 		ID:            board.ID,
 		Name:          board.Name,
 		NotifyEnabled: board.NotifyEnabled,
@@ -50,12 +50,12 @@ func (s *Server) putBoard(c *gin.Context) {
 	c.JSON(http.StatusOK, updatedBoard)
 }
 
-func (s *Server) ensureBoardInStore(ctx context.Context, cwData *cwData) (db2.CwBoard, error) {
+func (s *Server) ensureBoardInStore(ctx context.Context, cwData *cwData) (db.CwBoard, error) {
 	board, err := s.Queries.GetBoard(ctx, cwData.ticket.Board.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			slog.Debug("board not in store, attempting insert", "board_id", cwData.ticket.Board.ID)
-			p := db2.InsertBoardParams{
+			p := db.InsertBoardParams{
 				ID:            cwData.ticket.Board.ID,
 				Name:          cwData.ticket.Board.Name,
 				NotifyEnabled: false,
@@ -63,12 +63,12 @@ func (s *Server) ensureBoardInStore(ctx context.Context, cwData *cwData) (db2.Cw
 			}
 			board, err = s.Queries.InsertBoard(ctx, p)
 			if err != nil {
-				return db2.CwBoard{}, fmt.Errorf("inserting board into db: %w", err)
+				return db.CwBoard{}, fmt.Errorf("inserting board into db: %w", err)
 			}
 			slog.Info("inserted board into store", "board_id", board.ID, "name", board.Name)
 			return board, nil
 		} else {
-			return db2.CwBoard{}, fmt.Errorf("getting board from storage: %w", err)
+			return db.CwBoard{}, fmt.Errorf("getting board from storage: %w", err)
 		}
 	}
 

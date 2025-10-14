@@ -8,7 +8,7 @@ import (
 
 	"github.com/thecoretg/ticketbot/internal/db"
 	"github.com/thecoretg/ticketbot/internal/psa"
-	webex2 "github.com/thecoretg/ticketbot/internal/webex"
+	"github.com/thecoretg/ticketbot/internal/webex"
 )
 
 func (s *Server) makeAndSendWebexMsgs(ctx context.Context, action string, cwData *cwData, storedData *storedData) error {
@@ -44,7 +44,7 @@ func (s *Server) makeAndSendWebexMsgs(ctx context.Context, action string, cwData
 
 // makeWebexMsgs constructs a message - it handles new tickets and updated tickets, and determines which Webex room, or which people,
 // the message should be sent to.
-func (s *Server) makeWebexMsgs(ctx context.Context, action string, cwData *cwData, storedData *storedData) ([]webex2.Message, error) {
+func (s *Server) makeWebexMsgs(ctx context.Context, action string, cwData *cwData, storedData *storedData) ([]webex.Message, error) {
 	var body string
 	body += s.messageHeader(action, cwData)
 
@@ -65,10 +65,10 @@ func (s *Server) makeWebexMsgs(ctx context.Context, action string, cwData *cwDat
 	// Divider line for easily distinguishable breaks in notifications
 	body += fmt.Sprintf("\n\n---")
 
-	var messages []webex2.Message
+	var messages []webex.Message
 	if action == "added" {
 		slog.Debug("creating message for new ticket", "ticket_id", storedData.ticket.ID, "board_name", storedData.board.Name, "webex_room_id", storedData.board.WebexRoomID)
-		messages = append(messages, webex2.NewMessageToRoom(*storedData.board.WebexRoomID, body))
+		messages = append(messages, webex.NewMessageToRoom(*storedData.board.WebexRoomID, body))
 	} else if action == "updated" {
 		sendTo, err := s.getSendTo(ctx, storedData)
 		if len(sendTo) > 0 {
@@ -83,7 +83,7 @@ func (s *Server) makeWebexMsgs(ctx context.Context, action string, cwData *cwDat
 		}
 
 		for _, email := range sendTo {
-			messages = append(messages, webex2.NewMessageToPerson(email, body))
+			messages = append(messages, webex.NewMessageToPerson(email, body))
 		}
 	}
 
