@@ -12,22 +12,39 @@ import (
 )
 
 var (
-	ctx                                                = context.Background()
-	configPath                                         string
-	serve, preloadBoards, preloadTickets, initWebhooks bool
-	maxPreloads                                        int
-	rootCmd                                            = &cobra.Command{
-		Use: "tbot",
+	ctx                                         = context.Background()
+	config                                      *cfg.Cfg
+	srv                                         *server.Server
+	configPath                                  string
+	preloadBoards, preloadTickets, initWebhooks bool
+	maxPreloads                                 int
+	rootCmd                                     = &cobra.Command{
+		Use:               "tbot",
+		PersistentPreRunE: rootPreRun,
+	}
+
+	preloadCmd = &cobra.Command{
+		Use:   "preload",
+		Short: "Preload boards and/or tickets from Connectwise PSA",
+		RunE:  preload,
+	}
+
+	hooksCmd = &cobra.Command{
+		Use:   "hooks",
+		Short: "Initialize webhooks for the TicketBot server in Connectwise PSA",
+		RunE:  initHooks,
 	}
 
 	runCmd = &cobra.Command{
-		Use:  "run",
-		RunE: runServer,
+		Use:   "run",
+		Short: "Run the server",
+		RunE:  runServer,
 	}
 
 	installServiceCmd = &cobra.Command{
-		Use:  "install-service",
-		RunE: runInstallService,
+		Use:   "install-service",
+		Short: "Create a systemd unit for the TicketBot server on a Linux host",
+		RunE:  runInstallService,
 	}
 )
 
@@ -36,52 +53,58 @@ func Execute() error {
 }
 
 func init() {
+	rootCmd.AddCommand(preloadCmd)
+	rootCmd.AddCommand(hooksCmd)
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(installServiceCmd)
-	rootCmd.PersistentFlags().BoolVarP(&preloadBoards, "preload-boards", "b", false, "preload boards from connectwise")
-	rootCmd.PersistentFlags().BoolVarP(&preloadTickets, "preload-tickets", "t", false, "preload open tickets from connectwise")
-	rootCmd.PersistentFlags().IntVarP(&maxPreloads, "max-preloads", "m", 5, "max simultaneous connectwise preloads")
-	rootCmd.PersistentFlags().BoolVarP(&initWebhooks, "init-webhooks", "w", false, "initialize webhooks")
-	rootCmd.PersistentFlags().BoolVarP(&serve, "serve", "s", false, "run the server")
+	preloadCmd.PersistentFlags().BoolVarP(&preloadBoards, "boards", "b", false, "preload boards from connectwise")
+	preloadCmd.PersistentFlags().BoolVarP(&preloadTickets, "tickets", "t", false, "preload open tickets from connectwise")
+	preloadCmd.PersistentFlags().IntVarP(&maxPreloads, "max-concurrent", "m", 5, "max simultaneous connectwise preloads")
 	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "", "specify a config file path, otherwise defaults to $HOME/.config/ticketbot")
 }
 
-func runServer(cmd *cobra.Command, args []string) error {
-	c, err := cfg.InitCfg(configPath)
+func rootPreRun(cmd *cobra.Command, args []string) error {
+	var err error
+	config, err = cfg.InitCfg(configPath)
 	if err != nil {
 		return fmt.Errorf("initializing config: %w", err)
 	}
 
-	d, err := server.ConnectToDB(ctx, c.Creds.PostgresDSN)
+	d, err := server.ConnectToDB(ctx, config.Creds.PostgresDSN)
 	if err != nil {
 		return fmt.Errorf("connecting to database: %w", err)
 	}
 
-	s := server.NewServer(c, d)
+	srv = server.NewServer(config, d)
+	return nil
+}
 
+func preload(cmd *cobra.Command, args []string) error {
 	if preloadBoards {
-		if err := s.PreloadBoards(ctx, maxPreloads); err != nil {
+		if err := srv.PreloadBoards(ctx, maxPreloads); err != nil {
 			return fmt.Errorf("preloading boards: %w", err)
 		}
 	}
 
 	if preloadTickets {
-		if err := s.PreloadOpenTickets(ctx, maxPreloads); err != nil {
+		if err := srv.PreloadOpenTickets(ctx, maxPreloads); err != nil {
 			return fmt.Errorf("preloading tickets: %w", err)
 		}
 	}
 
-	if initWebhooks {
-		if err := s.InitAllHooks(); err != nil {
-			return fmt.Errorf("initializing webhooks: %w", err)
-		}
-	}
+	return nil
+}
 
-	if serve {
-		return s.Run(ctx)
+func initHooks(cmd *cobra.Command, args []string) error {
+	if err := srv.InitAllHooks(); err != nil {
+		return fmt.Errorf("initializing webhooks: %w", err)
 	}
 
 	return nil
+}
+
+func runServer(cmd *cobra.Command, args []string) error {
+	return srv.Run(ctx)
 }
 
 func runInstallService(cmd *cobra.Command, args []string) error {
