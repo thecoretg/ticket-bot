@@ -111,7 +111,7 @@ Description=TicketBot Server
 After=network.target
 
 [Service]
-ExecStart=/usr/local/bin/tbot -r --config %s
+ExecStart=/usr/local/bin/tbot run --config %s
 Restart=always
 RestartSec=5
 User=%s
