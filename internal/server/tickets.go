@@ -49,7 +49,7 @@ func (s *Server) handleTickets(c *gin.Context) {
 	slog.Info("received payload from connectwise", "ticket_id", w.ID, "action", w.Action)
 	switch w.Action {
 	case "added", "updated":
-		if err := s.processTicket(c.Request.Context(), w.ID, w.Action); err != nil {
+		if err := s.processTicket(c.Request.Context(), w.ID, w.Action, false); err != nil {
 			c.Error(fmt.Errorf("ticket %d: adding or updating the ticket into data storage: %w", w.ID, err))
 			return
 		}
@@ -73,7 +73,7 @@ func (s *Server) getTicketLock(ticketID int) *sync.Mutex {
 
 // processTicket serves as the primary handler for updating the data store with ticket data. It also will handle
 // extra functionality such as ticket notifications.
-func (s *Server) processTicket(ctx context.Context, ticketID int, action string) error {
+func (s *Server) processTicket(ctx context.Context, ticketID int, action string, bypassNotis bool) error {
 	// Lock the ticket so that extra calls don't interfere. Due to the nature of Connectwise updates will often
 	// result in other hooks and actions taking place, which means a ticket rarely only sends one webhook payload.
 	lock := s.getTicketLock(ticketID)
@@ -107,7 +107,7 @@ func (s *Server) processTicket(ctx context.Context, ticketID int, action string)
 	// If a note exists and notifications are on, run the ticket notification action,
 	// which checks if it meets message criteria and then notifies if valid
 	notified := false
-	if s.Config.Messages.AttemptNotify && sd.note.ID != 0 {
+	if s.Config.Messages.AttemptNotify && sd.note.ID != 0 && !bypassNotis {
 		notified, err = s.runNotificationAction(ctx, action, cd, sd)
 		if err != nil {
 			return fmt.Errorf("running notifier: %w", err)

@@ -150,7 +150,7 @@ func (s *Server) PreloadOpenTickets(ctx context.Context, maxConcurrent int) erro
 		go func(ticket psa.Ticket) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			if err := s.processTicket(ctx, ticket.ID, "preload", false); err != nil {
+			if err := s.processTicket(ctx, ticket.ID, "preload", true); err != nil {
 				errCh <- fmt.Errorf("error preloading ticket %d: %w", ticket.ID, err)
 			} else {
 				errCh <- nil
