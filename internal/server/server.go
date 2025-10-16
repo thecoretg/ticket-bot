@@ -41,11 +41,11 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 
 	if s.Config.General.UseAutoTLS {
-		slog.Info("running server with auto tls", "url", s.Config.General.RootURL)
+		slog.Debug("running server with auto tls", "url", s.Config.General.RootURL)
 		return autotls.Run(s.GinEngine, s.Config.General.RootURL)
 	}
 
-	slog.Info("running server without auto tls")
+	slog.Debug("running server without auto tls")
 	return s.GinEngine.Run()
 }
 
@@ -55,7 +55,7 @@ func (s *Server) addAllRoutes() {
 }
 
 func ConnectToDB(ctx context.Context, dsn string) (*db.Queries, error) {
-	slog.Info("connecting to postgres server")
+	slog.Debug("connecting to postgres server")
 	dbConn, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to db: %w", err)
@@ -65,7 +65,7 @@ func ConnectToDB(ctx context.Context, dsn string) (*db.Queries, error) {
 }
 
 func NewServer(cfg *cfg.Cfg, dbConn *db.Queries) *Server {
-	slog.Info("initializing server client")
+	slog.Debug("initializing server client")
 	cwCreds := &psa.Creds{
 		PublicKey:  cfg.Creds.CW.PubKey,
 		PrivateKey: cfg.Creds.CW.PrivKey,

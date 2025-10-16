@@ -46,7 +46,7 @@ func (s *Server) handleTickets(c *gin.Context) {
 		return
 	}
 
-	slog.Info("received payload from connectwise", "ticket_id", w.ID, "action", w.Action)
+	slog.Debug("received payload from connectwise", "ticket_id", w.ID, "action", w.Action)
 	switch w.Action {
 	case "added", "updated":
 		if err := s.processTicket(c.Request.Context(), w.ID, w.Action, false); err != nil {
@@ -252,7 +252,7 @@ func (s *Server) ensureTicketInStore(ctx context.Context, cd *cwData) (db.CwTick
 }
 
 func (s *Server) logTicketResult(action string, notified bool, sd *storedData) {
-	slog.Info("ticket processed",
+	slog.Debug("ticket processed",
 		"ticket_id", sd.ticket.ID,
 		"action", action,
 		"notified", notified)

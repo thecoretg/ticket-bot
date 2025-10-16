@@ -54,7 +54,7 @@ func (s *Server) processCwHook(url, entity, level string, objectID int, currentH
 				if err := s.CWClient.DeleteCallback(c.ID); err != nil {
 					return fmt.Errorf("deleting webhook %d: %w", c.ID, err)
 				}
-				slog.Info("deleted unused connectwise webhook", "id", c.ID, "url", c.URL)
+				slog.Debug("deleted unused connectwise webhook", "id", c.ID, "url", c.URL)
 			}
 		}
 	}
@@ -64,7 +64,7 @@ func (s *Server) processCwHook(url, entity, level string, objectID int, currentH
 		if err != nil {
 			return fmt.Errorf("posting webhook: %w", err)
 		}
-		slog.Info("added new connectwise hook", "id", newHook.ID, "url", url, "entity", entity, "level", level, "objectID", objectID)
+		slog.Debug("added new connectwise hook", "id", newHook.ID, "url", url, "entity", entity, "level", level, "objectID", objectID)
 	}
 	return nil
 }

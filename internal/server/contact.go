@@ -38,7 +38,7 @@ func (s *Server) ensureContactInStore(ctx context.Context, id int) (db.CwContact
 			if err != nil {
 				return db.CwContact{}, fmt.Errorf("inserting contact into db: %w", err)
 			}
-			slog.Info("inserted contact into store", "contact_id", contact.ID, "first_name", contact.FirstName, "last_name", contact.LastName)
+			slog.Debug("inserted contact into store", "contact_id", contact.ID, "first_name", contact.FirstName, "last_name", contact.LastName)
 			return contact, nil
 		} else {
 			return db.CwContact{}, fmt.Errorf("getting contact from db: %w", err)

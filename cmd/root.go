@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/thecoretg/ticketbot/internal/cfg"
@@ -16,12 +17,17 @@ var (
 	configPath  string
 	maxPreloads int
 	rootCmd     = &cobra.Command{
-		Use: "tbot",
+		Use:          "tbot",
+		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			var err error
 			config, err = cfg.InitCfg(configPath)
 			if err != nil {
 				return fmt.Errorf("initializing config: %w", err)
+			}
+
+			if config == nil {
+				os.Exit(0)
 			}
 
 			d, err := server.ConnectToDB(ctx, config.Creds.PostgresDSN)

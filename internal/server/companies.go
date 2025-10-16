@@ -29,7 +29,7 @@ func (s *Server) ensureCompanyInStore(ctx context.Context, id int) (db.CwCompany
 			if err != nil {
 				return db.CwCompany{}, fmt.Errorf("inserting company into db: %w", err)
 			}
-			slog.Info("inserted company into store", "company_id", company.ID, "company_name", company.Name)
+			slog.Debug("inserted company into store", "company_id", company.ID, "company_name", company.Name)
 			return company, nil
 		} else {
 			return db.CwCompany{}, fmt.Errorf("getting company from db: %w", err)

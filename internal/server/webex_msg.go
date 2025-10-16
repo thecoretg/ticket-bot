@@ -36,7 +36,7 @@ func (s *Server) makeAndSendWebexMsgs(ctx context.Context, action string, cd *cw
 			sentTo = msg.ToPersonEmail
 		}
 
-		slog.Info("notification sent", "action", action, "ticket_id", sd.ticket.ID, "board_name", sd.board.Name, "sent_to", sentTo)
+		slog.Debug("notification sent", "action", action, "ticket_id", sd.ticket.ID, "board_name", sd.board.Name, "sent_to", sentTo)
 	}
 
 	return nil

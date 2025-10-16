@@ -54,7 +54,7 @@ func (s *Server) ensureMemberInStore(ctx context.Context, id int) (db.CwMember, 
 			if err != nil {
 				return db.CwMember{}, fmt.Errorf("inserting member into db: %w", err)
 			}
-			slog.Info("inserted member into store", "member_id", member.ID, "member_identifier", member.Identifier)
+			slog.Debug("inserted member into store", "member_id", member.ID, "member_identifier", member.Identifier)
 			return member, nil
 		} else {
 			return db.CwMember{}, fmt.Errorf("getting member from db: %w", err)

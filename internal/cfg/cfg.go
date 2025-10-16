@@ -79,7 +79,7 @@ func InitCfg(configPath string) (*Cfg, error) {
 
 	if err := viper.ReadInConfig(); err != nil {
 		if errors.Is(err, viper.ConfigFileNotFoundError{}); err != nil {
-			slog.Info("config file not found, creating now")
+			fmt.Println("Config file not found, creating one now")
 			if configPath != "" {
 				if err := viper.WriteConfigAs(configPath); err != nil {
 					return nil, fmt.Errorf("creating config file at %s: %w", configPath, err)
@@ -88,6 +88,8 @@ func InitCfg(configPath string) (*Cfg, error) {
 				if err := viper.SafeWriteConfig(); err != nil {
 					return nil, fmt.Errorf("creating config file: %w", err)
 				}
+				fmt.Println("Config file created, please fill empty variables")
+				return nil, nil
 			}
 		} else {
 			return nil, fmt.Errorf("error reading config file: %w", err)
@@ -103,18 +105,18 @@ func InitCfg(configPath string) (*Cfg, error) {
 		return nil, fmt.Errorf("error setting logger: %w", err)
 	}
 
-	slog.Info("logger set", "debug", c.Logging.Debug, "log_to_file", c.Logging.LogToFile, "log_file_path", c.Logging.LogFilePath)
+	slog.Debug("logger set", "debug", c.Logging.Debug, "log_to_file", c.Logging.LogToFile, "log_file_path", c.Logging.LogFilePath)
 
-	slog.Info("config initialized", "debug", c.Logging.Debug, "exit_on_error", c.General.ExitOnError,
+	slog.Debug("config initialized", "debug", c.Logging.Debug, "exit_on_error", c.General.ExitOnError,
 		"log_to_file", c.Logging.LogToFile, "log_file_path", c.Logging.LogFilePath,
 		"root_url", c.General.RootURL, "max_msg_length", c.Messages.MaxMsgLength,
 		"excluded_cw_members", c.Messages.ExcludedCWMembers,
 		"attempt_notify", c.Messages.AttemptNotify)
 
 	if !c.isValid() {
-		return nil, errors.New("config is missing required fields, please verify env variables")
+		return nil, errors.New("config is missing required fields, please open file and fill any empty fields")
 	}
-	slog.Info("config fields validated successfully")
+	slog.Debug("config fields validated successfully")
 
 	return &c, nil
 }
