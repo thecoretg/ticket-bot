@@ -48,6 +48,19 @@ func Install(configPath string) error {
 	return nil
 }
 
+func ShowLogs() error {
+	journalCmd := exec.Command("journalctl", "-u", appName, "-f")
+	journalCmd.Stdout = os.Stdout
+	journalCmd.Stderr = os.Stderr
+	journalCmd.Stdin = os.Stdin
+
+	if err := journalCmd.Run(); err != nil {
+		return fmt.Errorf("failed to show service logs: %w", err)
+	}
+
+	return nil
+}
+
 func ensureBinary(src, dst string) error {
 	_, err := os.Stat(dst)
 	if err == nil {
