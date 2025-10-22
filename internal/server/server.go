@@ -36,10 +36,6 @@ func (s *Server) Run(ctx context.Context) error {
 	s.GinEngine = gin.Default()
 	s.addAllRoutes()
 
-	if err := s.BootstrapAdmin(ctx); err != nil {
-		return fmt.Errorf("bootstrapping admin: %w", err)
-	}
-
 	if s.Config.General.UseAutoTLS {
 		slog.Debug("running server with auto tls", "url", s.Config.General.RootURL)
 		return autotls.Run(s.GinEngine, s.Config.General.RootURL)

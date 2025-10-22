@@ -67,6 +67,7 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 	addServiceCmd()
 	addPreloadCmd()
+	addBootstrapCmd()
 
 	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "", "specify a config file path, otherwise defaults to $HOME/.config/ticketbot")
 }

@@ -89,11 +89,19 @@ func (s *Server) CreateAPIKeyHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"api_key": key})
 }
 
-func (s *Server) BootstrapAdmin(ctx context.Context) error {
+func (s *Server) BootstrapAdmin(ctx context.Context, dir string) (string, error) {
+	if dir == "" {
+		return "", errors.New("key directory cannot be blank")
+	}
+
+	if _, err := os.Stat(dir); err != nil {
+		return "", fmt.Errorf("path %s is not a directory", dir)
+	}
+
 	slog.Debug("checking initial admin value")
 	email := s.Config.General.InitialAdminEmail
 	if email == "" {
-		return errors.New("initial admin config field must not be blank")
+		return "", errors.New("initial admin config field must not be blank")
 	}
 
 	u, err := s.Queries.GetUserByEmail(ctx, email)
@@ -102,10 +110,10 @@ func (s *Server) BootstrapAdmin(ctx context.Context) error {
 			slog.Debug("initial admin not found in db - creating now", "email", email)
 			u, err = s.Queries.InsertUser(ctx, email)
 			if err != nil {
-				return fmt.Errorf("creating admin user: %w", err)
+				return "", fmt.Errorf("creating admin user: %w", err)
 			}
 		} else {
-			return err
+			return "", err
 		}
 	} else {
 		slog.Debug("initial admin found in db", "email", email)
@@ -113,7 +121,7 @@ func (s *Server) BootstrapAdmin(ctx context.Context) error {
 
 	keys, err := s.Queries.ListAPIKeys(ctx)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	hasKey := false
@@ -124,32 +132,29 @@ func (s *Server) BootstrapAdmin(ctx context.Context) error {
 		}
 	}
 
-	if !hasKey {
-		key, err := s.createAPIKey(ctx, int(u.ID))
-		if err != nil {
-			return fmt.Errorf("creating bootstrap key: %w", err)
-		}
-
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("getting user home directory: %w", err)
-		}
-
-		path := filepath.Join(home, "bootstrap.key")
-		f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-		if err != nil {
-			return fmt.Errorf("writing key file: %w", err)
-		}
-
-		defer f.Close()
-
-		if _, err := f.WriteString(key); err != nil {
-			return fmt.Errorf("writing key file: %w", err)
-		}
-		slog.Debug("bootstrap key saved")
+	if hasKey {
+		return "", errors.New("bootstrap user/key already exists")
 	}
 
-	return nil
+	key, err := s.createAPIKey(ctx, int(u.ID))
+	if err != nil {
+		return "", fmt.Errorf("creating bootstrap key: %w", err)
+	}
+
+	path := filepath.Join(dir, "bootstrap.key")
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return "", fmt.Errorf("writing key file: %w", err)
+	}
+
+	defer f.Close()
+
+	if _, err := f.WriteString(key); err != nil {
+		return "", fmt.Errorf("writing key file: %w", err)
+	}
+	slog.Debug("bootstrap key saved")
+
+	return fmt.Sprintf("%s/bootstrap.key", dir), nil
 }
 
 func (s *Server) createAPIKey(ctx context.Context, userID int) (string, error) {
