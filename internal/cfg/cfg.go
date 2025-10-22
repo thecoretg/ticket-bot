@@ -58,6 +58,7 @@ type MessageCfg struct {
 func InitCfg() (*Cfg, error) {
 	viper.SetEnvPrefix("TBOT")
 	viper.AutomaticEnv()
+	viper.SetConfigType("env")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	setConfigDefaults()
 
