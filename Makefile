@@ -15,3 +15,6 @@ up:
 
 down:
 	goose down
+
+stop-and-wipe:
+	scripts/wipe_server.sh
