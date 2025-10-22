@@ -16,5 +16,8 @@ up:
 down:
 	goose down
 
+install-service:
+	sudo tbot-server service install -c ~/.config/ticketbot/config.json
+
 stop-and-wipe:
 	scripts/wipe_server.sh

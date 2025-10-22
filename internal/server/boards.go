@@ -47,6 +47,11 @@ func (s *Server) listBoards(c *gin.Context) {
 		c.Error(fmt.Errorf("listing boards: %w", err))
 		return
 	}
+
+	if boards == nil {
+		boards = []db.CwBoard{}
+	}
+
 	c.JSON(http.StatusOK, boards)
 }
 

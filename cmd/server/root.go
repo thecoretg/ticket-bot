@@ -52,7 +52,7 @@ var (
 		Use:   "run",
 		Short: "Run the server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return srv.Run(ctx)
+			return srv.Run()
 		},
 	}
 )

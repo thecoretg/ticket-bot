@@ -28,7 +28,7 @@ type Server struct {
 
 // Run just runs the server, and does not do the initialization steps. Good if it went down and you just need to
 // restart it
-func (s *Server) Run(ctx context.Context) error {
+func (s *Server) Run() error {
 	if !s.Config.Logging.Debug {
 		gin.SetMode(gin.ReleaseMode)
 	}
