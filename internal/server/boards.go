@@ -14,8 +14,40 @@ import (
 )
 
 func (s *Server) addBoardsGroup() {
-	boards := s.GinEngine.Group("/boards", ErrorHandler(s.Config.General.ExitOnError))
+	boards := s.GinEngine.Group("/boards", ErrorHandler(s.Config.General.ExitOnError), s.APIKeyAuth())
+	boards.GET("/:board_id", s.getBoard)
+	boards.GET("/", s.listBoards)
 	boards.PUT("/:board_id", s.putBoard)
+	boards.DELETE("/:board_id", s.deleteBoard)
+}
+
+func (s *Server) getBoard(c *gin.Context) {
+	boardID, err := strconv.Atoi(c.Param("board_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, errorOutput("board id must be a valid integer"))
+		return
+	}
+
+	board, err := s.Queries.GetBoard(c.Request.Context(), boardID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusNotFound, errorOutput(fmt.Sprintf("board %d not found", boardID)))
+			return
+		}
+		c.Error(fmt.Errorf("getting board: %w", err))
+		return
+	}
+
+	c.JSON(http.StatusOK, board)
+}
+
+func (s *Server) listBoards(c *gin.Context) {
+	boards, err := s.Queries.ListBoards(c.Request.Context())
+	if err != nil {
+		c.Error(fmt.Errorf("listing boards: %w", err))
+		return
+	}
+	c.JSON(http.StatusOK, boards)
 }
 
 func (s *Server) putBoard(c *gin.Context) {
@@ -48,6 +80,24 @@ func (s *Server) putBoard(c *gin.Context) {
 	})
 
 	c.JSON(http.StatusOK, updatedBoard)
+}
+
+func (s *Server) deleteBoard(c *gin.Context) {
+	boardID, err := strconv.Atoi(c.Param("board_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, errorOutput("board id must be a valid integer"))
+		return
+	}
+
+	err = s.Queries.DeleteBoard(c.Request.Context(), boardID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.JSON(http.StatusNotFound, errorOutput(fmt.Sprintf("board %d not found", boardID)))
+			return
+		}
+		c.Error(fmt.Errorf("deleting board: %w", err))
+		return
+	}
 }
 
 func (s *Server) ensureBoardInStore(ctx context.Context, cwData *cwData) (db.CwBoard, error) {
