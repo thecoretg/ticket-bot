@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 	"github.com/thecoretg/ticketbot/internal/logger"
 )
@@ -13,7 +14,7 @@ import (
 type Cfg struct {
 	General  GeneralCfg `mapstructure:"general"`
 	Logging  LoggingCfg `mapstructure:"logging"`
-	Creds    CredsCfg   `mapstucture:"creds"`
+	Creds    CredsCfg   `mapstructure:"creds"`
 	Messages MessageCfg `mapstructure:"messages"`
 }
 
@@ -56,9 +57,9 @@ type MessageCfg struct {
 }
 
 func InitCfg() (*Cfg, error) {
+	godotenv.Load()
 	viper.SetEnvPrefix("TBOT")
 	viper.AutomaticEnv()
-	viper.SetConfigType("env")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	setConfigDefaults()
 
