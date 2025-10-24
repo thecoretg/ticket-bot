@@ -91,6 +91,7 @@ func ensureBinary(src, dst string) error {
 		return fmt.Errorf("opening source binary: %w", err)
 	}
 	slog.Debug("opened source binary", "path", src)
+	//goland:noinspection ALL
 	defer in.Close()
 
 	out, err := os.Create(tmp)

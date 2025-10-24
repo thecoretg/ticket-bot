@@ -14,7 +14,7 @@ DELETE FROM api_key
 WHERE id = $1
 `
 
-func (q *Queries) DeleteAPIKey(ctx context.Context, id int32) error {
+func (q *Queries) DeleteAPIKey(ctx context.Context, id int) error {
 	_, err := q.db.Exec(ctx, deleteAPIKey, id)
 	return err
 }
@@ -59,6 +59,21 @@ func (q *Queries) DeleteMember(ctx context.Context, id int) error {
 	return err
 }
 
+const deleteNotifierConnection = `-- name: DeleteNotifierConnection :exec
+DELETE FROM notifier_connection
+WHERE cw_board_id = $1 AND webex_room_id = $2
+`
+
+type DeleteNotifierConnectionParams struct {
+	CwBoardID   int `json:"cw_board_id"`
+	WebexRoomID int `json:"webex_room_id"`
+}
+
+func (q *Queries) DeleteNotifierConnection(ctx context.Context, arg DeleteNotifierConnectionParams) error {
+	_, err := q.db.Exec(ctx, deleteNotifierConnection, arg.CwBoardID, arg.WebexRoomID)
+	return err
+}
+
 const deleteTicket = `-- name: DeleteTicket :exec
 DELETE FROM cw_ticket
 WHERE id = $1
@@ -84,8 +99,18 @@ DELETE FROM api_user
 WHERE id = $1
 `
 
-func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
+func (q *Queries) DeleteUser(ctx context.Context, id int) error {
 	_, err := q.db.Exec(ctx, deleteUser, id)
+	return err
+}
+
+const deleteWebexRoom = `-- name: DeleteWebexRoom :exec
+DELETE FROM webex_room
+WHERE id = $1
+`
+
+func (q *Queries) DeleteWebexRoom(ctx context.Context, id int) error {
+	_, err := q.db.Exec(ctx, deleteWebexRoom, id)
 	return err
 }
 
@@ -94,7 +119,7 @@ SELECT id, user_id, key_hash, created_on, updated_on, deleted FROM api_key
 WHERE id = $1
 `
 
-func (q *Queries) GetAPILKey(ctx context.Context, id int32) (ApiKey, error) {
+func (q *Queries) GetAPILKey(ctx context.Context, id int) (ApiKey, error) {
 	row := q.db.QueryRow(ctx, getAPILKey, id)
 	var i ApiKey
 	err := row.Scan(
@@ -109,7 +134,7 @@ func (q *Queries) GetAPILKey(ctx context.Context, id int32) (ApiKey, error) {
 }
 
 const getBoard = `-- name: GetBoard :one
-SELECT id, name, notify_enabled, webex_room_id, updated_on, added_on, deleted FROM cw_board
+SELECT id, name, updated_on, added_on, deleted FROM cw_board
 WHERE id = $1 LIMIT 1
 `
 
@@ -119,8 +144,6 @@ func (q *Queries) GetBoard(ctx context.Context, id int) (CwBoard, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.NotifyEnabled,
-		&i.WebexRoomID,
 		&i.UpdatedOn,
 		&i.AddedOn,
 		&i.Deleted,
@@ -265,7 +288,7 @@ SELECT id, email_address, created_on, updated_on, deleted FROM api_user
 WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetUser(ctx context.Context, id int32) (ApiUser, error) {
+func (q *Queries) GetUser(ctx context.Context, id int) (ApiUser, error) {
 	row := q.db.QueryRow(ctx, getUser, id)
 	var i ApiUser
 	err := row.Scan(
@@ -296,6 +319,38 @@ func (q *Queries) GetUserByEmail(ctx context.Context, emailAddress string) (ApiU
 	return i, err
 }
 
+const getWebexRoom = `-- name: GetWebexRoom :one
+SELECT id, webex_id, name, type, created_on, updated_on, deleted FROM webex_room
+WHERE id = $1
+`
+
+func (q *Queries) GetWebexRoom(ctx context.Context, id int) (WebexRoom, error) {
+	row := q.db.QueryRow(ctx, getWebexRoom, id)
+	var i WebexRoom
+	err := row.Scan(
+		&i.ID,
+		&i.WebexID,
+		&i.Name,
+		&i.Type,
+		&i.CreatedOn,
+		&i.UpdatedOn,
+		&i.Deleted,
+	)
+	return i, err
+}
+
+const getWebexRoomIDByInternalID = `-- name: GetWebexRoomIDByInternalID :one
+SELECT webex_id FROM webex_room
+WHERE id = $1
+`
+
+func (q *Queries) GetWebexRoomIDByInternalID(ctx context.Context, id int) (string, error) {
+	row := q.db.QueryRow(ctx, getWebexRoomIDByInternalID, id)
+	var webex_id string
+	err := row.Scan(&webex_id)
+	return webex_id, err
+}
+
 const insertAPIKey = `-- name: InsertAPIKey :one
 INSERT INTO api_key
 (user_id, key_hash)
@@ -324,31 +379,22 @@ func (q *Queries) InsertAPIKey(ctx context.Context, arg InsertAPIKeyParams) (Api
 
 const insertBoard = `-- name: InsertBoard :one
 INSERT INTO cw_board
-(id, name, notify_enabled, webex_room_id)
-VALUES ($1, $2, $3, $4)
-RETURNING id, name, notify_enabled, webex_room_id, updated_on, added_on, deleted
+(id, name)
+VALUES ($1, $2)
+RETURNING id, name, updated_on, added_on, deleted
 `
 
 type InsertBoardParams struct {
-	ID            int     `json:"id"`
-	Name          string  `json:"name"`
-	NotifyEnabled bool    `json:"notify_enabled"`
-	WebexRoomID   *string `json:"webex_room_id"`
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 func (q *Queries) InsertBoard(ctx context.Context, arg InsertBoardParams) (CwBoard, error) {
-	row := q.db.QueryRow(ctx, insertBoard,
-		arg.ID,
-		arg.Name,
-		arg.NotifyEnabled,
-		arg.WebexRoomID,
-	)
+	row := q.db.QueryRow(ctx, insertBoard, arg.ID, arg.Name)
 	var i CwBoard
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.NotifyEnabled,
-		&i.WebexRoomID,
 		&i.UpdatedOn,
 		&i.AddedOn,
 		&i.Deleted,
@@ -448,6 +494,29 @@ func (q *Queries) InsertMember(ctx context.Context, arg InsertMemberParams) (CwM
 		&i.UpdatedOn,
 		&i.AddedOn,
 		&i.Deleted,
+	)
+	return i, err
+}
+
+const insertNotifierConnection = `-- name: InsertNotifierConnection :one
+INSERT INTO notifier_connection(cw_board_id, webex_room_id)
+VALUES ($1, $2)
+RETURNING cw_board_id, webex_room_id, notify_enabled, created_on
+`
+
+type InsertNotifierConnectionParams struct {
+	CwBoardID   int `json:"cw_board_id"`
+	WebexRoomID int `json:"webex_room_id"`
+}
+
+func (q *Queries) InsertNotifierConnection(ctx context.Context, arg InsertNotifierConnectionParams) (NotifierConnection, error) {
+	row := q.db.QueryRow(ctx, insertNotifierConnection, arg.CwBoardID, arg.WebexRoomID)
+	var i NotifierConnection
+	err := row.Scan(
+		&i.CwBoardID,
+		&i.WebexRoomID,
+		&i.NotifyEnabled,
+		&i.CreatedOn,
 	)
 	return i, err
 }
@@ -558,6 +627,34 @@ func (q *Queries) InsertUser(ctx context.Context, emailAddress string) (ApiUser,
 	return i, err
 }
 
+const insertWebexRoom = `-- name: InsertWebexRoom :one
+INSERT INTO webex_room
+(webex_id, name, type)
+VALUES ($1, $2, $3)
+RETURNING id, webex_id, name, type, created_on, updated_on, deleted
+`
+
+type InsertWebexRoomParams struct {
+	WebexID string `json:"webex_id"`
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+}
+
+func (q *Queries) InsertWebexRoom(ctx context.Context, arg InsertWebexRoomParams) (WebexRoom, error) {
+	row := q.db.QueryRow(ctx, insertWebexRoom, arg.WebexID, arg.Name, arg.Type)
+	var i WebexRoom
+	err := row.Scan(
+		&i.ID,
+		&i.WebexID,
+		&i.Name,
+		&i.Type,
+		&i.CreatedOn,
+		&i.UpdatedOn,
+		&i.Deleted,
+	)
+	return i, err
+}
+
 const listAPIKeys = `-- name: ListAPIKeys :many
 SELECT id, user_id, key_hash, created_on, updated_on, deleted FROM api_key
 ORDER BY created_on
@@ -626,7 +723,7 @@ func (q *Queries) ListAllTicketNotes(ctx context.Context) ([]CwTicketNote, error
 }
 
 const listBoards = `-- name: ListBoards :many
-SELECT id, name, notify_enabled, webex_room_id, updated_on, added_on, deleted FROM cw_board
+SELECT id, name, updated_on, added_on, deleted FROM cw_board
 ORDER BY id
 `
 
@@ -642,8 +739,38 @@ func (q *Queries) ListBoards(ctx context.Context) ([]CwBoard, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
-			&i.NotifyEnabled,
-			&i.WebexRoomID,
+			&i.UpdatedOn,
+			&i.AddedOn,
+			&i.Deleted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBoardsByRoom = `-- name: ListBoardsByRoom :many
+SELECT b.id, b.name, b.updated_on, b.added_on, b.deleted FROM cw_board b
+JOIN notifier_connection nc ON nc.cw_board_id = b.id
+WHERE nc.webex_room_id = $1
+`
+
+func (q *Queries) ListBoardsByRoom(ctx context.Context, webexRoomID int) ([]CwBoard, error) {
+	rows, err := q.db.Query(ctx, listBoardsByRoom, webexRoomID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CwBoard
+	for rows.Next() {
+		var i CwBoard
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
 			&i.UpdatedOn,
 			&i.AddedOn,
 			&i.Deleted,
@@ -744,6 +871,70 @@ func (q *Queries) ListMembers(ctx context.Context) ([]CwMember, error) {
 			&i.PrimaryEmail,
 			&i.UpdatedOn,
 			&i.AddedOn,
+			&i.Deleted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listNotifierConnections = `-- name: ListNotifierConnections :many
+SELECT cw_board_id, webex_room_id, notify_enabled, created_on FROM notifier_connection
+ORDER BY cw_board_id
+`
+
+func (q *Queries) ListNotifierConnections(ctx context.Context) ([]NotifierConnection, error) {
+	rows, err := q.db.Query(ctx, listNotifierConnections)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []NotifierConnection
+	for rows.Next() {
+		var i NotifierConnection
+		if err := rows.Scan(
+			&i.CwBoardID,
+			&i.WebexRoomID,
+			&i.NotifyEnabled,
+			&i.CreatedOn,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRoomsByBoard = `-- name: ListRoomsByBoard :many
+SELECT w.id, w.webex_id, w.name, w.type, w.created_on, w.updated_on, w.deleted FROM webex_room w
+JOIN notifier_connection nc ON nc.webex_room_id = w.id
+WHERE nc.cw_board_id = $1 AND nc.notify_enabled = TRUE
+`
+
+func (q *Queries) ListRoomsByBoard(ctx context.Context, cwBoardID int) ([]WebexRoom, error) {
+	rows, err := q.db.Query(ctx, listRoomsByBoard, cwBoardID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WebexRoom
+	for rows.Next() {
+		var i WebexRoom
+		if err := rows.Scan(
+			&i.ID,
+			&i.WebexID,
+			&i.Name,
+			&i.Type,
+			&i.CreatedOn,
+			&i.UpdatedOn,
 			&i.Deleted,
 		); err != nil {
 			return nil, err
@@ -860,6 +1051,39 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ApiUser, error) {
 	return items, nil
 }
 
+const listWebexRooms = `-- name: ListWebexRooms :many
+SELECT id, webex_id, name, type, created_on, updated_on, deleted FROM webex_room
+ORDER BY id
+`
+
+func (q *Queries) ListWebexRooms(ctx context.Context) ([]WebexRoom, error) {
+	rows, err := q.db.Query(ctx, listWebexRooms)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WebexRoom
+	for rows.Next() {
+		var i WebexRoom
+		if err := rows.Scan(
+			&i.ID,
+			&i.WebexID,
+			&i.Name,
+			&i.Type,
+			&i.CreatedOn,
+			&i.UpdatedOn,
+			&i.Deleted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setNoteNotified = `-- name: SetNoteNotified :one
 UPDATE cw_ticket_note
 SET
@@ -929,7 +1153,7 @@ WHERE id = $1
 RETURNING id, user_id, key_hash, created_on, updated_on, deleted
 `
 
-func (q *Queries) SoftDeleteAPIKey(ctx context.Context, id int32) (ApiKey, error) {
+func (q *Queries) SoftDeleteAPIKey(ctx context.Context, id int) (ApiKey, error) {
 	row := q.db.QueryRow(ctx, softDeleteAPIKey, id)
 	var i ApiKey
 	err := row.Scan(
@@ -989,6 +1213,24 @@ func (q *Queries) SoftDeleteMember(ctx context.Context, id int) error {
 	return err
 }
 
+const softDeleteNotifierConnection = `-- name: SoftDeleteNotifierConnection :exec
+UPDATE notifier_connection
+SET
+    deleted = TRUE,
+    updated_on = NOW()
+WHERE cw_board_id = $1 AND webex_room_id = $2
+`
+
+type SoftDeleteNotifierConnectionParams struct {
+	CwBoardID   int `json:"cw_board_id"`
+	WebexRoomID int `json:"webex_room_id"`
+}
+
+func (q *Queries) SoftDeleteNotifierConnection(ctx context.Context, arg SoftDeleteNotifierConnectionParams) error {
+	_, err := q.db.Exec(ctx, softDeleteNotifierConnection, arg.CwBoardID, arg.WebexRoomID)
+	return err
+}
+
 const softDeleteTicket = `-- name: SoftDeleteTicket :exec
 UPDATE cw_ticket
 SET
@@ -1022,7 +1264,7 @@ WHERE id = $1
 RETURNING id, email_address, created_on, updated_on, deleted
 `
 
-func (q *Queries) SoftDeleteUser(ctx context.Context, id int32) (ApiUser, error) {
+func (q *Queries) SoftDeleteUser(ctx context.Context, id int) (ApiUser, error) {
 	row := q.db.QueryRow(ctx, softDeleteUser, id)
 	var i ApiUser
 	err := row.Scan(
@@ -1035,37 +1277,39 @@ func (q *Queries) SoftDeleteUser(ctx context.Context, id int32) (ApiUser, error)
 	return i, err
 }
 
+const softDeleteWebexRoom = `-- name: SoftDeleteWebexRoom :exec
+UPDATE cw_board
+SET
+    deleted = TRUE,
+    updated_on = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) SoftDeleteWebexRoom(ctx context.Context, id int) error {
+	_, err := q.db.Exec(ctx, softDeleteWebexRoom, id)
+	return err
+}
+
 const updateBoard = `-- name: UpdateBoard :one
 UPDATE cw_board
 SET
     name = $2,
-    notify_enabled = $3,
-    webex_room_id = $4,
     updated_on = NOW()
 WHERE id = $1
-RETURNING id, name, notify_enabled, webex_room_id, updated_on, added_on, deleted
+RETURNING id, name, updated_on, added_on, deleted
 `
 
 type UpdateBoardParams struct {
-	ID            int     `json:"id"`
-	Name          string  `json:"name"`
-	NotifyEnabled bool    `json:"notify_enabled"`
-	WebexRoomID   *string `json:"webex_room_id"`
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 func (q *Queries) UpdateBoard(ctx context.Context, arg UpdateBoardParams) (CwBoard, error) {
-	row := q.db.QueryRow(ctx, updateBoard,
-		arg.ID,
-		arg.Name,
-		arg.NotifyEnabled,
-		arg.WebexRoomID,
-	)
+	row := q.db.QueryRow(ctx, updateBoard, arg.ID, arg.Name)
 	var i CwBoard
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.NotifyEnabled,
-		&i.WebexRoomID,
 		&i.UpdatedOn,
 		&i.AddedOn,
 		&i.Deleted,
@@ -1176,6 +1420,31 @@ func (q *Queries) UpdateMember(ctx context.Context, arg UpdateMemberParams) (CwM
 		&i.UpdatedOn,
 		&i.AddedOn,
 		&i.Deleted,
+	)
+	return i, err
+}
+
+const updateNotifierConnection = `-- name: UpdateNotifierConnection :one
+UPDATE notifier_connection
+SET notify_enabled = $3
+WHERE cw_board_id = $1 AND webex_room_id = $2
+RETURNING cw_board_id, webex_room_id, notify_enabled, created_on
+`
+
+type UpdateNotifierConnectionParams struct {
+	CwBoardID     int  `json:"cw_board_id"`
+	WebexRoomID   int  `json:"webex_room_id"`
+	NotifyEnabled bool `json:"notify_enabled"`
+}
+
+func (q *Queries) UpdateNotifierConnection(ctx context.Context, arg UpdateNotifierConnectionParams) (NotifierConnection, error) {
+	row := q.db.QueryRow(ctx, updateNotifierConnection, arg.CwBoardID, arg.WebexRoomID, arg.NotifyEnabled)
+	var i NotifierConnection
+	err := row.Scan(
+		&i.CwBoardID,
+		&i.WebexRoomID,
+		&i.NotifyEnabled,
+		&i.CreatedOn,
 	)
 	return i, err
 }
@@ -1295,6 +1564,37 @@ func (q *Queries) UpdateUser(ctx context.Context, emailAddress string) (ApiUser,
 	err := row.Scan(
 		&i.ID,
 		&i.EmailAddress,
+		&i.CreatedOn,
+		&i.UpdatedOn,
+		&i.Deleted,
+	)
+	return i, err
+}
+
+const updateWebexRoom = `-- name: UpdateWebexRoom :one
+UPDATE webex_room
+SET
+    name = $2,
+    type = $3,
+    updated_on = NOW()
+WHERE id = $1
+RETURNING id, webex_id, name, type, created_on, updated_on, deleted
+`
+
+type UpdateWebexRoomParams struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+func (q *Queries) UpdateWebexRoom(ctx context.Context, arg UpdateWebexRoomParams) (WebexRoom, error) {
+	row := q.db.QueryRow(ctx, updateWebexRoom, arg.ID, arg.Name, arg.Type)
+	var i WebexRoom
+	err := row.Scan(
+		&i.ID,
+		&i.WebexID,
+		&i.Name,
+		&i.Type,
 		&i.CreatedOn,
 		&i.UpdatedOn,
 		&i.Deleted,

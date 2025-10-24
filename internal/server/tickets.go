@@ -20,12 +20,13 @@ type cwData struct {
 }
 
 type storedData struct {
-	ticket  db.CwTicket
-	company db.CwCompany
-	contact db.CwContact
-	owner   db.CwMember
-	note    db.CwTicketNote
-	board   db.CwBoard
+	ticket      db.CwTicket
+	company     db.CwCompany
+	contact     db.CwContact
+	owner       db.CwMember
+	note        db.CwTicketNote
+	board       db.CwBoard
+	notifyRooms []db.WebexRoom
 }
 
 func (s *Server) handleTickets(c *gin.Context) {
@@ -99,7 +100,8 @@ func (s *Server) processTicket(ctx context.Context, ticketID int, action string,
 	}
 
 	// If a note exists and notifications are on, run the ticket notification action,
-	// which checks if it meets message criteria and then notifies if valid
+	// which checks if it meets message criteria and then notifies if valid.
+	// AttemptNotify and the bypassNotis (used for preloads) acts as a hard block from even attempting.
 	notified := false
 	if s.Config.Messages.AttemptNotify && sd.note.ID != 0 && !bypassNotis {
 		notified, err = s.runNotificationAction(ctx, action, cd, sd)
@@ -202,13 +204,19 @@ func (s *Server) getStoredData(ctx context.Context, cd *cwData) (*storedData, er
 		}
 	}
 
+	rooms, err := s.Queries.ListRoomsByBoard(ctx, board.ID)
+	if err != nil {
+		return nil, fmt.Errorf("getting rooms to notify: %w", err)
+	}
+
 	return &storedData{
-		ticket:  ticket,
-		company: company,
-		contact: contact,
-		owner:   owner,
-		note:    note,
-		board:   board,
+		ticket:      ticket,
+		company:     company,
+		contact:     contact,
+		owner:       owner,
+		note:        note,
+		board:       board,
+		notifyRooms: rooms,
 	}, nil
 }
 
@@ -256,17 +264,21 @@ func (s *Server) logTicketResult(action string, notified bool, sd *storedData) {
 // depending on if it was added or updated, if the note changed, and the board's notification settings.
 func meetsMessageCriteria(action string, sd *storedData) bool {
 	slog.Debug("checking message conditions", "action", action, "ticket_id", sd.ticket.ID, "note_id", sd.note.ID,
-		"board_id", sd.board.ID, "board_notify_enabled", sd.board.NotifyEnabled, "already_notified", sd.note.Notified)
+		"board_id", sd.board.ID, "already_notified", sd.note.Notified)
 	meetsCrit := false
 	if action == "added" {
-		meetsCrit = sd.board.NotifyEnabled
+		meetsCrit = roomsToNotifyExist(sd)
 	}
 
 	if action == "updated" {
-		meetsCrit = !sd.note.Notified && sd.board.NotifyEnabled
+		meetsCrit = !sd.note.Notified && roomsToNotifyExist(sd)
 	}
 
 	return meetsCrit
+}
+
+func roomsToNotifyExist(sd *storedData) bool {
+	return sd.notifyRooms != nil && len(sd.notifyRooms) > 0
 }
 
 func cwDataToUpdateTicketParams(cd *cwData) db.UpdateTicketParams {

@@ -18,14 +18,30 @@ CREATE TABLE IF NOT EXISTS api_key (
     UNIQUE(user_id, key_hash)
 );
 
+CREATE TABLE IF NOT EXISTS webex_room (
+    id SERIAL PRIMARY KEY,
+    webex_id TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN NOT NULL DEFAULT FALSE
+);
+
 CREATE TABLE IF NOT EXISTS cw_board (
     id INT PRIMARY KEY,
     name TEXT NOT NULL,
-    notify_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-    webex_room_id TEXT,
     updated_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     added_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS notifier_connection (
+    cw_board_id INT NOT NULL REFERENCES cw_board(id) ON DELETE CASCADE,
+    webex_room_id INT NOT NULL REFERENCES webex_room(id) ON DELETE CASCADE,
+    notify_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(cw_board_id, webex_room_id)
 );
 
 CREATE TABLE IF NOT EXISTS cw_company (
@@ -93,5 +109,7 @@ DROP TABLE IF EXISTS cw_ticket;
 DROP TABLE IF EXISTS cw_member;
 DROP TABLE IF EXISTS cw_contact;
 DROP TABLE IF EXISTS cw_company;
+DROP TABLE IF EXISTS cw_board_webex_room;
 DROP TABLE IF EXISTS cw_board;
+DROP TABLE IF EXISTS webex_room;
 -- +goose StatementEnd

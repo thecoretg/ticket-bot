@@ -9,7 +9,7 @@ import (
 )
 
 type ApiKey struct {
-	ID        int32     `json:"id"`
+	ID        int       `json:"id"`
 	UserID    int       `json:"user_id"`
 	KeyHash   []byte    `json:"key_hash"`
 	CreatedOn time.Time `json:"created_on"`
@@ -18,7 +18,7 @@ type ApiKey struct {
 }
 
 type ApiUser struct {
-	ID           int32     `json:"id"`
+	ID           int       `json:"id"`
 	EmailAddress string    `json:"email_address"`
 	CreatedOn    time.Time `json:"created_on"`
 	UpdatedOn    time.Time `json:"updated_on"`
@@ -26,13 +26,11 @@ type ApiUser struct {
 }
 
 type CwBoard struct {
-	ID            int       `json:"id"`
-	Name          string    `json:"name"`
-	NotifyEnabled bool      `json:"notify_enabled"`
-	WebexRoomID   *string   `json:"webex_room_id"`
-	UpdatedOn     time.Time `json:"updated_on"`
-	AddedOn       time.Time `json:"added_on"`
-	Deleted       bool      `json:"deleted"`
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	UpdatedOn time.Time `json:"updated_on"`
+	AddedOn   time.Time `json:"added_on"`
+	Deleted   bool      `json:"deleted"`
 }
 
 type CwCompany struct {
@@ -88,4 +86,21 @@ type CwTicketNote struct {
 	UpdatedOn     time.Time `json:"updated_on"`
 	AddedOn       time.Time `json:"added_on"`
 	Deleted       bool      `json:"deleted"`
+}
+
+type NotifierConnection struct {
+	CwBoardID     int       `json:"cw_board_id"`
+	WebexRoomID   int       `json:"webex_room_id"`
+	NotifyEnabled bool      `json:"notify_enabled"`
+	CreatedOn     time.Time `json:"created_on"`
+}
+
+type WebexRoom struct {
+	ID        int       `json:"id"`
+	WebexID   string    `json:"webex_id"`
+	Name      string    `json:"name"`
+	Type      string    `json:"type"`
+	CreatedOn time.Time `json:"created_on"`
+	UpdatedOn time.Time `json:"updated_on"`
+	Deleted   bool      `json:"deleted"`
 }

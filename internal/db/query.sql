@@ -62,6 +62,44 @@ RETURNING *;
 DELETE FROM api_key
 WHERE id = $1;
 
+-- name: GetWebexRoomIDByInternalID :one
+SELECT webex_id FROM webex_room
+WHERE id = $1;
+
+-- name: GetWebexRoom :one
+SELECT * FROM webex_room
+WHERE id = $1;
+
+-- name: ListWebexRooms :many
+SELECT * FROM webex_room
+ORDER BY id;
+
+-- name: InsertWebexRoom :one
+INSERT INTO webex_room
+(webex_id, name, type)
+VALUES ($1, $2, $3)
+RETURNING *;
+
+-- name: UpdateWebexRoom :one
+UPDATE webex_room
+SET
+    name = $2,
+    type = $3,
+    updated_on = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: SoftDeleteWebexRoom :exec
+UPDATE cw_board
+SET
+    deleted = TRUE,
+    updated_on = NOW()
+WHERE id = $1;
+
+-- name: DeleteWebexRoom :exec
+DELETE FROM webex_room
+WHERE id = $1;
+
 -- name: GetBoard :one
 SELECT * FROM cw_board
 WHERE id = $1 LIMIT 1;
@@ -72,16 +110,14 @@ ORDER BY id;
 
 -- name: InsertBoard :one
 INSERT INTO cw_board
-(id, name, notify_enabled, webex_room_id)
-VALUES ($1, $2, $3, $4)
+(id, name)
+VALUES ($1, $2)
 RETURNING *;
 
 -- name: UpdateBoard :one
 UPDATE cw_board
 SET
     name = $2,
-    notify_enabled = $3,
-    webex_room_id = $4,
     updated_on = NOW()
 WHERE id = $1
 RETURNING *;
@@ -97,6 +133,42 @@ WHERE id = $1;
 DELETE FROM cw_board
 WHERE id = $1;
 
+-- name: ListNotifierConnections :many
+SELECT * FROM notifier_connection
+ORDER BY cw_board_id;
+
+-- name: ListRoomsByBoard :many
+SELECT w.* FROM webex_room w
+JOIN notifier_connection nc ON nc.webex_room_id = w.id
+WHERE nc.cw_board_id = $1 AND nc.notify_enabled = TRUE;
+
+-- name: ListBoardsByRoom :many
+SELECT b.* FROM cw_board b
+JOIN notifier_connection nc ON nc.cw_board_id = b.id
+WHERE nc.webex_room_id = $1;
+
+-- name: InsertNotifierConnection :one
+INSERT INTO notifier_connection(cw_board_id, webex_room_id)
+VALUES ($1, $2)
+RETURNING *;
+
+-- name: UpdateNotifierConnection :one
+UPDATE notifier_connection
+SET notify_enabled = $3
+WHERE cw_board_id = $1 AND webex_room_id = $2
+RETURNING *;
+
+-- name: SoftDeleteNotifierConnection :exec
+UPDATE notifier_connection
+SET
+    deleted = TRUE,
+    updated_on = NOW()
+WHERE cw_board_id = $1 AND webex_room_id = $2;
+
+-- name: DeleteNotifierConnection :exec
+DELETE FROM notifier_connection
+WHERE cw_board_id = $1 AND webex_room_id = $2;
+
 -- name: GetTicket :one
 SELECT * FROM cw_ticket
 WHERE id = $1 LIMIT 1;
@@ -104,6 +176,7 @@ WHERE id = $1 LIMIT 1;
 -- name: ListTickets :many
 SELECT * FROM cw_ticket
 ORDER BY id;
+
 
 -- name: InsertTicket :one
 INSERT INTO cw_ticket

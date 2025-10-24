@@ -8,7 +8,6 @@ import (
 	"github.com/charmbracelet/lipgloss/table"
 	"github.com/spf13/cobra"
 	"github.com/thecoretg/ticketbot/internal/db"
-	"github.com/thecoretg/ticketbot/internal/webex"
 )
 
 var (
@@ -72,7 +71,7 @@ func addListCmds() {
 	listWebexRoomsCmd.Flags().BoolVarP(&showRoomType, "show-type", "t", false, "show room type in table")
 }
 
-func filterWebexRooms(rooms []webex.Room, roomType string) ([]webex.Room, error) {
+func filterWebexRooms(rooms []db.WebexRoom, roomType string) ([]db.WebexRoom, error) {
 	if !validRoomType(roomType) {
 		return nil, fmt.Errorf("room type '%s' not valid, expected 'group' or 'direct'", roomType)
 	}
@@ -81,7 +80,7 @@ func filterWebexRooms(rooms []webex.Room, roomType string) ([]webex.Room, error)
 		return rooms, nil
 	}
 
-	var filtered []webex.Room
+	var filtered []db.WebexRoom
 	for _, r := range rooms {
 		if r.Type == roomType {
 			filtered = append(filtered, r)
@@ -100,7 +99,7 @@ func cwBoardsTable(boards []db.CwBoard) string {
 		return "No boards found"
 	}
 
-	headers := []string{"ID", "NAME", "NOTIFY", "WEBEX ROOM"}
+	headers := []string{"ID", "NAME", "NOTIFY"}
 	sort.Slice(boards, func(i, j int) bool {
 		return boards[i].ID < boards[j].ID
 	})
@@ -119,15 +118,10 @@ func cwBoardsTable(boards []db.CwBoard) string {
 }
 
 func addBoardRow(t *table.Table, b db.CwBoard) {
-	wr := "NONE"
-	if b.WebexRoomID != nil {
-		wr = *b.WebexRoomID
-	}
-
-	t.Row(strconv.Itoa(b.ID), b.Name, strconv.FormatBool(b.NotifyEnabled), wr)
+	t.Row(strconv.Itoa(b.ID), b.Name)
 }
 
-func webexRoomsTable(rooms []webex.Room) string {
+func webexRoomsTable(rooms []db.WebexRoom) string {
 	if rooms == nil || len(rooms) == 0 {
 		return "No rooms found"
 	}
@@ -143,7 +137,7 @@ func webexRoomsTable(rooms []webex.Room) string {
 	}
 
 	sort.Slice(rooms, func(i, j int) bool {
-		return rooms[i].Title < rooms[j].Title
+		return rooms[i].Name < rooms[j].Name
 	})
 
 	t := table.New().
@@ -152,7 +146,7 @@ func webexRoomsTable(rooms []webex.Room) string {
 
 	for _, r := range rooms {
 		// terminated users still show but with empty title, don't show them
-		if r.Title != "Empty Title" {
+		if r.Name != "Empty Name" {
 			addRoomRow(t, r, showRoomType, showRoomID)
 		}
 	}
@@ -161,14 +155,14 @@ func webexRoomsTable(rooms []webex.Room) string {
 }
 
 // lowkey this sounds like something scooby doo would say
-func addRoomRow(t *table.Table, room webex.Room, showType, showID bool) {
-	row := []string{room.Title}
+func addRoomRow(t *table.Table, room db.WebexRoom, showType, showID bool) {
+	row := []string{room.Name}
 	if showType {
 		row = append(row, room.Type)
 	}
 
 	if showID {
-		row = append(row, room.Id)
+		row = append(row, strconv.Itoa(room.ID))
 	}
 
 	t.Row(row...)

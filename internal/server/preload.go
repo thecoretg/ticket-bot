@@ -56,10 +56,8 @@ func (s *Server) PreloadBoards(ctx context.Context, maxConcurrent int) error {
 					defer wg.Done()
 					defer func() { <-sem }()
 					p := db.InsertBoardParams{
-						ID:            board.ID,
-						Name:          board.Name,
-						NotifyEnabled: false,
-						WebexRoomID:   nil,
+						ID:   board.ID,
+						Name: board.Name,
 					}
 					if _, err := s.Queries.InsertBoard(ctx, p); err != nil {
 						slog.Warn("error preloading board", "board_id", board.ID, "error", err)

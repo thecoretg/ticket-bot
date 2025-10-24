@@ -1,5 +1,7 @@
 package main
 
+import "log"
+
 func main() {
-	Execute()
+	log.Fatal(Execute())
 }

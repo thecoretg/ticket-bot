@@ -29,6 +29,7 @@ func (s *Server) listWebexRooms(c *gin.Context) {
 }
 
 func (s *Server) makeAndSendWebexMsgs(ctx context.Context, action string, cd *cwData, sd *storedData) error {
+
 	messages, err := s.makeWebexMsgs(ctx, action, cd, sd)
 	if err != nil {
 		return fmt.Errorf("creating webex messages: %w", err)
@@ -84,8 +85,10 @@ func (s *Server) makeWebexMsgs(ctx context.Context, action string, cd *cwData, s
 
 	var messages []webex.Message
 	if action == "added" {
-		slog.Debug("creating message for new ticket", "ticket_id", sd.ticket.ID, "board_name", sd.board.Name, "webex_room_id", sd.board.WebexRoomID)
-		messages = append(messages, webex.NewMessageToRoom(*sd.board.WebexRoomID, body))
+		slog.Debug("creating message for new ticket", "ticket_id", sd.ticket.ID, "board_name", sd.board.Name, "rooms_to_notify", roomNames(sd.notifyRooms))
+		for _, r := range sd.notifyRooms {
+			messages = append(messages, webex.NewMessageToRoom(r.WebexID, body))
+		}
 	} else if action == "updated" {
 		sendTo, err := s.getSendTo(ctx, sd)
 		if len(sendTo) > 0 {
@@ -105,6 +108,15 @@ func (s *Server) makeWebexMsgs(ctx context.Context, action string, cd *cwData, s
 	}
 
 	return messages, nil
+}
+
+func roomNames(rooms []db.WebexRoom) []string {
+	var names []string
+	for _, r := range rooms {
+		names = append(names, r.Name)
+	}
+
+	return names
 }
 
 // getSendTo creates a list of emails to send notifications to, factoring in who made the most

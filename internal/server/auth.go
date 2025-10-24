@@ -43,7 +43,7 @@ func (s *Server) handleCreateAPIKey(c *gin.Context) {
 		return
 	}
 
-	key, err := s.createAPIKey(c.Request.Context(), int(u.ID))
+	key, err := s.createAPIKey(c.Request.Context(), u.ID)
 	if err != nil {
 		c.Error(fmt.Errorf("creating API key: %w", err))
 		return
@@ -89,7 +89,7 @@ func (s *Server) BootstrapAdmin(ctx context.Context, dir string) (*BootstrapResu
 
 	hasKey := false
 	for _, k := range keys {
-		if k.UserID == int(u.ID) {
+		if k.UserID == u.ID {
 			hasKey = true
 			break
 		}
@@ -99,7 +99,7 @@ func (s *Server) BootstrapAdmin(ctx context.Context, dir string) (*BootstrapResu
 		return nil, errors.New("bootstrap user/key already exists")
 	}
 
-	key, err := s.createAPIKey(ctx, int(u.ID))
+	key, err := s.createAPIKey(ctx, u.ID)
 	if err != nil {
 		return nil, fmt.Errorf("creating bootstrap key: %w", err)
 	}
@@ -110,7 +110,12 @@ func (s *Server) BootstrapAdmin(ctx context.Context, dir string) (*BootstrapResu
 		return nil, fmt.Errorf("writing key file: %w", err)
 	}
 
-	defer f.Close()
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			slog.Error("BootstrapAdmin: closing bootstrap key file")
+		}
+	}(f)
 
 	if _, err := f.WriteString(key); err != nil {
 		return nil, fmt.Errorf("writing key file: %w", err)
