@@ -102,14 +102,14 @@ CREATE TABLE IF NOT EXISTS cw_ticket_note (
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS api_key;
-DROP TABLE IF EXISTS api_user;
+DROP TABLE IF EXISTS notifier_connection;
 DROP TABLE IF EXISTS cw_ticket_note;
 DROP TABLE IF EXISTS cw_ticket;
 DROP TABLE IF EXISTS cw_member;
 DROP TABLE IF EXISTS cw_contact;
 DROP TABLE IF EXISTS cw_company;
-DROP TABLE IF EXISTS cw_board_webex_room;
 DROP TABLE IF EXISTS cw_board;
 DROP TABLE IF EXISTS webex_room;
+DROP TABLE IF EXISTS api_key;
+DROP TABLE IF EXISTS api_user;
 -- +goose StatementEnd
