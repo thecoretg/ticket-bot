@@ -19,7 +19,7 @@ func (cl *Client) handleSyncTickets(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusOK)
+	c.JSON(http.StatusOK, gin.H{"result": "ticket sync started"})
 	go func() {
 		if err := cl.syncOpenTickets(context.Background()); err != nil {
 			slog.Error("syncing connectwise tickets", "error", err)
