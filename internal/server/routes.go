@@ -27,11 +27,17 @@ func (cl *Client) addRoutes() {
 	b := cl.Server.Group("boards", eh, au)
 	b.GET("", cl.handleListBoards)
 	b.GET(":board_id", cl.handleGetBoard)
-	b.PUT(":board_id", cl.handlePutBoard)
-	b.DELETE(":board_id", cl.handleDeleteBoard)
 
 	// Webex Rooms
 	cl.Server.GET("rooms", cl.handleListWebexRooms, eh, au)
+
+	// Notifiers
+	n := cl.Server.Group("notifiers", eh, au)
+	n.GET("", cl.handleListNotifiers)
+	n.POST("", cl.handlePostNotifier)
+	n.GET(":notifier_id", cl.handleGetNotifier)
+	n.PUT(":notifier_id", cl.handlePutNotifier)
+	n.DELETE(":notifier_id", cl.handleDeleteNotifier)
 
 	// Webhooks
 	sig := requireValidCWSignature()

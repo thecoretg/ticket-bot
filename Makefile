@@ -5,9 +5,10 @@ build: create-bin-dir
 	go build -o bin/server ./cmd/server && sudo cp bin/server /usr/local/bin/tbot-server
 
 gensql:
-	sqlc generate -f internal/db/sqlc.yaml
+	sqlc generate
 
 docker-build:
+	cp -r migrations cmd/server/
 	docker buildx build --platform=linux/amd64 -t ticketbot:latest --load .
 
 test-up:

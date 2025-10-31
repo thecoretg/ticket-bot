@@ -18,19 +18,24 @@ type messageSender interface {
 	ListRooms(params map[string]string) ([]webex.Room, error)
 }
 
-func (cl *Client) handleListWebexRooms(c *gin.Context) {
-	// TODO: query params?
-	rooms, err := cl.Queries.ListWebexRooms(c.Request.Context())
-	if err != nil {
-		c.Error(fmt.Errorf("listing rooms: %w", err))
-		return
-	}
+func (cl *Client) handleListNotifiers(c *gin.Context) {
+	c.JSON(http.StatusOK, comingSoon())
+}
 
-	if rooms == nil {
-		rooms = []db.WebexRoom{}
-	}
+func (cl *Client) handlePostNotifier(c *gin.Context) {
+	c.JSON(http.StatusOK, comingSoon())
+}
 
-	c.JSON(http.StatusOK, rooms)
+func (cl *Client) handleGetNotifier(c *gin.Context) {
+	c.JSON(http.StatusOK, comingSoon())
+}
+
+func (cl *Client) handlePutNotifier(c *gin.Context) {
+	c.JSON(http.StatusOK, comingSoon())
+}
+
+func (cl *Client) handleDeleteNotifier(c *gin.Context) {
+	c.JSON(http.StatusOK, comingSoon())
 }
 
 func (cl *Client) makeAndSendMessages(ctx context.Context, action string, cd *cwData, sd *storedData) error {

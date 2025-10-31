@@ -2,9 +2,9 @@ package server
 
 import (
 	"context"
-	"embed"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"sync"
@@ -15,6 +15,7 @@ import (
 	"github.com/thecoretg/ticketbot/internal/mock"
 	"github.com/thecoretg/ticketbot/internal/psa"
 	"github.com/thecoretg/ticketbot/internal/webex"
+	"github.com/thecoretg/ticketbot/migrations"
 )
 
 type Client struct {
@@ -49,7 +50,7 @@ type testFlags struct {
 	mockConnectwise bool // currently does nothing
 }
 
-func Run(embeddedMigrations embed.FS) error {
+func Run() error {
 	setInitialLogger()
 	ctx := context.Background()
 
@@ -57,6 +58,11 @@ func Run(embeddedMigrations embed.FS) error {
 	cr := getCreds()
 	if err := cr.validate(tf); err != nil {
 		return fmt.Errorf("validating credentials: %w", err)
+	}
+
+	embeddedMigrations, err := fs.Sub(migrations.Migrations, ".")
+	if err != nil {
+		return fmt.Errorf("accessing embedded migrations: %w", err)
 	}
 
 	pool, err := setupDB(ctx, cr.PostgresDSN, embeddedMigrations)

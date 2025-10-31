@@ -49,7 +49,7 @@ func (cl *Client) handleTickets(c *gin.Context) {
 			return
 		}
 
-		c.Status(http.StatusNoContent)
+		c.Status(http.StatusOK)
 
 	case "deleted":
 		if err := cl.softDeleteTicket(c.Request.Context(), w.ID); err != nil {
@@ -57,7 +57,7 @@ func (cl *Client) handleTickets(c *gin.Context) {
 			return
 		}
 
-		c.Status(http.StatusNoContent)
+		c.Status(http.StatusOK)
 	}
 }
 
@@ -111,7 +111,7 @@ func (cl *Client) processTicket(ctx context.Context, ticketID int, action string
 	}
 
 	// Log the ticket result regardless of what happened
-	cl.logTicketResult(action, notified, sd)
+	logTicketResult(action, notified, cl.testing.mockWebex, sd)
 	return nil
 }
 
@@ -253,8 +253,13 @@ func (cl *Client) ensureTicketInStore(ctx context.Context, cd *cwData) (db.CwTic
 	return ticket, nil
 }
 
-func (cl *Client) logTicketResult(action string, notified bool, sd *storedData) {
-	slog.Debug("ticket processed",
+func logTicketResult(action string, notified, mockMsg bool, sd *storedData) {
+	msg := "ticket processed"
+	if mockMsg {
+		msg = "ticket processed with webex mocking"
+	}
+
+	slog.Info(msg,
 		"ticket_id", sd.ticket.ID,
 		"action", action,
 		"notified", notified)

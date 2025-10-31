@@ -3,8 +3,8 @@ package server
 import (
 	"context"
 	"database/sql"
-	"embed"
 	"fmt"
+	"io/fs"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -13,7 +13,7 @@ import (
 
 // setupDB configures the pgx pool and runs any needed data migrations via goose.
 // It returns the pgx pool, which will be needed to configure the Client struct.
-func setupDB(ctx context.Context, dsn string, embeddedMigrations embed.FS) (*pgxpool.Pool, error) {
+func setupDB(ctx context.Context, dsn string, embeddedMigrations fs.FS) (*pgxpool.Pool, error) {
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("creating pgx pool: %w", err)
@@ -28,13 +28,13 @@ func setupDB(ctx context.Context, dsn string, embeddedMigrations embed.FS) (*pgx
 	return pool, nil
 }
 
-func migrateDB(d *sql.DB, embeddedMigrations embed.FS) error {
+func migrateDB(d *sql.DB, embeddedMigrations fs.FS) error {
 	goose.SetBaseFS(embeddedMigrations)
 	if err := goose.SetDialect("postgres"); err != nil {
 		return fmt.Errorf("setting goose dialect: %w", err)
 	}
 
-	if err := goose.Up(d, "migrations"); err != nil {
+	if err := goose.Up(d, "."); err != nil {
 		return fmt.Errorf("running goose up: %w", err)
 	}
 
