@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"github.com/thecoretg/ticketbot/internal/db"
 	"github.com/thecoretg/ticketbot/internal/psa"
 	"github.com/thecoretg/ticketbot/internal/webex"
@@ -16,26 +14,6 @@ import (
 type messageSender interface {
 	PostMessage(message *webex.Message) (*webex.Message, error)
 	ListRooms(params map[string]string) ([]webex.Room, error)
-}
-
-func (cl *Client) handleListNotifiers(c *gin.Context) {
-	c.JSON(http.StatusOK, comingSoon())
-}
-
-func (cl *Client) handlePostNotifier(c *gin.Context) {
-	c.JSON(http.StatusOK, comingSoon())
-}
-
-func (cl *Client) handleGetNotifier(c *gin.Context) {
-	c.JSON(http.StatusOK, comingSoon())
-}
-
-func (cl *Client) handlePutNotifier(c *gin.Context) {
-	c.JSON(http.StatusOK, comingSoon())
-}
-
-func (cl *Client) handleDeleteNotifier(c *gin.Context) {
-	c.JSON(http.StatusOK, comingSoon())
 }
 
 func (cl *Client) makeAndSendMessages(ctx context.Context, action string, cd *cwData, sd *storedData) error {

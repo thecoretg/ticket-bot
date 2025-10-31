@@ -204,7 +204,7 @@ func (cl *Client) getStoredData(ctx context.Context, cd *cwData) (*storedData, e
 		}
 	}
 
-	rooms, err := cl.Queries.ListRoomsByBoard(ctx, board.ID)
+	cons, err := cl.Queries.ListNotifierConnectionsByBoard(ctx, board.ID)
 	if err != nil {
 		return nil, fmt.Errorf("getting rooms to notify: %w", err)
 	}
@@ -216,7 +216,7 @@ func (cl *Client) getStoredData(ctx context.Context, cd *cwData) (*storedData, e
 		owner:       owner,
 		note:        note,
 		board:       board,
-		notifyRooms: rooms,
+		notifyRooms: roomsFromNotifiers(cons),
 	}, nil
 }
 
@@ -297,4 +297,13 @@ func cwDataToUpdateTicketParams(cd *cwData) db.UpdateTicketParams {
 		Resources: strToPtr(cd.ticket.Resources),
 		UpdatedBy: strToPtr(cd.ticket.Info.UpdatedBy),
 	}
+}
+
+func roomsFromNotifiers(notifiers []db.ListNotifierConnectionsByBoardRow) []db.WebexRoom {
+	var rooms []db.WebexRoom
+	for _, n := range notifiers {
+		rooms = append(rooms, n.WebexRoom)
+	}
+
+	return rooms
 }
