@@ -7,14 +7,8 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o server ./cmd/server
 
-FROM ubuntu:22.04
+FROM ticketbot-runtime:22.04
 WORKDIR /app
 COPY --from=builder /app/server .
-RUN apt update && \
-    apt install -y --no-install-recommends ca-certificates && \
-    update-ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
-
 EXPOSE 8080
-
 ENTRYPOINT ["./server"]
