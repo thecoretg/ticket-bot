@@ -69,16 +69,12 @@ func (cl *Client) makeMessages(ctx context.Context, rs *requestState) (*requestS
 			messages = append(messages, webex.NewMessageToRoom(r.WebexID, body))
 		}
 	} else if rs.action == "updated" {
-		sendTo, err := cl.getSendTo(ctx, rs.dbData)
-		if len(sendTo) == 0 {
+		rs = cl.getSendTo(ctx, rs)
+		if len(rs.peopleNotify) == 0 {
 			return rs, nil
 		}
 
-		if err != nil {
-			return rs, fmt.Errorf("getting users to send to: %w", err)
-		}
-
-		for _, email := range sendTo {
+		for _, email := range rs.peopleNotify {
 			rs.peopleNotify = append(rs.peopleNotify, email)
 			messages = append(messages, webex.NewMessageToPerson(email, body))
 		}
@@ -90,19 +86,23 @@ func (cl *Client) makeMessages(ctx context.Context, rs *requestState) (*requestS
 
 // getSendTo creates a list of emails to send notifications to, factoring in who made the most
 // recent update and any other exclusions passed in by the cfgOld.
-func (cl *Client) getSendTo(ctx context.Context, sd *storedData) ([]string, error) {
+func (cl *Client) getSendTo(ctx context.Context, rs *requestState) *requestState {
 	var (
 		excludedMembers []int
 		sendToMembers   []db.CwMember
 	)
 
 	// if the sender of the note is a member, exclude them from messages since they don't need a notification for their own note
-	if sd.note.MemberID != nil {
-		excludedMembers = append(excludedMembers, *sd.note.MemberID)
+	if rs.dbData.note.MemberID != nil {
+		excludedMembers = append(excludedMembers, *rs.dbData.note.MemberID)
 	}
 
 	// if there are multiple resources in the string, there are spaces after commas - trim those out
-	resources := strings.Split(*sd.ticket.Resources, ",")
+	var resources []string
+	if rs.dbData.ticket.Resources != nil {
+		resources = strings.Split(*rs.dbData.ticket.Resources, ",")
+	}
+
 	for i, r := range resources {
 		resources[i] = strings.TrimSpace(r)
 	}
@@ -119,14 +119,17 @@ func (cl *Client) getSendTo(ctx context.Context, sd *storedData) ([]string, erro
 		}
 	}
 
-	var emails []string
+	if rs.peopleNotify == nil {
+		rs.peopleNotify = []string{}
+	}
+
 	for _, m := range sendToMembers {
 		if m.PrimaryEmail != "" {
-			emails = append(emails, m.PrimaryEmail)
+			rs.peopleNotify = append(rs.peopleNotify, m.PrimaryEmail)
 		}
 	}
 
-	return emails, nil
+	return rs
 }
 
 func (cl *Client) messageHeader(action string, cd *connectwiseData) string {

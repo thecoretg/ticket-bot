@@ -38,6 +38,7 @@ type requestState struct {
 
 	action         string
 	attemptNotify  bool
+	syncing        bool
 	webexMock      bool
 	messagesToSend []webex.Message
 	notified       bool
@@ -84,7 +85,7 @@ func (cl *Client) getTicketLock(ticketID int) *sync.Mutex {
 
 // processTicket serves as the primary handler for updating the data store with ticket data. It also will handle
 // extra functionality such as ticket notifications.
-func (cl *Client) processTicket(ctx context.Context, ticketID int, action string, bypassNotis bool) error {
+func (cl *Client) processTicket(ctx context.Context, ticketID int, action string, syncing bool) error {
 	// Lock the ticket so that extra calls don't interfere. Due to the nature of Connectwise updates will often
 	// result in other hooks and actions taking place, which means a ticket rarely only sends one webhook payload.
 	lock := cl.getTicketLock(ticketID)
@@ -96,10 +97,14 @@ func (cl *Client) processTicket(ctx context.Context, ticketID int, action string
 		lock.Unlock()
 	}()
 
-	rs, err := cl.getInitialRequestState(ctx, action, ticketID)
+	rs, err := cl.getInitialRequestState(ctx, action, ticketID, syncing)
 	if err != nil {
 		return fmt.Errorf("getting initial request state: %w", err)
 	}
+
+	defer func() {
+		logTicketResult(rs)
+	}()
 
 	// Upsert the ticket data into the database
 	rs, err = cl.upsertTicket(ctx, rs)
@@ -110,15 +115,11 @@ func (cl *Client) processTicket(ctx context.Context, ticketID int, action string
 	// If a note exists and notifications are on, run the ticket notification action,
 	// which checks if it meets message criteria and then notifies if valid.
 	// AttemptNotify and the bypassNotis (used for preloads) acts as a hard block from even attempting.
-	if cl.Config.AttemptNotify && rs.dbData.note.ID != 0 && !bypassNotis {
-		rs, err = cl.runNotificationAction(ctx, rs)
-		if err != nil {
-			return fmt.Errorf("running notifier: %w", err)
-		}
+	rs, err = cl.runNotificationAction(ctx, rs)
+	if err != nil {
+		return fmt.Errorf("running notifier: %w", err)
 	}
 
-	// Log the ticket result regardless of what happened
-	logTicketResult(rs)
 	return nil
 }
 
@@ -132,6 +133,11 @@ func (cl *Client) runNotificationAction(ctx context.Context, rs *requestState) (
 	if err := cl.setNotified(ctx, rs.dbData.note.ID, true); err != nil {
 		rs.noNotiReason = "SET_NOTIFIED_ERROR"
 		return rs, fmt.Errorf("setting notified to true: %w", err)
+	}
+
+	if rs.syncing {
+		rs.noNotiReason = "TICKET_SYNC"
+		return rs, nil
 	}
 
 	if !eligible {
@@ -161,7 +167,7 @@ func (cl *Client) softDeleteTicket(ctx context.Context, ticketID int) error {
 	return nil
 }
 
-func (cl *Client) getInitialRequestState(ctx context.Context, action string, ticketID int) (*requestState, error) {
+func (cl *Client) getInitialRequestState(ctx context.Context, action string, ticketID int, syncing bool) (*requestState, error) {
 	cd, err := cl.getCwData(ticketID)
 	if err != nil {
 		return nil, fmt.Errorf("getting data from connectwise: %w", err)
@@ -180,6 +186,7 @@ func (cl *Client) getInitialRequestState(ctx context.Context, action string, tic
 		webexMock:      cl.testing.mockWebex,
 		messagesToSend: []webex.Message{},
 		attemptNotify:  cl.Config.AttemptNotify,
+		syncing:        syncing,
 		roomsNotify:    []string{},
 		peopleNotify:   []string{},
 	}, nil
