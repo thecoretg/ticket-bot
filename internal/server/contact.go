@@ -18,11 +18,21 @@ func (cl *Client) ensureContactInStore(ctx context.Context, q *db.Queries, conta
 				return db.CwContact{}, fmt.Errorf("getting contact from cw: %w", err)
 			}
 
+			var compID *int
+			if cwContact.Company.ID != 0 {
+				comp, err := cl.ensureCompanyInStore(ctx, q, cwContact.Company.ID)
+				if err != nil {
+					return db.CwContact{}, fmt.Errorf("ensuring contact's company is in db: %w", err)
+				}
+
+				compID = intToPtr(comp.ID)
+			}
+
 			p := db.InsertContactParams{
 				ID:        cwContact.ID,
 				FirstName: cwContact.FirstName,
 				LastName:  strToPtr(cwContact.LastName),
-				CompanyID: intToPtr(cwContact.Company.ID),
+				CompanyID: compID,
 			}
 
 			contact, err = q.InsertContact(ctx, p)

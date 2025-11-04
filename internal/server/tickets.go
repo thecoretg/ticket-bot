@@ -132,6 +132,11 @@ func (cl *Client) processTicket(ctx context.Context, ticketID int, action string
 }
 
 func (cl *Client) runNotificationAction(ctx context.Context, rs *requestState) (*requestState, error) {
+	if rs.dbData.note.ID == 0 {
+		rs.noNotiReason = "NO_NOTE"
+		return rs, nil
+	}
+
 	eligible, reason := rs.meetsMessageCriteria()
 	if !eligible {
 		rs.noNotiReason = reason
@@ -303,7 +308,7 @@ func (cl *Client) ensureStoredData(ctx context.Context, rs *requestState) (*requ
 		if err != nil {
 			return rs, fmt.Errorf("ensuring note in store: %w", err)
 		}
-		rs.logger.With(noteLogGroup(note))
+		rs.logger = rs.logger.With(noteLogGroup(note))
 	}
 
 	cons, err := q.ListNotifierConnectionsByBoard(ctx, board.ID)

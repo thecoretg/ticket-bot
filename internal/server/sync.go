@@ -96,6 +96,7 @@ func (cl *Client) syncOpenTickets(ctx context.Context, boardIDS []int) error {
 			defer wg.Done()
 			defer func() { <-sem }()
 			if err := cl.processTicket(ctx, ticket.ID, "sync", true); err != nil {
+				slog.Error("ticket sync error", "id", ticket.ID, "error", err)
 				errCh <- fmt.Errorf("error syncing ticket %d: %w", ticket.ID, err)
 			} else {
 				errCh <- nil
