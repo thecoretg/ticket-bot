@@ -13,9 +13,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/thecoretg/ticketbot/internal/db"
 	"github.com/thecoretg/ticketbot/internal/psa"
+	"github.com/thecoretg/ticketbot/internal/webex"
 )
 
-type cwData struct {
+type connectwiseData struct {
 	ticket *psa.Ticket
 	note   *psa.ServiceTicketNote
 }
@@ -28,6 +29,21 @@ type storedData struct {
 	note         db.CwTicketNote
 	board        db.CwBoard
 	enabledRooms []db.WebexRoom
+}
+
+type requestState struct {
+	logger *slog.Logger
+	cwData *connectwiseData
+	dbData *storedData
+
+	action         string
+	attemptNotify  bool
+	webexMock      bool
+	messagesToSend []webex.Message
+	notified       bool
+	noNotiReason   string
+	roomsNotify    []string
+	peopleNotify   []string
 }
 
 func (cl *Client) handleTickets(c *gin.Context) {
@@ -80,55 +96,61 @@ func (cl *Client) processTicket(ctx context.Context, ticketID int, action string
 		lock.Unlock()
 	}()
 
-	// Get the current data for the ticket via the Connectwise API.
-	// This will be used to compare for changes with the store ticket.
-	cd, err := cl.getCwData(ticketID)
+	rs, err := cl.getInitialRequestState(ctx, action, ticketID)
 	if err != nil {
-		return fmt.Errorf("getting data from connectwise: %w", err)
+		return fmt.Errorf("getting initial request state: %w", err)
 	}
 
-	sd, err := cl.getStoredData(ctx, cd)
+	// Upsert the ticket data into the database
+	rs, err = cl.upsertTicket(ctx, rs)
 	if err != nil {
-		return fmt.Errorf("getting or creating stored data: %w", err)
-	}
-
-	// Insert or update the ticket into the store if it didn't exist or if there were changes.
-	p := cwDataToUpdateTicketParams(cd)
-	sd.ticket, err = cl.Queries.UpsertTicket(ctx, p)
-	if err != nil {
-		return fmt.Errorf("updating ticket in store: %w", err)
+		return fmt.Errorf("upserting ticket data: %w", err)
 	}
 
 	// If a note exists and notifications are on, run the ticket notification action,
 	// which checks if it meets message criteria and then notifies if valid.
 	// AttemptNotify and the bypassNotis (used for preloads) acts as a hard block from even attempting.
-	notified := false
-	if cl.Config.AttemptNotify && sd.note.ID != 0 && !bypassNotis {
-		notified, err = cl.runNotificationAction(ctx, action, cd, sd)
+	if cl.Config.AttemptNotify && rs.dbData.note.ID != 0 && !bypassNotis {
+		rs, err = cl.runNotificationAction(ctx, rs)
 		if err != nil {
 			return fmt.Errorf("running notifier: %w", err)
 		}
 	}
 
 	// Log the ticket result regardless of what happened
-	logTicketResult(action, notified, cl.testing.mockWebex, sd)
+	logTicketResult(rs)
 	return nil
 }
 
-func (cl *Client) runNotificationAction(ctx context.Context, action string, cd *cwData, sd *storedData) (bool, error) {
-	notified := false
-	if meetsMessageCriteria(action, sd) {
-		// set notified first in case message fails - don't want to send duplicates regardless
-		if err := cl.setNotified(ctx, sd.note.ID, true); err != nil {
-			return false, fmt.Errorf("setting notified to true: %w", err)
-		}
-
-		if err := cl.makeAndSendMessages(ctx, action, cd, sd); err != nil {
-			return false, fmt.Errorf("processing webex messages: %w", err)
-		}
-		notified = true
+func (cl *Client) runNotificationAction(ctx context.Context, rs *requestState) (*requestState, error) {
+	eligible, reason := rs.meetsMessageCriteria()
+	if !eligible {
+		rs.noNotiReason = reason
 	}
-	return notified, nil
+
+	// set notified regardless, even if it doesn't meet critera - this is so it doesnt attempt again
+	if err := cl.setNotified(ctx, rs.dbData.note.ID, true); err != nil {
+		rs.noNotiReason = "SET_NOTIFIED_ERROR"
+		return rs, fmt.Errorf("setting notified to true: %w", err)
+	}
+
+	if !eligible {
+		return rs, nil
+	}
+
+	if !rs.attemptNotify {
+		rs.noNotiReason = "ATTEMPT_NOTIFY_OFF"
+		return rs, nil
+	}
+
+	rs, err := cl.makeAndSendMessages(ctx, rs)
+	if err != nil {
+		rs.noNotiReason = "MAKE_SEND_MESSAGES"
+		return rs, fmt.Errorf("processing webex messages: %w", err)
+	}
+	rs.notified = true
+
+	return rs, nil
 }
 
 func (cl *Client) softDeleteTicket(ctx context.Context, ticketID int) error {
@@ -139,7 +161,31 @@ func (cl *Client) softDeleteTicket(ctx context.Context, ticketID int) error {
 	return nil
 }
 
-func (cl *Client) getCwData(ticketID int) (*cwData, error) {
+func (cl *Client) getInitialRequestState(ctx context.Context, action string, ticketID int) (*requestState, error) {
+	cd, err := cl.getCwData(ticketID)
+	if err != nil {
+		return nil, fmt.Errorf("getting data from connectwise: %w", err)
+	}
+
+	sd, err := cl.ensureStoredData(ctx, cd)
+	if err != nil {
+		return nil, fmt.Errorf("ensuring stored data: %w", err)
+	}
+
+	return &requestState{
+		logger:         slog.Default(),
+		cwData:         cd,
+		dbData:         sd,
+		action:         action,
+		webexMock:      cl.testing.mockWebex,
+		messagesToSend: []webex.Message{},
+		attemptNotify:  cl.Config.AttemptNotify,
+		roomsNotify:    []string{},
+		peopleNotify:   []string{},
+	}, nil
+}
+
+func (cl *Client) getCwData(ticketID int) (*connectwiseData, error) {
 	ticket, err := cl.CWClient.GetTicket(ticketID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("getting ticket: %w", err)
@@ -154,13 +200,13 @@ func (cl *Client) getCwData(ticketID int) (*cwData, error) {
 		note = &psa.ServiceTicketNote{}
 	}
 
-	return &cwData{
+	return &connectwiseData{
 		ticket: ticket,
 		note:   note,
 	}, nil
 }
 
-func (cl *Client) getStoredData(ctx context.Context, cd *cwData) (*storedData, error) {
+func (cl *Client) ensureStoredData(ctx context.Context, cd *connectwiseData) (*storedData, error) {
 	// first check for or create board since it needs to exist before the ticket
 	board, err := cl.ensureBoardInStore(ctx, cd.ticket.Board.ID)
 	if err != nil {
@@ -219,7 +265,7 @@ func (cl *Client) getStoredData(ctx context.Context, cd *cwData) (*storedData, e
 	}, nil
 }
 
-func (cl *Client) ensureTicketInStore(ctx context.Context, cd *cwData) (db.CwTicket, error) {
+func (cl *Client) ensureTicketInStore(ctx context.Context, cd *connectwiseData) (db.CwTicket, error) {
 	ticket, err := cl.Queries.GetTicket(ctx, cd.ticket.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -248,31 +294,36 @@ func (cl *Client) ensureTicketInStore(ctx context.Context, cd *cwData) (db.CwTic
 	return ticket, nil
 }
 
-func logTicketResult(action string, notified, mockMsg bool, sd *storedData) {
+func (cl *Client) upsertTicket(ctx context.Context, rs *requestState) (*requestState, error) {
+	var err error
+	p := cwDataToUpdateTicketParams(rs.cwData)
+	rs.dbData.ticket, err = cl.Queries.UpsertTicket(ctx, p)
+	if err != nil {
+		return rs, fmt.Errorf("updating ticket in store: %w", err)
+	}
+
+	return rs, nil
+}
+
+func logTicketResult(rs *requestState) {
 	tg := slog.Group("ticket",
-		slog.Int("id", sd.ticket.ID),
-		slog.String("action", action),
-		slog.Bool("notified", notified),
-		boardLogGroup(sd.board),
-		companyLogGroup(sd.company),
-		contactLogGroup(sd.contact),
-		ownerLogGroup(sd.owner),
-		noteLogGroup(sd.note),
-		notifiedRoomsLogGroup(sd.enabledRooms),
+		slog.Int("id", rs.dbData.ticket.ID),
+		slog.String("action", rs.action),
+		slog.Bool("notified", rs.notified),
+		notifyLogGroup(rs),
+		boardLogGroup(rs.dbData.board),
+		companyLogGroup(rs.dbData.company),
+		contactLogGroup(rs.dbData.contact),
+		ownerLogGroup(rs.dbData.owner),
+		noteLogGroup(rs.dbData.note),
 	)
 
-	logger := slog.Default().
-		With(
-			slog.String("action", action),
-			slog.Bool("notified", notified),
-		).With(tg)
-
 	msg := "ticket processed"
-	if mockMsg {
+	if rs.webexMock {
 		msg = "ticket processed with webex mocking"
 	}
 
-	logger.Info(msg)
+	rs.logger.With(tg).Info(msg)
 }
 
 func boardLogGroup(board db.CwBoard) slog.Attr {
@@ -351,39 +402,74 @@ func noteLogGroup(note db.CwTicketNote) slog.Attr {
 	)
 }
 
-func notifiedRoomsLogGroup(rooms []db.WebexRoom) slog.Attr {
-	if len(rooms) == 0 {
-		return slog.Bool("notified_rooms", false)
+func notifyLogGroup(rs *requestState) slog.Attr {
+	if !rs.attemptNotify {
+		return slog.String("notifications", "disabled")
 	}
 
-	var names []string
-	for _, r := range rooms {
-		names = append(names, r.Name)
+	var er []string
+	for _, r := range rs.dbData.enabledRooms {
+		er = append(er, r.Name)
 	}
 
-	return slog.String("notified_rooms", strings.Join(names, ","))
+	attrs := []slog.Attr{
+		slog.Bool("sent", rs.notified),
+		slog.String("enabled_rooms", strings.Join(er, ",")),
+		slog.String("rooms", strings.Join(rs.roomsNotify, ",")),
+		slog.String("people", strings.Join(rs.peopleNotify, ",")),
+	}
+
+	if rs.noNotiReason != "" {
+		a := slog.String("no_noti_reason", rs.noNotiReason)
+		attrs = append(attrs, a)
+	}
+
+	var anyAttrs []any
+	for _, a := range attrs {
+		anyAttrs = append(anyAttrs, a)
+	}
+
+	return slog.Group("webex_notifications", anyAttrs...)
 }
 
 // meetsMessageCriteria checks if a message would be allowed to send a notification,
 // depending on if it was added or updated, if the note changed, and the board's notification settings.
-func meetsMessageCriteria(action string, sd *storedData) bool {
+func (rs *requestState) meetsMessageCriteria() (bool, string) {
 	meetsCrit := false
-	if action == "added" {
-		meetsCrit = roomsToNotifyExist(sd)
-	}
+	switch rs.action {
+	case "added":
+		meetsCrit = roomsToNotifyExist(rs.dbData)
+		if !meetsCrit {
+			return false, "NO_ROOMS_TO_NOTIFY"
+		}
 
-	if action == "updated" {
-		meetsCrit = !sd.note.Notified && roomsToNotifyExist(sd)
-	}
+		return true, ""
 
-	return meetsCrit
+	case "updated":
+		roomsExist := roomsToNotifyExist(rs.dbData)
+		meetsCrit = !rs.dbData.note.Notified && roomsToNotifyExist(rs.dbData)
+
+		if !meetsCrit {
+			if rs.dbData.note.Notified {
+				return false, "NOTE_ALREADY_NOTIFIED"
+			}
+
+			if !roomsExist {
+				return false, "NO_ROOMS_TO_NOTIFY"
+			}
+		}
+		return true, ""
+
+	default:
+		return false, "INELIGIBLE_ACTION_TYPE"
+	}
 }
 
 func roomsToNotifyExist(sd *storedData) bool {
 	return sd.enabledRooms != nil && len(sd.enabledRooms) > 0
 }
 
-func cwDataToUpdateTicketParams(cd *cwData) db.UpsertTicketParams {
+func cwDataToUpdateTicketParams(cd *connectwiseData) db.UpsertTicketParams {
 	return db.UpsertTicketParams{
 		ID:        cd.ticket.ID,
 		Summary:   cd.ticket.Summary,
