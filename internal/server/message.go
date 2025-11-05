@@ -78,6 +78,7 @@ func (cl *Client) makeMessages(ctx context.Context, rs *requestState) (*requestS
 	if rs.action == "added" {
 		for _, r := range rs.dbData.enabledRooms {
 			rs.logger.Debug("adding room to send list", slog.String("name", r.Name))
+			rs.roomsToNotify = append(rs.roomsToNotify, r)
 			messages = append(messages, webex.NewMessageToRoom(r.WebexID, r.Name, body))
 		}
 	} else if rs.action == "updated" {
