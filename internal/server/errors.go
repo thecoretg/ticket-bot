@@ -6,9 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/thecoretg/ticketbot/internal/psa"
-
 	"github.com/gin-gonic/gin"
+	"github.com/thecoretg/ticketbot/internal/external/psa"
 )
 
 type ErrWasDeleted struct {

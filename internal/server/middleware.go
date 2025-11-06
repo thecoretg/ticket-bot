@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/thecoretg/ticketbot/internal/psa"
+	"github.com/thecoretg/ticketbot/internal/external/psa"
 	"golang.org/x/crypto/bcrypt"
 )
 

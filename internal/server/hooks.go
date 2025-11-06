@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/thecoretg/ticketbot/internal/psa"
+	"github.com/thecoretg/ticketbot/internal/external/psa"
 )
 
 func (cl *Client) initAllHooks() error {

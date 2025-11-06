@@ -12,8 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 	"github.com/thecoretg/ticketbot/internal/db"
-	"github.com/thecoretg/ticketbot/internal/psa"
-	"github.com/thecoretg/ticketbot/internal/webex"
+	"github.com/thecoretg/ticketbot/internal/external/psa"
+	"github.com/thecoretg/ticketbot/internal/external/webex"
 )
 
 type connectwiseData struct {
