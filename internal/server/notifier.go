@@ -12,7 +12,7 @@ import (
 	"github.com/thecoretg/ticketbot/internal/db"
 )
 
-type dbNotifierResponse struct {
+type Notifier struct {
 	ID            int          `json:"id"`
 	NotifyEnabled bool         `json:"notify_enabled"`
 	CreatedOn     time.Time    `json:"created_on"`
@@ -28,11 +28,11 @@ func (cl *Client) handleListNotifiers(c *gin.Context) {
 	}
 
 	if notis == nil {
-		c.JSON(http.StatusOK, []dbNotifierResponse{})
+		c.JSON(http.StatusOK, []Notifier{})
 		return
 	}
 
-	var resp []dbNotifierResponse
+	var resp []Notifier
 	for _, n := range notis {
 		r := newDbNotifierResponse(n.NotifierConnection, n.CwBoard, n.WebexRoom)
 		resp = append(resp, r)
@@ -70,7 +70,8 @@ func (cl *Client) handlePostNotifier(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, ni)
+	d := newDbNotifierResponse(ni.NotifierConnection, ni.CwBoard, ni.WebexRoom)
+	c.JSON(http.StatusOK, d)
 }
 
 func (cl *Client) handleGetNotifier(c *gin.Context) {
@@ -127,8 +128,8 @@ func validateNotifierRequest(r *db.InsertNotifierConnectionParams) error {
 	return nil
 }
 
-func newDbNotifierResponse(nc db.NotifierConnection, board db.CwBoard, room db.WebexRoom) dbNotifierResponse {
-	return dbNotifierResponse{
+func newDbNotifierResponse(nc db.NotifierConnection, board db.CwBoard, room db.WebexRoom) Notifier {
+	return Notifier{
 		ID:            nc.ID,
 		NotifyEnabled: nc.NotifyEnabled,
 		CreatedOn:     nc.CreatedOn,

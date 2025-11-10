@@ -6,6 +6,9 @@ import (
 )
 
 var (
+	boardID int
+	roomID  int
+
 	client  *sdk.Client
 	rootCmd = &cobra.Command{
 		Use:               "tbot",
@@ -22,7 +25,5 @@ func Execute() error {
 }
 
 func init() {
-	rootCmd.AddCommand(pingCmd, authCheckCmd, webexRoomsCmd, cwBoardsCmd)
-	webexRoomsCmd.AddCommand(syncRoomsCmd, listWebexRoomsCmd)
-	cwBoardsCmd.AddCommand(listBoardsCmd)
+	rootCmd.AddCommand(pingCmd, authCheckCmd, webexRoomsCmd, cwBoardsCmd, notifiersCmd)
 }

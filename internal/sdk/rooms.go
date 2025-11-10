@@ -3,7 +3,7 @@ package sdk
 import "github.com/thecoretg/ticketbot/internal/db"
 
 func (c *Client) SyncRooms() error {
-	return Post(c, "sync/webex_rooms", nil)
+	return c.Post("sync/webex_rooms", nil, nil)
 }
 
 func (c *Client) ListRooms() ([]db.WebexRoom, error) {

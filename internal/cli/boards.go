@@ -29,3 +29,7 @@ var (
 		},
 	}
 )
+
+func init() {
+	cwBoardsCmd.AddCommand(listBoardsCmd)
+}

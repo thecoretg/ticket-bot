@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 	"github.com/thecoretg/ticketbot/internal/db"
+	"github.com/thecoretg/ticketbot/internal/server"
 )
 
 var (
@@ -40,6 +41,16 @@ func cwBoardsToTable(boards []db.CwBoard) {
 	t.Headers("ID", "NAME")
 	for _, b := range boards {
 		t.Row(strconv.Itoa(b.ID), b.Name)
+	}
+
+	fmt.Println(t)
+}
+
+func notifiersTable(notifiers []server.Notifier) {
+	t := defaultTable()
+	t.Headers("ID", "ROOM", "BOARD", "NOTIFY")
+	for _, n := range notifiers {
+		t.Row(strconv.Itoa(n.ID), n.WebexRoom.Name, n.CWBoard.Name, fmt.Sprintf("%v", n.NotifyEnabled))
 	}
 
 	fmt.Println(t)

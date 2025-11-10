@@ -114,9 +114,10 @@ func GetMany[T any](c *Client, endpoint string, params map[string]string) ([]T, 
 	return allItems, nil
 }
 
-func Post(c *Client, endpoint string, body any) error {
+func (c *Client) Post(endpoint string, body, target any) error {
 	res, err := c.restClient.R().
 		SetBody(body).
+		SetResult(target).
 		Post(endpoint)
 
 	if err != nil {
@@ -124,28 +125,10 @@ func Post(c *Client, endpoint string, body any) error {
 	}
 
 	if res.IsError() {
-		return fmt.Errorf("error response from API: %s", res.String())
+		return fmt.Errorf("error response from ConnectWise API: %s", res.String())
 	}
 
 	return nil
-}
-
-func PostWithReturn[T any](c *Client, endpoint string, body any) (*T, error) {
-	var target T
-	res, err := c.restClient.R().
-		SetBody(body).
-		SetResult(target).
-		Post(endpoint)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if res.IsError() {
-		return nil, fmt.Errorf("error response from ConnectWise API: %s", res.String())
-	}
-
-	return res.Result().(*T), nil
 }
 
 func Put(c *Client, endpoint string, body any) error {
@@ -185,7 +168,7 @@ func PutWithReturn[T any](c *Client, endpoint string, body any) (*T, error) {
 	return res.Result().(*T), nil
 }
 
-func Delete(c *Client, endpoint string) error {
+func (c *Client) Delete(endpoint string) error {
 	res, err := c.restClient.R().
 		Delete(endpoint)
 

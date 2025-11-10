@@ -41,3 +41,7 @@ var (
 		},
 	}
 )
+
+func init() {
+	webexRoomsCmd.AddCommand(syncRoomsCmd, listWebexRoomsCmd)
+}
