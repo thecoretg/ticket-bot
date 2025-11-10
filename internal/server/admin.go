@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Work in progress...
+
 func (cl *Client) handleHomePage(c *gin.Context) {
 	c.HTML(http.StatusOK, "home.gohtml", gin.H{"Title": "TicketBot Admin"})
 }

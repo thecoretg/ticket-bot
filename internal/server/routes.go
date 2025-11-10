@@ -5,7 +5,7 @@ func (cl *Client) addRoutes() {
 	au := cl.apiKeyAuth()
 
 	cl.Server.LoadHTMLGlob("templates/*")
-	cl.Server.Static("/static", "./templates")
+	cl.Server.Static("/static", "./static")
 
 	// Admin Panel
 	a := cl.Server.Group("admin", eh)
