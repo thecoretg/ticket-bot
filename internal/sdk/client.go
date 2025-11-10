@@ -31,9 +31,24 @@ var (
 	ErrNotFound = errors.New("404 status returned")
 )
 
-func (c *Client) TestConnection() error {
+func (c *Client) Ping() error {
 	res, err := c.restClient.R().
-		Get("ping")
+		Get("")
+
+	if err != nil {
+		return err
+	}
+
+	if res.IsError() {
+		return fmt.Errorf("error response from ticketbot api: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) AuthTest() error {
+	res, err := c.restClient.R().
+		Get("authtest")
 
 	if err != nil {
 		return err

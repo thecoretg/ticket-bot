@@ -7,15 +7,9 @@ func (cl *Client) addRoutes() {
 	cl.Server.LoadHTMLGlob("templates/*")
 	cl.Server.Static("/static", "./static")
 
-	// Admin Panel
-	a := cl.Server.Group("admin", eh)
-	a.GET("/", cl.handleHomePage)
-	a.GET("boards", cl.handleBoardsPage)
-	a.GET("notifiers", cl.handleNotifiersPage)
-
 	// Health Check
 	cl.Server.GET("", cl.ping) // Authless ping for Lightsail health checks
-	cl.Server.GET("ping", au)
+	cl.Server.GET("authtest", au)
 
 	// State
 	cl.Server.GET("state", cl.handleGetState, eh, au)
