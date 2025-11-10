@@ -19,9 +19,9 @@ import (
 )
 
 type Client struct {
-	State         *appState
+	State         *AppState
 	Creds         *creds
-	Config        *appConfig
+	Config        *AppConfig
 	CWClient      *psa.Client
 	MessageSender messageSender
 	Pool          *pgxpool.Pool

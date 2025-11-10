@@ -14,15 +14,15 @@ type Client struct {
 }
 
 func NewClient(apiKey, baseURL string) (*Client, error) {
-	if apiKey == "" {
-		return nil, errors.New("api key is blank")
-	}
 	c := resty.New()
 	c.SetBaseURL(baseURL)
-	c.SetAuthToken(apiKey)
 	c.SetHeader("Content-Type", "application/json")
 	c.SetHeader("Accept", "application/json")
 	c.SetRetryCount(3)
+
+	if apiKey != "" {
+		c.SetAuthToken(apiKey)
+	}
 
 	return &Client{restClient: c}, nil
 }
@@ -115,11 +115,14 @@ func GetMany[T any](c *Client, endpoint string, params map[string]string) ([]T, 
 }
 
 func (c *Client) Post(endpoint string, body, target any) error {
-	res, err := c.restClient.R().
-		SetBody(body).
-		SetResult(target).
-		Post(endpoint)
+	req := c.restClient.R().
+		SetBody(body)
 
+	if target != nil {
+		req.SetResult(target)
+	}
+
+	res, err := req.Post(endpoint)
 	if err != nil {
 		return err
 	}
@@ -131,11 +134,15 @@ func (c *Client) Post(endpoint string, body, target any) error {
 	return nil
 }
 
-func Put(c *Client, endpoint string, body any) error {
-	res, err := c.restClient.R().
-		SetBody(body).
-		Post(endpoint)
+func (c *Client) Put(endpoint string, body, target any) error {
+	req := c.restClient.R().
+		SetBody(body)
 
+	if target != nil {
+		req.SetResult(target)
+	}
+
+	res, err := req.Put(endpoint)
 	if err != nil {
 		return err
 	}
@@ -145,27 +152,6 @@ func Put(c *Client, endpoint string, body any) error {
 	}
 
 	return nil
-}
-
-func PutWithReturn[T any](c *Client, endpoint string, body any) (*T, error) {
-	var target T
-	res, err := c.restClient.R().
-		SetBody(body).
-		SetResult(target).
-		Put(endpoint)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if res.IsError() {
-		if res.StatusCode() == http.StatusNotFound {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("error response from API: %s", res.String())
-	}
-
-	return res.Result().(*T), nil
 }
 
 func (c *Client) Delete(endpoint string) error {

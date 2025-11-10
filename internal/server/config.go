@@ -12,15 +12,15 @@ import (
 	"github.com/thecoretg/ticketbot/internal/db"
 )
 
-type appConfig struct {
+type AppConfig struct {
 	Debug              bool `json:"debug"`
 	AttemptNotify      bool `json:"attempt_notify"`
 	MaxMessageLength   int  `json:"max_message_length"`
 	MaxConcurrentSyncs int  `json:"max_concurrent_syncs"`
 }
 
-// appConfigPayload is used for partial updates to the app config
-type appConfigPayload struct {
+// AppConfigPayload is used for partial updates to the app config
+type AppConfigPayload struct {
 	Debug              *bool `json:"debug,omitempty"`
 	AttemptNotify      *bool `json:"attempt_notify,omitempty"`
 	MaxMessageLength   *int  `json:"max_message_length,omitempty"`
@@ -38,7 +38,7 @@ func (cl *Client) handleGetConfig(c *gin.Context) {
 }
 
 func (cl *Client) handlePutConfig(c *gin.Context) {
-	r := &appConfigPayload{}
+	r := &AppConfigPayload{}
 	if err := c.ShouldBindJSON(r); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid json request"})
 		return
@@ -55,7 +55,7 @@ func (cl *Client) handlePutConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, cl.Config)
 }
 
-func (cl *Client) getFullConfig(ctx context.Context) (*appConfig, error) {
+func (cl *Client) getFullConfig(ctx context.Context) (*AppConfig, error) {
 	dc, err := cl.Queries.GetAppConfig(ctx)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -72,7 +72,7 @@ func (cl *Client) getFullConfig(ctx context.Context) (*appConfig, error) {
 	return dbConfigToAppConfig(dc), nil
 }
 
-func mergeConfigPayload(ac *appConfig, p *appConfigPayload) *appConfig {
+func mergeConfigPayload(ac *AppConfig, p *AppConfigPayload) *AppConfig {
 	merged := *ac
 	if p.Debug != nil {
 		merged.Debug = *p.Debug
@@ -103,7 +103,7 @@ func (cl *Client) updateConfigInDB(ctx context.Context) error {
 	return nil
 }
 
-func configToParams(ac *appConfig) db.UpsertAppConfigParams {
+func configToParams(ac *AppConfig) db.UpsertAppConfigParams {
 	return db.UpsertAppConfigParams{
 		Debug:              ac.Debug,
 		AttemptNotify:      ac.AttemptNotify,
@@ -112,8 +112,8 @@ func configToParams(ac *appConfig) db.UpsertAppConfigParams {
 	}
 }
 
-func dbConfigToAppConfig(dc db.AppConfig) *appConfig {
-	return &appConfig{
+func dbConfigToAppConfig(dc db.AppConfig) *AppConfig {
+	return &AppConfig{
 		Debug:              dc.Debug,
 		AttemptNotify:      dc.AttemptNotify,
 		MaxMessageLength:   dc.MaxMessageLength,

@@ -12,12 +12,12 @@ import (
 	"github.com/thecoretg/ticketbot/internal/db"
 )
 
-type appState struct {
+type AppState struct {
 	SyncingTickets    bool `json:"syncing_tickets"`
 	SyncingWebexRooms bool `json:"syncing_webex_rooms"`
 }
 
-var defaultAppState = &appState{
+var defaultAppState = &AppState{
 	SyncingTickets:    false,
 	SyncingWebexRooms: false,
 }
@@ -32,7 +32,7 @@ func (cl *Client) handleGetState(c *gin.Context) {
 	c.JSON(http.StatusOK, as)
 }
 
-func (cl *Client) getAppState(ctx context.Context) (*appState, error) {
+func (cl *Client) getAppState(ctx context.Context) (*AppState, error) {
 	ds, err := cl.Queries.GetAppState(ctx)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -78,15 +78,15 @@ func (cl *Client) updateDBAppState(ctx context.Context) error {
 	return nil
 }
 
-func stateToParams(as *appState) db.UpsertAppStateParams {
+func stateToParams(as *AppState) db.UpsertAppStateParams {
 	return db.UpsertAppStateParams{
 		SyncingTickets:    as.SyncingTickets,
 		SyncingWebexRooms: as.SyncingWebexRooms,
 	}
 }
 
-func dbStateToAppState(ds db.AppState) *appState {
-	return &appState{
+func dbStateToAppState(ds db.AppState) *AppState {
+	return &AppState{
 		SyncingTickets:    ds.SyncingTickets,
 		SyncingWebexRooms: ds.SyncingWebexRooms,
 	}
