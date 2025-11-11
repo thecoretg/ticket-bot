@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 	"github.com/thecoretg/ticketbot/internal/sdk"
 )
@@ -13,15 +15,14 @@ var (
 	rootCmd = &cobra.Command{
 		Use:               "tbot",
 		PersistentPreRunE: createClient,
+		SilenceUsage:      true,
 	}
 )
 
-func Execute() error {
+func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		return err
+		os.Exit(1)
 	}
-
-	return nil
 }
 
 func init() {

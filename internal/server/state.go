@@ -1,29 +1,25 @@
 package server
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
-	"github.com/thecoretg/ticketbot/internal/db"
 )
 
 type AppState struct {
 	SyncingTickets    bool `json:"syncing_tickets"`
 	SyncingWebexRooms bool `json:"syncing_webex_rooms"`
+	SyncingBoards     bool `json:"syncing_boards"`
 }
 
 var defaultAppState = &AppState{
 	SyncingTickets:    false,
 	SyncingWebexRooms: false,
+	SyncingBoards:     false,
 }
 
 func (cl *Client) handleGetState(c *gin.Context) {
-	as, err := cl.getAppState(c.Request.Context())
+	as, err := cl.getAppState()
 	if err != nil {
 		c.Error(err)
 		return
@@ -32,62 +28,28 @@ func (cl *Client) handleGetState(c *gin.Context) {
 	c.JSON(http.StatusOK, as)
 }
 
-func (cl *Client) getAppState(ctx context.Context) (*AppState, error) {
-	ds, err := cl.Queries.GetAppState(ctx)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			slog.Debug("no app state found, creating default")
-			ds, err = cl.Queries.InsertDefaultAppState(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("creating default app state: %w", err)
-			}
-			return dbStateToAppState(ds), nil
-		}
-		return nil, fmt.Errorf("getting app state from db: %w", err)
-	}
-
-	return dbStateToAppState(ds), nil
+func (cl *Client) getAppState() (*AppState, error) {
+	cl.setStateIfNil()
+	return cl.State, nil
 }
 
-func (cl *Client) setSyncingTickets(ctx context.Context, syncing bool) error {
+func (cl *Client) setSyncingTickets(syncing bool) {
+	cl.setStateIfNil()
 	cl.State.SyncingTickets = syncing
-	if err := cl.updateDBAppState(ctx); err != nil {
-		return fmt.Errorf("state was set in memory, but an error occured updating the db: %w", err)
-	}
-
-	return nil
 }
 
-func (cl *Client) setSyncingWebexRooms(ctx context.Context, syncing bool) error {
+func (cl *Client) setSyncingWebexRooms(syncing bool) {
+	cl.setStateIfNil()
 	cl.State.SyncingWebexRooms = syncing
-	if err := cl.updateDBAppState(ctx); err != nil {
-		return fmt.Errorf("state was set in memory, but an error occured updating the db: %w", err)
-	}
-
-	return nil
 }
 
-func (cl *Client) updateDBAppState(ctx context.Context) error {
-	p := stateToParams(cl.State)
-	ds, err := cl.Queries.UpsertAppState(ctx, p)
-	if err != nil {
-		return fmt.Errorf("updating in db: %w", err)
-	}
-
-	cl.State = dbStateToAppState(ds)
-	return nil
+func (cl *Client) setSyncingBoards(syncing bool) {
+	cl.setStateIfNil()
+	cl.State.SyncingBoards = syncing
 }
 
-func stateToParams(as *AppState) db.UpsertAppStateParams {
-	return db.UpsertAppStateParams{
-		SyncingTickets:    as.SyncingTickets,
-		SyncingWebexRooms: as.SyncingWebexRooms,
-	}
-}
-
-func dbStateToAppState(ds db.AppState) *AppState {
-	return &AppState{
-		SyncingTickets:    ds.SyncingTickets,
-		SyncingWebexRooms: ds.SyncingWebexRooms,
+func (cl *Client) setStateIfNil() {
+	if cl.State == nil {
+		cl.State = defaultAppState
 	}
 }

@@ -53,7 +53,10 @@ func (cl *Client) handleSyncWebexRooms(c *gin.Context) {
 }
 
 func (cl *Client) handleSyncBoards(c *gin.Context) {
-	// TODO: state check
+	if cl.State.SyncingBoards {
+		slog.Info("boards sync requested, but one is already in progress. returning 'sync already in progress' result")
+	}
+
 	c.JSON(http.StatusOK, gin.H{"result": "connectwise board sync started"})
 	go func() {
 		if err := cl.syncBoards(context.Background()); err != nil {
@@ -66,14 +69,9 @@ func (cl *Client) handleSyncBoards(c *gin.Context) {
 // already exist. It does not attempt to notify since that would result in tons of notifications
 // for already existing tickets.
 func (cl *Client) syncOpenTickets(ctx context.Context, boardIDS []int) error {
-	if err := cl.setSyncingTickets(ctx, true); err != nil {
-		slog.Warn("error setting syncing tickets value to true", "error", err)
-	}
-
+	cl.setSyncingTickets(true)
 	defer func() {
-		if err := cl.setSyncingTickets(ctx, false); err != nil {
-			slog.Warn("error setting syncing tickets value to false")
-		}
+		cl.setSyncingTickets(false)
 	}()
 
 	slog.Debug("beginning syncing tickets")
@@ -127,14 +125,9 @@ func (cl *Client) syncOpenTickets(ctx context.Context, boardIDS []int) error {
 }
 
 func (cl *Client) syncWebexRooms(ctx context.Context) error {
-	if err := cl.setSyncingWebexRooms(ctx, true); err != nil {
-		slog.Warn("error setting syncing rooms value to true", "error", err)
-	}
-
+	cl.setSyncingWebexRooms(true)
 	defer func() {
-		if err := cl.setSyncingWebexRooms(ctx, false); err != nil {
-			slog.Warn("error setting syncing rooms value to false")
-		}
+		cl.setSyncingWebexRooms(false)
 	}()
 
 	slog.Debug("beginning sync of webex rooms")
@@ -216,15 +209,10 @@ func (cl *Client) syncWebexRooms(ctx context.Context) error {
 }
 
 func (cl *Client) syncBoards(ctx context.Context) error {
-	//if err := cl.setSyncingBoards(ctx, true); err != nil {
-	//	slog.Warn("error setting syncing boards value to true", "error", err)
-	//}
-
-	//defer func() {
-	//	if err := cl.setSyncingBoards(ctx, false); err != nil {
-	//		slog.Warn("error setting syncing boards value to false", "error", err)
-	//	}
-	//}()
+	cl.setSyncingBoards(true)
+	defer func() {
+		cl.setSyncingBoards(false)
+	}()
 
 	slog.Debug("beginning sync of connectwise boards")
 	cwb, err := cl.CWClient.ListBoards(nil)

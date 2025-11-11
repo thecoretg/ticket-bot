@@ -102,11 +102,7 @@ func (cl *Client) startup(ctx context.Context) error {
 	}
 	setLogLevel(cl.Config.Debug)
 
-	cl.State, err = cl.getAppState(ctx)
-	if err != nil {
-		return fmt.Errorf("fetching app state: %w", err)
-	}
-
+	cl.setStateIfNil()
 	if err := cl.bootstrapAdmin(ctx); err != nil {
 		return fmt.Errorf("bootstrapping initial admin key: %w", err)
 	}

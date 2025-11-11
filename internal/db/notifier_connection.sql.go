@@ -9,6 +9,26 @@ import (
 	"context"
 )
 
+const checkNotifierExists = `-- name: CheckNotifierExists :one
+SELECT EXISTS (
+    SELECT 1
+    FROM notifier_connection
+    WHERE cw_board_id = $1 AND webex_room_id = $2
+) AS exists
+`
+
+type CheckNotifierExistsParams struct {
+	CwBoardID   int `json:"cw_board_id"`
+	WebexRoomID int `json:"webex_room_id"`
+}
+
+func (q *Queries) CheckNotifierExists(ctx context.Context, arg CheckNotifierExistsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, checkNotifierExists, arg.CwBoardID, arg.WebexRoomID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const deleteNotifierConnection = `-- name: DeleteNotifierConnection :exec
 DELETE FROM notifier_connection
 WHERE id = $1

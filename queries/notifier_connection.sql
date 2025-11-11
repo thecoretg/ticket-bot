@@ -11,6 +11,13 @@ JOIN cw_board AS cb ON cb.id = nc.cw_board_id
 JOIN webex_room AS wr ON wr.id = nc.webex_room_id
 WHERE nc.id = $1;
 
+-- name: CheckNotifierExists :one
+SELECT EXISTS (
+    SELECT 1
+    FROM notifier_connection
+    WHERE cw_board_id = $1 AND webex_room_id = $2
+) AS exists;
+
 -- name: ListNotifierConnectionsByBoard :many
 SELECT sqlc.embed(nc), sqlc.embed(cb), sqlc.embed(wr)
 FROM notifier_connection nc

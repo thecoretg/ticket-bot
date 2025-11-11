@@ -33,12 +33,6 @@ type AppConfig struct {
 	MaxConcurrentSyncs int  `json:"max_concurrent_syncs"`
 }
 
-type AppState struct {
-	ID                int  `json:"id"`
-	SyncingTickets    bool `json:"syncing_tickets"`
-	SyncingWebexRooms bool `json:"syncing_webex_rooms"`
-}
-
 type CwBoard struct {
 	ID        int       `json:"id"`
 	Name      string    `json:"name"`

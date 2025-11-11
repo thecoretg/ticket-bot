@@ -128,7 +128,7 @@ func (c *Client) Post(endpoint string, body, target any) error {
 	}
 
 	if res.IsError() {
-		return fmt.Errorf("error response from ConnectWise API: %s", res.String())
+		return fmt.Errorf("error response from API: %s", res.String())
 	}
 
 	return nil

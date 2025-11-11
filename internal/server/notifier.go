@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,6 +12,15 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/thecoretg/ticketbot/internal/db"
 )
+
+type ErrNotifierAlreadyExists struct {
+	BoardID int
+	RoomID  int
+}
+
+func (e ErrNotifierAlreadyExists) Error() string {
+	return fmt.Sprintf("notifier for board %d and room %d already exists", e.BoardID, e.RoomID)
+}
 
 type Notifier struct {
 	ID            int          `json:"id"`
@@ -53,24 +63,17 @@ func (cl *Client) handlePostNotifier(c *gin.Context) {
 		return
 	}
 
-	if _, err := cl.ensureBoardInStore(c.Request.Context(), cl.Queries, r.CwBoardID); err != nil {
-		c.Error(fmt.Errorf("ensuring board %d in store: %w", r.CwBoardID, err))
-		return
-	}
-
-	n, err := cl.Queries.InsertNotifierConnection(c.Request.Context(), *r)
+	d, err := cl.createNotifier(c.Request.Context(), *r)
 	if err != nil {
+		var ene ErrNotifierAlreadyExists
+		if errors.As(err, &ene) {
+			c.JSON(http.StatusConflict, gin.H{"error": ene.Error()})
+			return
+		}
 		c.Error(err)
 		return
 	}
 
-	ni, err := cl.Queries.GetNotifierConnection(c.Request.Context(), n.ID)
-	if err != nil {
-		c.JSON(http.StatusOK, fmt.Errorf("getting connection info (post was successful): %w", err))
-		return
-	}
-
-	d := newDbNotifierResponse(ni.NotifierConnection, ni.CwBoard, ni.WebexRoom)
 	c.JSON(http.StatusOK, d)
 }
 
@@ -110,6 +113,38 @@ func (cl *Client) handleDeleteNotifier(c *gin.Context) {
 	}
 
 	c.Status(http.StatusOK)
+}
+
+func (cl *Client) createNotifier(ctx context.Context, p db.InsertNotifierConnectionParams) (*Notifier, error) {
+	exists, err := cl.Queries.CheckNotifierExists(ctx, db.CheckNotifierExistsParams{
+		CwBoardID:   p.CwBoardID,
+		WebexRoomID: p.WebexRoomID,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("checking if notifier exists: %w", err)
+	}
+
+	if exists {
+		return nil, ErrNotifierAlreadyExists{BoardID: p.CwBoardID, RoomID: p.WebexRoomID}
+	}
+
+	if _, err := cl.ensureBoardInStore(ctx, cl.Queries, p.CwBoardID); err != nil {
+		return nil, fmt.Errorf("ensuring board in store: %w", err)
+	}
+
+	n, err := cl.Queries.InsertNotifierConnection(ctx, p)
+	if err != nil {
+		return nil, fmt.Errorf("inserting notifier into store: %w", err)
+	}
+
+	ni, err := cl.Queries.GetNotifierConnection(ctx, n.ID)
+	if err != nil {
+		return nil, fmt.Errorf("getting notifier connection info (create was successful): %w", err)
+	}
+
+	d := newDbNotifierResponse(ni.NotifierConnection, ni.CwBoard, ni.WebexRoom)
+	return &d, nil
 }
 
 func validateNotifierRequest(r *db.InsertNotifierConnectionParams) error {
