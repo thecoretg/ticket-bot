@@ -113,3 +113,15 @@ type WebexRoom struct {
 	UpdatedOn time.Time `json:"updated_on"`
 	Deleted   bool      `json:"deleted"`
 }
+
+type WebexUserForward struct {
+	ID            int        `json:"id"`
+	UserEmail     string     `json:"user_email"`
+	DestRoomID    int        `json:"dest_room_id"`
+	StartDate     *time.Time `json:"start_date"`
+	EndDate       *time.Time `json:"end_date"`
+	Enabled       bool       `json:"enabled"`
+	UserKeepsCopy bool       `json:"user_keeps_copy"`
+	CreatedOn     time.Time  `json:"created_on"`
+	UpdatedOn     time.Time  `json:"updated_on"`
+}
