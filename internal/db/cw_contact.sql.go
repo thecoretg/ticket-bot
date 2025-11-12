@@ -39,45 +39,6 @@ func (q *Queries) GetContact(ctx context.Context, id int) (CwContact, error) {
 	return i, err
 }
 
-const insertContact = `-- name: InsertContact :one
-INSERT INTO cw_contact
-(id, first_name, last_name, company_id)
-VALUES ($1, $2, $3, $4)
-ON CONFLICT (id) DO UPDATE SET
-    first_name = EXCLUDED.first_name,
-    last_name = EXCLUDED.last_name,
-    company_id = EXCLUDED.company_id,
-    updated_on = NOW()
-RETURNING id, first_name, last_name, company_id, updated_on, added_on, deleted
-`
-
-type InsertContactParams struct {
-	ID        int     `json:"id"`
-	FirstName string  `json:"first_name"`
-	LastName  *string `json:"last_name"`
-	CompanyID *int    `json:"company_id"`
-}
-
-func (q *Queries) InsertContact(ctx context.Context, arg InsertContactParams) (CwContact, error) {
-	row := q.db.QueryRow(ctx, insertContact,
-		arg.ID,
-		arg.FirstName,
-		arg.LastName,
-		arg.CompanyID,
-	)
-	var i CwContact
-	err := row.Scan(
-		&i.ID,
-		&i.FirstName,
-		&i.LastName,
-		&i.CompanyID,
-		&i.UpdatedOn,
-		&i.AddedOn,
-		&i.Deleted,
-	)
-	return i, err
-}
-
 const listContacts = `-- name: ListContacts :many
 SELECT id, first_name, last_name, company_id, updated_on, added_on, deleted FROM cw_contact
 ORDER BY id
@@ -111,37 +72,27 @@ func (q *Queries) ListContacts(ctx context.Context) ([]CwContact, error) {
 	return items, nil
 }
 
-const softDeleteContact = `-- name: SoftDeleteContact :exec
-UPDATE cw_contact
-SET deleted = TRUE
-WHERE id = $1
-`
-
-func (q *Queries) SoftDeleteContact(ctx context.Context, id int) error {
-	_, err := q.db.Exec(ctx, softDeleteContact, id)
-	return err
-}
-
-const updateContact = `-- name: UpdateContact :one
-UPDATE cw_contact
-SET
-    first_name = $2,
-    last_name = $3,
-    company_id = $4,
+const upsertContact = `-- name: UpsertContact :one
+INSERT INTO cw_contact
+(id, first_name, last_name, company_id)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (id) DO UPDATE SET
+    first_name = EXCLUDED.first_name,
+    last_name = EXCLUDED.last_name,
+    company_id = EXCLUDED.company_id,
     updated_on = NOW()
-WHERE id = $1
 RETURNING id, first_name, last_name, company_id, updated_on, added_on, deleted
 `
 
-type UpdateContactParams struct {
+type UpsertContactParams struct {
 	ID        int     `json:"id"`
 	FirstName string  `json:"first_name"`
 	LastName  *string `json:"last_name"`
 	CompanyID *int    `json:"company_id"`
 }
 
-func (q *Queries) UpdateContact(ctx context.Context, arg UpdateContactParams) (CwContact, error) {
-	row := q.db.QueryRow(ctx, updateContact,
+func (q *Queries) UpsertContact(ctx context.Context, arg UpsertContactParams) (CwContact, error) {
+	row := q.db.QueryRow(ctx, upsertContact,
 		arg.ID,
 		arg.FirstName,
 		arg.LastName,
