@@ -131,14 +131,19 @@ func (q *Queries) SoftDeleteUser(ctx context.Context, id int) (ApiUser, error) {
 const updateUser = `-- name: UpdateUser :one
 UPDATE api_user
 SET
-    email_address = $1,
+    email_address = $2,
     updated_on = NOW()
 WHERE id = $1
 RETURNING id, email_address, created_on, updated_on, deleted
 `
 
-func (q *Queries) UpdateUser(ctx context.Context, emailAddress string) (ApiUser, error) {
-	row := q.db.QueryRow(ctx, updateUser, emailAddress)
+type UpdateUserParams struct {
+	ID           int    `json:"id"`
+	EmailAddress string `json:"email_address"`
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (ApiUser, error) {
+	row := q.db.QueryRow(ctx, updateUser, arg.ID, arg.EmailAddress)
 	var i ApiUser
 	err := row.Scan(
 		&i.ID,

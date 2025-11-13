@@ -19,7 +19,7 @@ RETURNING *;
 -- name: UpdateUser :one
 UPDATE api_user
 SET
-    email_address = $1,
+    email_address = $2,
     updated_on = NOW()
 WHERE id = $1
 RETURNING *;
