@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	board "github.com/thecoretg/ticketbot/internal/repo/cw_board"
 	company "github.com/thecoretg/ticketbot/internal/repo/cw_company"
 	contact "github.com/thecoretg/ticketbot/internal/repo/cw_contact"
 	member "github.com/thecoretg/ticketbot/internal/repo/cw_member"
+	ticket "github.com/thecoretg/ticketbot/internal/repo/cw_ticket"
+	note "github.com/thecoretg/ticketbot/internal/repo/cw_ticket_note"
 )
 
 func (s *Service) getCwData(ticketID int) (cwData, error) {
@@ -122,6 +123,82 @@ func (s *Service) ensureMember(ctx context.Context, id int) (member.Member, erro
 	}
 
 	return m, nil
+}
+
+func (s *Service) ensureTicket(ctx context.Context, cd cwData) (ticket.Ticket, error) {
+	t, err := s.Tickets.Get(ctx, cd.ticket.ID)
+	if err != nil && !errors.Is(err, ticket.ErrNotFound) {
+		t, err = s.Tickets.Upsert(ctx, ticket.Ticket{
+			ID:        cd.ticket.ID,
+			Summary:   cd.ticket.Summary,
+			BoardID:   cd.ticket.Board.ID,
+			OwnerID:   intToPtr(cd.ticket.Owner.ID),
+			CompanyID: cd.ticket.Company.ID,
+			ContactID: intToPtr(cd.ticket.Contact.ID),
+			Resources: &cd.ticket.Resources,
+			UpdatedBy: &cd.ticket.Info.UpdatedBy,
+		})
+
+		if err != nil {
+			return ticket.Ticket{}, fmt.Errorf("inserting ticket into store: %w", err)
+		}
+	}
+
+	return t, nil
+}
+
+func (s *Service) ensureTicketNote(ctx context.Context, cd cwData) (note.TicketNote, error) {
+	memberID, err := s.getMemberID(ctx, cd)
+	if err != nil {
+		return note.TicketNote{}, fmt.Errorf("getting member data: %w", err)
+	}
+
+	contactID, err := s.getContactID(ctx, cd)
+	if err != nil {
+		return note.TicketNote{}, fmt.Errorf("getting contact data: %w ", err)
+	}
+
+	n, err := s.Notes.Get(ctx, cd.note.ID)
+	if err != nil && !errors.Is(err, note.ErrNotFound) {
+		n, err = s.Notes.Upsert(ctx, note.TicketNote{
+			ID:        cd.note.ID,
+			TicketID:  cd.note.TicketId,
+			MemberID:  memberID,
+			ContactID: contactID,
+		})
+
+		if err != nil {
+			return note.TicketNote{}, fmt.Errorf("inserting note into store: %w", err)
+		}
+	}
+
+	return n, nil
+}
+
+func (s *Service) getContactID(ctx context.Context, cd cwData) (*int, error) {
+	if cd.note.Contact.ID != 0 {
+		c, err := s.ensureContact(ctx, cd.note.Contact.ID)
+		if err != nil {
+			return nil, fmt.Errorf("ensuring contact in store: %w", err)
+		}
+
+		return intToPtr(c.ID), nil
+	}
+
+	return nil, nil
+}
+
+func (s *Service) getMemberID(ctx context.Context, cd cwData) (*int, error) {
+	if cd.note.Member.ID != 0 {
+		c, err := s.ensureMember(ctx, cd.note.Member.ID)
+		if err != nil {
+			return nil, fmt.Errorf("ensuring member in store: %w", err)
+		}
+
+		return intToPtr(c.ID), nil
+	}
+
+	return nil, nil
 }
 
 func intToPtr(i int) *int {

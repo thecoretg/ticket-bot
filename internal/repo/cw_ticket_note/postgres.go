@@ -83,24 +83,20 @@ func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
 
 func pgUpsertParams(t TicketNote) db.UpsertTicketNoteParams {
 	return db.UpsertTicketNoteParams{
-		ID:            t.ID,
-		TicketID:      t.TicketID,
-		MemberID:      t.MemberID,
-		ContactID:     t.ContactID,
-		Notified:      t.Notified,
-		SkippedNotify: t.SkippedNotify,
+		ID:        t.ID,
+		TicketID:  t.TicketID,
+		MemberID:  t.MemberID,
+		ContactID: t.ContactID,
 	}
 }
 
 func ticketNoteFromPG(pg db.CwTicketNote) TicketNote {
 	return TicketNote{
-		ID:            pg.ID,
-		TicketID:      pg.TicketID,
-		MemberID:      pg.MemberID,
-		ContactID:     pg.ContactID,
-		Notified:      pg.Notified,
-		SkippedNotify: pg.SkippedNotify,
-		UpdatedOn:     pg.UpdatedOn,
-		AddedOn:       pg.AddedOn,
+		ID:        pg.ID,
+		TicketID:  pg.TicketID,
+		MemberID:  pg.MemberID,
+		ContactID: pg.ContactID,
+		UpdatedOn: pg.UpdatedOn,
+		AddedOn:   pg.AddedOn,
 	}
 }
