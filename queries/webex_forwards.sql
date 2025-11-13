@@ -1,14 +1,15 @@
 -- name: ListWebexUserForwards :many
-SELECT sqlc.embed(wf), sqlc.embed(wr)
-FROM webex_user_forward wf
-JOIN webex_room AS wr ON wr.id = wf.dest_room_id
-WHERE (sqlc.narg(email)::text IS NULL OR wf.email = sqlc.narg(email));
+SELECT * FROM webex_user_forward
+ORDER BY id;
 
 -- name: GetWebexUserForward :one
-SELECT sqlc.embed(wf), sqlc.embed(wr)
-FROM webex_user_forward wf
-JOIN webex_room AS wr ON wr.id = wf.source_room_id
-WHERE wf.id = $1;
+SELECT * FROM webex_user_forward
+WHERE id = $1 LIMIT 1;
+
+-- name: ListWebexUserForwardsByEmail :many
+SELECT * FROM webex_user_forward
+WHERE user_email = $1
+ORDER BY id;
 
 -- name: InsertWebexUserForward :one
 INSERT INTO webex_user_forward (

@@ -21,37 +21,23 @@ func (q *Queries) DeleteWebexForward(ctx context.Context, id int) error {
 }
 
 const getWebexUserForward = `-- name: GetWebexUserForward :one
-SELECT wf.id, wf.user_email, wf.dest_room_id, wf.start_date, wf.end_date, wf.enabled, wf.user_keeps_copy, wf.created_on, wf.updated_on, wr.id, wr.webex_id, wr.name, wr.type, wr.created_on, wr.updated_on, wr.deleted
-FROM webex_user_forward wf
-JOIN webex_room AS wr ON wr.id = wf.source_room_id
-WHERE wf.id = $1
+SELECT id, user_email, dest_room_id, start_date, end_date, enabled, user_keeps_copy, created_on, updated_on FROM webex_user_forward
+WHERE id = $1 LIMIT 1
 `
 
-type GetWebexUserForwardRow struct {
-	WebexUserForward WebexUserForward `json:"webex_user_forward"`
-	WebexRoom        WebexRoom        `json:"webex_room"`
-}
-
-func (q *Queries) GetWebexUserForward(ctx context.Context, id int) (GetWebexUserForwardRow, error) {
+func (q *Queries) GetWebexUserForward(ctx context.Context, id int) (WebexUserForward, error) {
 	row := q.db.QueryRow(ctx, getWebexUserForward, id)
-	var i GetWebexUserForwardRow
+	var i WebexUserForward
 	err := row.Scan(
-		&i.WebexUserForward.ID,
-		&i.WebexUserForward.UserEmail,
-		&i.WebexUserForward.DestRoomID,
-		&i.WebexUserForward.StartDate,
-		&i.WebexUserForward.EndDate,
-		&i.WebexUserForward.Enabled,
-		&i.WebexUserForward.UserKeepsCopy,
-		&i.WebexUserForward.CreatedOn,
-		&i.WebexUserForward.UpdatedOn,
-		&i.WebexRoom.ID,
-		&i.WebexRoom.WebexID,
-		&i.WebexRoom.Name,
-		&i.WebexRoom.Type,
-		&i.WebexRoom.CreatedOn,
-		&i.WebexRoom.UpdatedOn,
-		&i.WebexRoom.Deleted,
+		&i.ID,
+		&i.UserEmail,
+		&i.DestRoomID,
+		&i.StartDate,
+		&i.EndDate,
+		&i.Enabled,
+		&i.UserKeepsCopy,
+		&i.CreatedOn,
+		&i.UpdatedOn,
 	)
 	return i, err
 }
@@ -97,43 +83,65 @@ func (q *Queries) InsertWebexUserForward(ctx context.Context, arg InsertWebexUse
 }
 
 const listWebexUserForwards = `-- name: ListWebexUserForwards :many
-SELECT wf.id, wf.user_email, wf.dest_room_id, wf.start_date, wf.end_date, wf.enabled, wf.user_keeps_copy, wf.created_on, wf.updated_on, wr.id, wr.webex_id, wr.name, wr.type, wr.created_on, wr.updated_on, wr.deleted
-FROM webex_user_forward wf
-JOIN webex_room AS wr ON wr.id = wf.dest_room_id
-WHERE ($1::text IS NULL OR wf.email = $1)
+SELECT id, user_email, dest_room_id, start_date, end_date, enabled, user_keeps_copy, created_on, updated_on FROM webex_user_forward
+ORDER BY id
 `
 
-type ListWebexUserForwardsRow struct {
-	WebexUserForward WebexUserForward `json:"webex_user_forward"`
-	WebexRoom        WebexRoom        `json:"webex_room"`
-}
-
-func (q *Queries) ListWebexUserForwards(ctx context.Context, email *string) ([]ListWebexUserForwardsRow, error) {
-	rows, err := q.db.Query(ctx, listWebexUserForwards, email)
+func (q *Queries) ListWebexUserForwards(ctx context.Context) ([]WebexUserForward, error) {
+	rows, err := q.db.Query(ctx, listWebexUserForwards)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListWebexUserForwardsRow
+	var items []WebexUserForward
 	for rows.Next() {
-		var i ListWebexUserForwardsRow
+		var i WebexUserForward
 		if err := rows.Scan(
-			&i.WebexUserForward.ID,
-			&i.WebexUserForward.UserEmail,
-			&i.WebexUserForward.DestRoomID,
-			&i.WebexUserForward.StartDate,
-			&i.WebexUserForward.EndDate,
-			&i.WebexUserForward.Enabled,
-			&i.WebexUserForward.UserKeepsCopy,
-			&i.WebexUserForward.CreatedOn,
-			&i.WebexUserForward.UpdatedOn,
-			&i.WebexRoom.ID,
-			&i.WebexRoom.WebexID,
-			&i.WebexRoom.Name,
-			&i.WebexRoom.Type,
-			&i.WebexRoom.CreatedOn,
-			&i.WebexRoom.UpdatedOn,
-			&i.WebexRoom.Deleted,
+			&i.ID,
+			&i.UserEmail,
+			&i.DestRoomID,
+			&i.StartDate,
+			&i.EndDate,
+			&i.Enabled,
+			&i.UserKeepsCopy,
+			&i.CreatedOn,
+			&i.UpdatedOn,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWebexUserForwardsByEmail = `-- name: ListWebexUserForwardsByEmail :many
+SELECT id, user_email, dest_room_id, start_date, end_date, enabled, user_keeps_copy, created_on, updated_on FROM webex_user_forward
+WHERE user_email = $1
+ORDER BY id
+`
+
+func (q *Queries) ListWebexUserForwardsByEmail(ctx context.Context, userEmail string) ([]WebexUserForward, error) {
+	rows, err := q.db.Query(ctx, listWebexUserForwardsByEmail, userEmail)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WebexUserForward
+	for rows.Next() {
+		var i WebexUserForward
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserEmail,
+			&i.DestRoomID,
+			&i.StartDate,
+			&i.EndDate,
+			&i.Enabled,
+			&i.UserKeepsCopy,
+			&i.CreatedOn,
+			&i.UpdatedOn,
 		); err != nil {
 			return nil, err
 		}

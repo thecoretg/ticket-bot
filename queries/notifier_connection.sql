@@ -1,15 +1,10 @@
 -- name: ListNotifierConnections :many
-SELECT sqlc.embed(nc), sqlc.embed(cb), sqlc.embed(wr)
-FROM notifier_connection nc
-JOIN cw_board AS cb ON cb.id = nc.cw_board_id
-JOIN webex_room AS wr ON wr.id = nc.webex_room_id;
+SELECT * FROM notifier_connection
+ORDER BY id;
 
 -- name: GetNotifierConnection :one
-SELECT sqlc.embed(nc), sqlc.embed(cb), sqlc.embed(wr)
-FROM notifier_connection nc
-JOIN cw_board AS cb ON cb.id = nc.cw_board_id
-JOIN webex_room AS wr ON wr.id = nc.webex_room_id
-WHERE nc.id = $1;
+SELECT * FROM notifier_connection
+WHERE id = $1 LIMIT 1;
 
 -- name: CheckNotifierExists :one
 SELECT EXISTS (
@@ -19,18 +14,14 @@ SELECT EXISTS (
 ) AS exists;
 
 -- name: ListNotifierConnectionsByBoard :many
-SELECT sqlc.embed(nc), sqlc.embed(cb), sqlc.embed(wr)
-FROM notifier_connection nc
-JOIN cw_board AS cb ON cb.id = nc.cw_board_id
-JOIN webex_room AS wr ON wr.id = nc.webex_room_id
-WHERE cb.id = $1;
+SELECT * FROM notifier_connection
+WHERE cw_board_id = $1
+ORDER BY id;
 
 -- name: ListNotifierConnectionsByRoom :many
-SELECT sqlc.embed(nc), sqlc.embed(cb), sqlc.embed(wr)
-FROM notifier_connection nc
-JOIN cw_board AS cb ON cb.id = nc.cw_board_id
-JOIN webex_room AS wr ON wr.id = nc.webex_room_id
-WHERE wr.id = $1;
+SELECT * FROM notifier_connection
+WHERE webex_room_id = $1
+ORDER BY id;
 
 -- name: InsertNotifierConnection :one
 INSERT INTO notifier_connection(cw_board_id, webex_room_id, notify_enabled)
@@ -39,8 +30,11 @@ RETURNING *;
 
 -- name: UpdateNotifierConnection :one
 UPDATE notifier_connection
-SET notify_enabled = $3
-WHERE cw_board_id = $1 AND webex_room_id = $2
+SET
+    cw_board_id = $2,
+    webex_room_id = $3,
+    notify_enabled = $4
+WHERE id = $1
 RETURNING *;
 
 -- name: SoftDeleteNotifierConnection :exec

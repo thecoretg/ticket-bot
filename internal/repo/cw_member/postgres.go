@@ -57,7 +57,7 @@ func (p *PostgresRepo) Upsert(ctx context.Context, b Member) (Member, error) {
 }
 
 func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
-	if err := p.queries.DeleteContact(ctx, id); err != nil {
+	if err := p.queries.DeleteMember(ctx, id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}

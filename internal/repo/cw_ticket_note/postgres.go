@@ -71,7 +71,7 @@ func (p *PostgresRepo) Upsert(ctx context.Context, b TicketNote) (TicketNote, er
 }
 
 func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
-	if err := p.queries.DeleteTicket(ctx, id); err != nil {
+	if err := p.queries.DeleteTicketNote(ctx, id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
