@@ -59,18 +59,6 @@ func (q *Queries) GetWebexRoomByWebexID(ctx context.Context, webexID string) (We
 	return i, err
 }
 
-const getWebexRoomIDByInternalID = `-- name: GetWebexRoomIDByInternalID :one
-SELECT webex_id FROM webex_room
-WHERE id = $1
-`
-
-func (q *Queries) GetWebexRoomIDByInternalID(ctx context.Context, id int) (string, error) {
-	row := q.db.QueryRow(ctx, getWebexRoomIDByInternalID, id)
-	var webex_id string
-	err := row.Scan(&webex_id)
-	return webex_id, err
-}
-
 const listWebexRooms = `-- name: ListWebexRooms :many
 SELECT id, webex_id, name, type, created_on, updated_on, deleted FROM webex_room
 ORDER BY id

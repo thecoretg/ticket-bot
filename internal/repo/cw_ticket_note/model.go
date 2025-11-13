@@ -1,4 +1,4 @@
-package note
+package cwnote
 
 import (
 	"context"
