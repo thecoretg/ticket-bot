@@ -14,10 +14,10 @@ type PostgresRepo struct {
 	queries *db.Queries
 }
 
-func NewPostgresRepo(pool *pgxpool.Pool) *PostgresRepo {
+func NewPostgresRepo(pool *pgxpool.Pool, q *db.Queries) *PostgresRepo {
 	return &PostgresRepo{
 		pool:    pool,
-		queries: db.New(pool),
+		queries: q,
 	}
 }
 

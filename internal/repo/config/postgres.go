@@ -14,6 +14,13 @@ type PostgresRepo struct {
 	queries *db.Queries
 }
 
+func NewPostgresRepo(pool *pgxpool.Pool, q *db.Queries) *PostgresRepo {
+	return &PostgresRepo{
+		pool:    pool,
+		queries: q,
+	}
+}
+
 func (p *PostgresRepo) Get(ctx context.Context) (Config, error) {
 	d, err := p.queries.GetAppConfig(ctx)
 	if err != nil {
@@ -42,13 +49,6 @@ func (p *PostgresRepo) Upsert(ctx context.Context, c Config) (Config, error) {
 	}
 
 	return configFromPG(d), nil
-}
-
-func NewPostgresRepo(pool *pgxpool.Pool) *PostgresRepo {
-	return &PostgresRepo{
-		pool:    pool,
-		queries: db.New(pool),
-	}
 }
 
 func pgUpsertParams(c Config) db.UpsertAppConfigParams {
