@@ -1,7 +1,3 @@
--- name: GetWebexRoomIDByInternalID :one
-SELECT webex_id FROM webex_room
-WHERE id = $1;
-
 -- name: GetWebexRoom :one
 SELECT * FROM webex_room
 WHERE id = $1;
