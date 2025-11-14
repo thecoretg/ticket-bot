@@ -22,7 +22,7 @@ type Service struct {
 
 	pool        *pgxpool.Pool
 	cwClient    *psa.Client
-	ticketLocks *sync.Map
+	ticketLocks sync.Map
 }
 
 type FullTicket struct {

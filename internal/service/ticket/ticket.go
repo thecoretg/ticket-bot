@@ -25,20 +25,25 @@ func (s *Service) getCwData(ticketID int) (cwData, error) {
 
 func (s *Service) ensureBoard(ctx context.Context, id int) (models.Board, error) {
 	b, err := s.Boards.Get(ctx, id)
-	if err != nil && !errors.Is(err, models.ErrBoardNotFound) {
-		cw, err := s.cwClient.GetBoard(id, nil)
-		if err != nil {
-			return models.Board{}, fmt.Errorf("getting board from cw: %w", err)
-		}
+	if err == nil {
+		return b, nil
+	}
 
-		b, err = s.Boards.Upsert(ctx, models.Board{
-			ID:   cw.ID,
-			Name: cw.Name,
-		})
+	if !errors.Is(err, models.ErrBoardNotFound) {
+		return models.Board{}, fmt.Errorf("getting board from store: %w", err)
+	}
 
-		if err != nil {
-			return models.Board{}, fmt.Errorf("inserting board into store: %w", err)
-		}
+	cw, err := s.cwClient.GetBoard(id, nil)
+	if err != nil {
+		return models.Board{}, fmt.Errorf("getting board from cw: %w", err)
+	}
+
+	b, err = s.Boards.Upsert(ctx, models.Board{
+		ID:   cw.ID,
+		Name: cw.Name,
+	})
+	if err != nil {
+		return models.Board{}, fmt.Errorf("inserting board into store: %w", err)
 	}
 
 	return b, nil
