@@ -1,4 +1,4 @@
-package cwnote
+package postgres
 
 import (
 	"context"
@@ -7,27 +7,28 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thecoretg/ticketbot/internal/db"
+	"github.com/thecoretg/ticketbot/internal/models"
 )
 
-type PostgresRepo struct {
+type TicketNoteRepo struct {
 	pool    *pgxpool.Pool
 	queries *db.Queries
 }
 
-func NewPostgresRepo(pool *pgxpool.Pool, q *db.Queries) *PostgresRepo {
-	return &PostgresRepo{
+func NewTicketNoteRepo(pool *pgxpool.Pool, q *db.Queries) *TicketNoteRepo {
+	return &TicketNoteRepo{
 		pool:    pool,
 		queries: q,
 	}
 }
 
-func (p *PostgresRepo) ListByTicketID(ctx context.Context, ticketID int) ([]TicketNote, error) {
+func (p *TicketNoteRepo) ListByTicketID(ctx context.Context, ticketID int) ([]models.TicketNote, error) {
 	dm, err := p.queries.ListTicketNotesByTicket(ctx, ticketID)
 	if err != nil {
 		return nil, err
 	}
 
-	var b []TicketNote
+	var b []models.TicketNote
 	for _, d := range dm {
 		b = append(b, ticketNoteFromPG(d))
 	}
@@ -35,13 +36,13 @@ func (p *PostgresRepo) ListByTicketID(ctx context.Context, ticketID int) ([]Tick
 	return b, nil
 }
 
-func (p *PostgresRepo) ListAll(ctx context.Context) ([]TicketNote, error) {
+func (p *TicketNoteRepo) ListAll(ctx context.Context) ([]models.TicketNote, error) {
 	dm, err := p.queries.ListAllTicketNotes(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var b []TicketNote
+	var b []models.TicketNote
 	for _, d := range dm {
 		b = append(b, ticketNoteFromPG(d))
 	}
@@ -49,31 +50,31 @@ func (p *PostgresRepo) ListAll(ctx context.Context) ([]TicketNote, error) {
 	return b, nil
 }
 
-func (p *PostgresRepo) Get(ctx context.Context, id int) (TicketNote, error) {
+func (p *TicketNoteRepo) Get(ctx context.Context, id int) (models.TicketNote, error) {
 	d, err := p.queries.GetTicketNote(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return TicketNote{}, ErrNotFound
+			return models.TicketNote{}, models.ErrTicketNoteNotFound
 		}
-		return TicketNote{}, err
+		return models.TicketNote{}, err
 	}
 
 	return ticketNoteFromPG(d), nil
 }
 
-func (p *PostgresRepo) Upsert(ctx context.Context, b TicketNote) (TicketNote, error) {
-	d, err := p.queries.UpsertTicketNote(ctx, pgUpsertParams(b))
+func (p *TicketNoteRepo) Upsert(ctx context.Context, b models.TicketNote) (models.TicketNote, error) {
+	d, err := p.queries.UpsertTicketNote(ctx, ticketNoteToUpsertParams(b))
 	if err != nil {
-		return TicketNote{}, err
+		return models.TicketNote{}, err
 	}
 
 	return ticketNoteFromPG(d), nil
 }
 
-func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
+func (p *TicketNoteRepo) Delete(ctx context.Context, id int) error {
 	if err := p.queries.DeleteTicketNote(ctx, id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNotFound
+			return models.ErrTicketNoteNotFound
 		}
 		return err
 	}
@@ -81,7 +82,7 @@ func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-func pgUpsertParams(t TicketNote) db.UpsertTicketNoteParams {
+func ticketNoteToUpsertParams(t models.TicketNote) db.UpsertTicketNoteParams {
 	return db.UpsertTicketNoteParams{
 		ID:        t.ID,
 		TicketID:  t.TicketID,
@@ -90,8 +91,8 @@ func pgUpsertParams(t TicketNote) db.UpsertTicketNoteParams {
 	}
 }
 
-func ticketNoteFromPG(pg db.CwTicketNote) TicketNote {
-	return TicketNote{
+func ticketNoteFromPG(pg db.CwTicketNote) models.TicketNote {
+	return models.TicketNote{
 		ID:        pg.ID,
 		TicketID:  pg.TicketID,
 		MemberID:  pg.MemberID,

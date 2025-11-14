@@ -1,4 +1,4 @@
-package config
+package postgres
 
 import (
 	"context"
@@ -7,51 +7,52 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thecoretg/ticketbot/internal/db"
+	"github.com/thecoretg/ticketbot/internal/models"
 )
 
-type PostgresRepo struct {
+type ConfigRepo struct {
 	pool    *pgxpool.Pool
 	queries *db.Queries
 }
 
-func NewPostgresRepo(pool *pgxpool.Pool, q *db.Queries) *PostgresRepo {
-	return &PostgresRepo{
+func NewConfigRepo(pool *pgxpool.Pool, q *db.Queries) *ConfigRepo {
+	return &ConfigRepo{
 		pool:    pool,
 		queries: q,
 	}
 }
 
-func (p *PostgresRepo) Get(ctx context.Context) (Config, error) {
+func (p *ConfigRepo) Get(ctx context.Context) (models.Config, error) {
 	d, err := p.queries.GetAppConfig(ctx)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Config{}, ErrNotFound
+			return models.Config{}, models.ErrConfigNotFound
 		}
-		return Config{}, err
+		return models.Config{}, err
 	}
 
 	return configFromPG(d), nil
 }
 
-func (p *PostgresRepo) InsertDefault(ctx context.Context) (Config, error) {
+func (p *ConfigRepo) InsertDefault(ctx context.Context) (models.Config, error) {
 	d, err := p.queries.InsertDefaultAppConfig(ctx)
 	if err != nil {
-		return Config{}, err
+		return models.Config{}, err
 	}
 
 	return configFromPG(d), nil
 }
 
-func (p *PostgresRepo) Upsert(ctx context.Context, c Config) (Config, error) {
-	d, err := p.queries.UpsertAppConfig(ctx, pgUpsertParams(c))
+func (p *ConfigRepo) Upsert(ctx context.Context, c models.Config) (models.Config, error) {
+	d, err := p.queries.UpsertAppConfig(ctx, configToUpsertParams(c))
 	if err != nil {
-		return Config{}, err
+		return models.Config{}, err
 	}
 
 	return configFromPG(d), nil
 }
 
-func pgUpsertParams(c Config) db.UpsertAppConfigParams {
+func configToUpsertParams(c models.Config) db.UpsertAppConfigParams {
 	return db.UpsertAppConfigParams{
 		Debug:              c.Debug,
 		AttemptNotify:      c.AttemptNotify,
@@ -60,8 +61,8 @@ func pgUpsertParams(c Config) db.UpsertAppConfigParams {
 	}
 }
 
-func configFromPG(pg db.AppConfig) Config {
-	return Config{
+func configFromPG(pg db.AppConfig) models.Config {
+	return models.Config{
 		ID:                 pg.ID,
 		Debug:              pg.Debug,
 		AttemptNotify:      pg.AttemptNotify,

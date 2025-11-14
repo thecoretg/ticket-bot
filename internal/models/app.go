@@ -1,13 +1,11 @@
-package config
+package models
 
 import (
 	"context"
 	"errors"
 )
 
-var (
-	ErrNotFound = errors.New("config not found")
-)
+var ErrConfigNotFound = errors.New("config not found")
 
 type Config struct {
 	ID                 int  `json:"id"`
@@ -17,7 +15,7 @@ type Config struct {
 	MaxConcurrentSyncs int  `json:"max_concurrent_syncs"`
 }
 
-type Repository interface {
+type ConfigRepository interface {
 	Get(ctx context.Context) (Config, error)
 	InsertDefault(ctx context.Context) (Config, error)
 	Upsert(ctx context.Context, c Config) (Config, error)

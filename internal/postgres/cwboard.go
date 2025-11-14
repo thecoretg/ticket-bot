@@ -1,4 +1,4 @@
-package cwboard
+package postgres
 
 import (
 	"context"
@@ -7,27 +7,28 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thecoretg/ticketbot/internal/db"
+	"github.com/thecoretg/ticketbot/internal/models"
 )
 
-type PostgresRepo struct {
+type BoardRepo struct {
 	pool    *pgxpool.Pool
 	queries *db.Queries
 }
 
-func NewPostgresRepo(pool *pgxpool.Pool, q *db.Queries) *PostgresRepo {
-	return &PostgresRepo{
+func NewBoardRepo(pool *pgxpool.Pool, q *db.Queries) *BoardRepo {
+	return &BoardRepo{
 		pool:    pool,
 		queries: q,
 	}
 }
 
-func (p *PostgresRepo) List(ctx context.Context) ([]Board, error) {
+func (p *BoardRepo) List(ctx context.Context) ([]models.Board, error) {
 	dbs, err := p.queries.ListBoards(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var b []Board
+	var b []models.Board
 	for _, d := range dbs {
 		b = append(b, boardFromPG(d))
 	}
@@ -35,31 +36,31 @@ func (p *PostgresRepo) List(ctx context.Context) ([]Board, error) {
 	return b, nil
 }
 
-func (p *PostgresRepo) Get(ctx context.Context, id int) (Board, error) {
+func (p *BoardRepo) Get(ctx context.Context, id int) (models.Board, error) {
 	d, err := p.queries.GetBoard(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Board{}, ErrNotFound
+			return models.Board{}, models.ErrBoardNotFound
 		}
-		return Board{}, err
+		return models.Board{}, err
 	}
 
 	return boardFromPG(d), nil
 }
 
-func (p *PostgresRepo) Upsert(ctx context.Context, b Board) (Board, error) {
-	d, err := p.queries.UpsertBoard(ctx, pgUpsertParams(b))
+func (p *BoardRepo) Upsert(ctx context.Context, b models.Board) (models.Board, error) {
+	d, err := p.queries.UpsertBoard(ctx, boardToUpsertParams(b))
 	if err != nil {
-		return Board{}, err
+		return models.Board{}, err
 	}
 
 	return boardFromPG(d), nil
 }
 
-func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
+func (p *BoardRepo) Delete(ctx context.Context, id int) error {
 	if err := p.queries.DeleteBoard(ctx, id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNotFound
+			return models.ErrBoardNotFound
 		}
 		return err
 	}
@@ -67,15 +68,15 @@ func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-func pgUpsertParams(b Board) db.UpsertBoardParams {
+func boardToUpsertParams(b models.Board) db.UpsertBoardParams {
 	return db.UpsertBoardParams{
 		ID:   b.ID,
 		Name: b.Name,
 	}
 }
 
-func boardFromPG(pg db.CwBoard) Board {
-	return Board{
+func boardFromPG(pg db.CwBoard) models.Board {
+	return models.Board{
 		ID:        pg.ID,
 		Name:      pg.Name,
 		UpdatedOn: pg.UpdatedOn,

@@ -1,4 +1,4 @@
-package userfwd
+package postgres
 
 import (
 	"context"
@@ -7,27 +7,28 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thecoretg/ticketbot/internal/db"
+	"github.com/thecoretg/ticketbot/internal/models"
 )
 
-type PostgresRepo struct {
+type UserForwardRepo struct {
 	pool    *pgxpool.Pool
 	queries *db.Queries
 }
 
-func NewPostgresRepo(pool *pgxpool.Pool, q *db.Queries) *PostgresRepo {
-	return &PostgresRepo{
+func NewUserForwardRepo(pool *pgxpool.Pool, q *db.Queries) *UserForwardRepo {
+	return &UserForwardRepo{
 		pool:    pool,
 		queries: q,
 	}
 }
 
-func (p *PostgresRepo) ListAll(ctx context.Context) ([]Forward, error) {
+func (p *UserForwardRepo) ListAll(ctx context.Context) ([]models.UserForward, error) {
 	dm, err := p.queries.ListWebexUserForwards(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var b []Forward
+	var b []models.UserForward
 	for _, d := range dm {
 		b = append(b, forwardFromPG(d))
 	}
@@ -35,13 +36,13 @@ func (p *PostgresRepo) ListAll(ctx context.Context) ([]Forward, error) {
 	return b, nil
 }
 
-func (p *PostgresRepo) ListByEmail(ctx context.Context, email string) ([]Forward, error) {
+func (p *UserForwardRepo) ListByEmail(ctx context.Context, email string) ([]models.UserForward, error) {
 	dm, err := p.queries.ListWebexUserForwardsByEmail(ctx, email)
 	if err != nil {
 		return nil, err
 	}
 
-	var b []Forward
+	var b []models.UserForward
 	for _, d := range dm {
 		b = append(b, forwardFromPG(d))
 	}
@@ -49,31 +50,31 @@ func (p *PostgresRepo) ListByEmail(ctx context.Context, email string) ([]Forward
 	return b, nil
 }
 
-func (p *PostgresRepo) Get(ctx context.Context, id int) (Forward, error) {
+func (p *UserForwardRepo) Get(ctx context.Context, id int) (models.UserForward, error) {
 	d, err := p.queries.GetWebexUserForward(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Forward{}, ErrNotFound
+			return models.UserForward{}, models.ErrUserForwardNotFound
 		}
-		return Forward{}, err
+		return models.UserForward{}, err
 	}
 
 	return forwardFromPG(d), nil
 }
 
-func (p *PostgresRepo) Insert(ctx context.Context, b Forward) (Forward, error) {
-	d, err := p.queries.InsertWebexUserForward(ctx, pgInsertParams(b))
+func (p *UserForwardRepo) Insert(ctx context.Context, b models.UserForward) (models.UserForward, error) {
+	d, err := p.queries.InsertWebexUserForward(ctx, forwardToInsertParams(b))
 	if err != nil {
-		return Forward{}, err
+		return models.UserForward{}, err
 	}
 
 	return forwardFromPG(d), nil
 }
 
-func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
+func (p *UserForwardRepo) Delete(ctx context.Context, id int) error {
 	if err := p.queries.DeleteWebexForward(ctx, id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNotFound
+			return models.ErrUserForwardNotFound
 		}
 		return err
 	}
@@ -81,7 +82,7 @@ func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-func pgInsertParams(t Forward) db.InsertWebexUserForwardParams {
+func forwardToInsertParams(t models.UserForward) db.InsertWebexUserForwardParams {
 	return db.InsertWebexUserForwardParams{
 		UserEmail:     t.UserEmail,
 		DestRoomID:    t.DestRoomID,
@@ -92,8 +93,8 @@ func pgInsertParams(t Forward) db.InsertWebexUserForwardParams {
 	}
 }
 
-func forwardFromPG(pg db.WebexUserForward) Forward {
-	return Forward{
+func forwardFromPG(pg db.WebexUserForward) models.UserForward {
+	return models.UserForward{
 		ID:            pg.ID,
 		UserEmail:     pg.UserEmail,
 		DestRoomID:    pg.DestRoomID,

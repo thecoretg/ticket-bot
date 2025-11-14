@@ -1,4 +1,4 @@
-package webexroom
+package models
 
 import (
 	"context"
@@ -6,9 +6,7 @@ import (
 	"time"
 )
 
-var (
-	ErrNotFound = errors.New("webex room not found")
-)
+var ErrWebexRoomNotFound = errors.New("webex room not found")
 
 type WebexRoom struct {
 	ID        int       `json:"id"`
@@ -19,7 +17,7 @@ type WebexRoom struct {
 	UpdatedOn time.Time `json:"updated_on"`
 }
 
-type Repository interface {
+type WebexRoomRepository interface {
 	List(ctx context.Context) ([]WebexRoom, error)
 	Get(ctx context.Context, id int) (WebexRoom, error)
 	GetByWebexID(ctx context.Context, webexID string) (WebexRoom, error)

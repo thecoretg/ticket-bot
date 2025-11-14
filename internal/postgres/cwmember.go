@@ -1,4 +1,4 @@
-package cwmember
+package postgres
 
 import (
 	"context"
@@ -7,27 +7,28 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thecoretg/ticketbot/internal/db"
+	"github.com/thecoretg/ticketbot/internal/models"
 )
 
-type PostgresRepo struct {
+type MemberRepo struct {
 	pool    *pgxpool.Pool
 	queries *db.Queries
 }
 
-func NewPostgresRepo(pool *pgxpool.Pool, q *db.Queries) *PostgresRepo {
-	return &PostgresRepo{
+func NewMemberRepo(pool *pgxpool.Pool, q *db.Queries) *MemberRepo {
+	return &MemberRepo{
 		pool:    pool,
 		queries: q,
 	}
 }
 
-func (p *PostgresRepo) List(ctx context.Context) ([]Member, error) {
+func (p *MemberRepo) List(ctx context.Context) ([]models.Member, error) {
 	dm, err := p.queries.ListMembers(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var b []Member
+	var b []models.Member
 	for _, d := range dm {
 		b = append(b, memberFromPG(d))
 	}
@@ -35,31 +36,31 @@ func (p *PostgresRepo) List(ctx context.Context) ([]Member, error) {
 	return b, nil
 }
 
-func (p *PostgresRepo) Get(ctx context.Context, id int) (Member, error) {
+func (p *MemberRepo) Get(ctx context.Context, id int) (models.Member, error) {
 	d, err := p.queries.GetMember(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Member{}, ErrNotFound
+			return models.Member{}, models.ErrMemberNotFound
 		}
-		return Member{}, err
+		return models.Member{}, err
 	}
 
 	return memberFromPG(d), nil
 }
 
-func (p *PostgresRepo) Upsert(ctx context.Context, b Member) (Member, error) {
-	d, err := p.queries.UpsertMember(ctx, pgUpsertParams(b))
+func (p *MemberRepo) Upsert(ctx context.Context, b models.Member) (models.Member, error) {
+	d, err := p.queries.UpsertMember(ctx, memberToUpsertParams(b))
 	if err != nil {
-		return Member{}, err
+		return models.Member{}, err
 	}
 
 	return memberFromPG(d), nil
 }
 
-func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
+func (p *MemberRepo) Delete(ctx context.Context, id int) error {
 	if err := p.queries.DeleteMember(ctx, id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNotFound
+			return models.ErrMemberNotFound
 		}
 		return err
 	}
@@ -67,7 +68,7 @@ func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-func pgUpsertParams(m Member) db.UpsertMemberParams {
+func memberToUpsertParams(m models.Member) db.UpsertMemberParams {
 	return db.UpsertMemberParams{
 		ID:           m.ID,
 		Identifier:   m.Identifier,
@@ -77,8 +78,8 @@ func pgUpsertParams(m Member) db.UpsertMemberParams {
 	}
 }
 
-func memberFromPG(pg db.CwMember) Member {
-	return Member{
+func memberFromPG(pg db.CwMember) models.Member {
+	return models.Member{
 		ID:           pg.ID,
 		Identifier:   pg.Identifier,
 		FirstName:    pg.FirstName,

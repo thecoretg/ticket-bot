@@ -1,4 +1,4 @@
-package cwcontact
+package postgres
 
 import (
 	"context"
@@ -7,27 +7,28 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thecoretg/ticketbot/internal/db"
+	"github.com/thecoretg/ticketbot/internal/models"
 )
 
-type PostgresRepo struct {
+type ContactRepo struct {
 	pool    *pgxpool.Pool
 	queries *db.Queries
 }
 
-func NewPostgresRepo(pool *pgxpool.Pool, q *db.Queries) *PostgresRepo {
-	return &PostgresRepo{
+func NewContactRepo(pool *pgxpool.Pool, q *db.Queries) *ContactRepo {
+	return &ContactRepo{
 		pool:    pool,
 		queries: q,
 	}
 }
 
-func (p *PostgresRepo) List(ctx context.Context) ([]Contact, error) {
+func (p *ContactRepo) List(ctx context.Context) ([]models.Contact, error) {
 	dbs, err := p.queries.ListContacts(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var b []Contact
+	var b []models.Contact
 	for _, d := range dbs {
 		b = append(b, contactFromPG(d))
 	}
@@ -35,31 +36,31 @@ func (p *PostgresRepo) List(ctx context.Context) ([]Contact, error) {
 	return b, nil
 }
 
-func (p *PostgresRepo) Get(ctx context.Context, id int) (Contact, error) {
+func (p *ContactRepo) Get(ctx context.Context, id int) (models.Contact, error) {
 	d, err := p.queries.GetContact(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Contact{}, ErrNotFound
+			return models.Contact{}, models.ErrContactNotFound
 		}
-		return Contact{}, err
+		return models.Contact{}, err
 	}
 
 	return contactFromPG(d), nil
 }
 
-func (p *PostgresRepo) Upsert(ctx context.Context, b Contact) (Contact, error) {
-	d, err := p.queries.UpsertContact(ctx, pgUpsertParams(b))
+func (p *ContactRepo) Upsert(ctx context.Context, b models.Contact) (models.Contact, error) {
+	d, err := p.queries.UpsertContact(ctx, contactToUpsertParams(b))
 	if err != nil {
-		return Contact{}, err
+		return models.Contact{}, err
 	}
 
 	return contactFromPG(d), nil
 }
 
-func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
+func (p *ContactRepo) Delete(ctx context.Context, id int) error {
 	if err := p.queries.DeleteContact(ctx, id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNotFound
+			return models.ErrContactNotFound
 		}
 		return err
 	}
@@ -67,7 +68,7 @@ func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-func pgUpsertParams(c Contact) db.UpsertContactParams {
+func contactToUpsertParams(c models.Contact) db.UpsertContactParams {
 	return db.UpsertContactParams{
 		ID:        c.ID,
 		FirstName: c.FirstName,
@@ -76,8 +77,8 @@ func pgUpsertParams(c Contact) db.UpsertContactParams {
 	}
 }
 
-func contactFromPG(pg db.CwContact) Contact {
-	return Contact{
+func contactFromPG(pg db.CwContact) models.Contact {
+	return models.Contact{
 		ID:        pg.ID,
 		FirstName: pg.FirstName,
 		LastName:  pg.LastName,

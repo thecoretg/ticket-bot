@@ -1,0 +1,117 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"time"
+)
+
+var ErrBoardNotFound = errors.New("board not found")
+
+type Board struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	UpdatedOn time.Time `json:"updated_on"`
+	AddedOn   time.Time `json:"added_on"`
+}
+
+type BoardRepository interface {
+	List(ctx context.Context) ([]Board, error)
+	Get(ctx context.Context, id int) (Board, error)
+	Upsert(ctx context.Context, b Board) (Board, error)
+	Delete(ctx context.Context, id int) error
+}
+
+var ErrCompanyNotFound = errors.New("company not found")
+
+type Company struct {
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	UpdatedOn time.Time `json:"updated_on"`
+	AddedOn   time.Time `json:"added_on"`
+}
+
+type CompanyRepository interface {
+	List(ctx context.Context) ([]Company, error)
+	Get(ctx context.Context, id int) (Company, error)
+	Upsert(ctx context.Context, c Company) (Company, error)
+	Delete(ctx context.Context, id int) error
+}
+
+var ErrContactNotFound = errors.New("contact not found")
+
+type Contact struct {
+	ID        int       `json:"id"`
+	FirstName string    `json:"first_name"`
+	LastName  *string   `json:"last_name"`
+	CompanyID *int      `json:"company_id"`
+	UpdatedOn time.Time `json:"updated_on"`
+	AddedOn   time.Time `json:"added_on"`
+}
+
+type ContactRepository interface {
+	List(ctx context.Context) ([]Contact, error)
+	Get(ctx context.Context, id int) (Contact, error)
+	Upsert(ctx context.Context, c Contact) (Contact, error)
+	Delete(ctx context.Context, id int) error
+}
+
+var ErrMemberNotFound = errors.New("member not found")
+
+type Member struct {
+	ID           int       `json:"id"`
+	Identifier   string    `json:"identifier"`
+	FirstName    string    `json:"first_name"`
+	LastName     string    `json:"last_name"`
+	PrimaryEmail string    `json:"primary_email"`
+	UpdatedOn    time.Time `json:"updated_on"`
+	AddedOn      time.Time `json:"added_on"`
+}
+
+type MemberRepository interface {
+	List(ctx context.Context) ([]Member, error)
+	Get(ctx context.Context, id int) (Member, error)
+	Upsert(ctx context.Context, c Member) (Member, error)
+	Delete(ctx context.Context, id int) error
+}
+
+var ErrTicketNotFound = errors.New("ticket not found")
+
+type Ticket struct {
+	ID        int       `json:"id"`
+	Summary   string    `json:"summary"`
+	BoardID   int       `json:"board_id"`
+	OwnerID   *int      `json:"owner_id"`
+	CompanyID int       `json:"company_id"`
+	ContactID *int      `json:"contact_id"`
+	Resources *string   `json:"resources"`
+	UpdatedBy *string   `json:"updated_by"`
+	UpdatedOn time.Time `json:"updated_on"`
+	AddedOn   time.Time `json:"added_on"`
+}
+
+type TicketRepository interface {
+	List(ctx context.Context) ([]Ticket, error)
+	Get(ctx context.Context, id int) (Ticket, error)
+	Upsert(ctx context.Context, c Ticket) (Ticket, error)
+	Delete(ctx context.Context, id int) error
+}
+
+var ErrTicketNoteNotFound = errors.New("ticket note not found")
+
+type TicketNote struct {
+	ID        int       `json:"id"`
+	TicketID  int       `json:"ticket_id"`
+	MemberID  *int      `json:"member_id"`
+	ContactID *int      `json:"contact_id"`
+	UpdatedOn time.Time `json:"updated_on"`
+	AddedOn   time.Time `json:"added_on"`
+}
+
+type TicketNoteRepository interface {
+	ListByTicketID(ctx context.Context, ticketID int) ([]TicketNote, error)
+	ListAll(ctx context.Context) ([]TicketNote, error)
+	Get(ctx context.Context, id int) (TicketNote, error)
+	Upsert(ctx context.Context, c TicketNote) (TicketNote, error)
+	Delete(ctx context.Context, id int) error
+}

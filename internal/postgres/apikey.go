@@ -1,4 +1,4 @@
-package apikey
+package postgres
 
 import (
 	"context"
@@ -7,27 +7,28 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thecoretg/ticketbot/internal/db"
+	"github.com/thecoretg/ticketbot/internal/models"
 )
 
-type PostgresRepo struct {
+type APIKeyRepo struct {
 	pool    *pgxpool.Pool
 	queries *db.Queries
 }
 
-func NewPostgresRepo(pool *pgxpool.Pool, q *db.Queries) *PostgresRepo {
-	return &PostgresRepo{
+func NewAPIKeyRepo(pool *pgxpool.Pool, q *db.Queries) *APIKeyRepo {
+	return &APIKeyRepo{
 		pool:    pool,
 		queries: q,
 	}
 }
 
-func (p *PostgresRepo) List(ctx context.Context) ([]APIKey, error) {
+func (p *APIKeyRepo) List(ctx context.Context) ([]models.APIKey, error) {
 	dk, err := p.queries.ListAPIKeys(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var k []APIKey
+	var k []models.APIKey
 	for _, d := range dk {
 		k = append(k, keyFromPG(d))
 	}
@@ -35,31 +36,31 @@ func (p *PostgresRepo) List(ctx context.Context) ([]APIKey, error) {
 	return k, nil
 }
 
-func (p *PostgresRepo) Get(ctx context.Context, id int) (APIKey, error) {
+func (p *APIKeyRepo) Get(ctx context.Context, id int) (models.APIKey, error) {
 	d, err := p.queries.GetAPILKey(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return APIKey{}, ErrNotFound
+			return models.APIKey{}, models.ErrAPIKeyNotFound
 		}
-		return APIKey{}, ErrNotFound
+		return models.APIKey{}, models.ErrAPIKeyNotFound
 	}
 
 	return keyFromPG(d), nil
 }
 
-func (p *PostgresRepo) Insert(ctx context.Context, a APIKey) (APIKey, error) {
-	d, err := p.queries.InsertAPIKey(ctx, pgInsertParams(a))
+func (p *APIKeyRepo) Insert(ctx context.Context, a models.APIKey) (models.APIKey, error) {
+	d, err := p.queries.InsertAPIKey(ctx, insertParamsFromAPIKey(a))
 	if err != nil {
-		return APIKey{}, err
+		return models.APIKey{}, err
 	}
 
 	return keyFromPG(d), nil
 }
 
-func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
+func (p *APIKeyRepo) Delete(ctx context.Context, id int) error {
 	if err := p.queries.DeleteAPIKey(ctx, id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNotFound
+			return models.ErrAPIKeyNotFound
 		}
 		return err
 	}
@@ -67,15 +68,15 @@ func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-func pgInsertParams(a APIKey) db.InsertAPIKeyParams {
+func insertParamsFromAPIKey(a models.APIKey) db.InsertAPIKeyParams {
 	return db.InsertAPIKeyParams{
 		UserID:  a.UserID,
 		KeyHash: a.KeyHash,
 	}
 }
 
-func keyFromPG(pg db.ApiKey) APIKey {
-	return APIKey{
+func keyFromPG(pg db.ApiKey) models.APIKey {
+	return models.APIKey{
 		ID:        pg.ID,
 		UserID:    pg.UserID,
 		KeyHash:   pg.KeyHash,

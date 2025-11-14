@@ -1,4 +1,4 @@
-package cwticket
+package postgres
 
 import (
 	"context"
@@ -7,27 +7,28 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thecoretg/ticketbot/internal/db"
+	"github.com/thecoretg/ticketbot/internal/models"
 )
 
-type PostgresRepo struct {
+type TicketRepo struct {
 	pool    *pgxpool.Pool
 	queries *db.Queries
 }
 
-func NewPostgresRepo(pool *pgxpool.Pool, q *db.Queries) *PostgresRepo {
-	return &PostgresRepo{
+func NewTicketRepo(pool *pgxpool.Pool, q *db.Queries) *TicketRepo {
+	return &TicketRepo{
 		pool:    pool,
 		queries: q,
 	}
 }
 
-func (p *PostgresRepo) List(ctx context.Context) ([]Ticket, error) {
+func (p *TicketRepo) List(ctx context.Context) ([]models.Ticket, error) {
 	dm, err := p.queries.ListTickets(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var b []Ticket
+	var b []models.Ticket
 	for _, d := range dm {
 		b = append(b, ticketFromPG(d))
 	}
@@ -35,31 +36,31 @@ func (p *PostgresRepo) List(ctx context.Context) ([]Ticket, error) {
 	return b, nil
 }
 
-func (p *PostgresRepo) Get(ctx context.Context, id int) (Ticket, error) {
+func (p *TicketRepo) Get(ctx context.Context, id int) (models.Ticket, error) {
 	d, err := p.queries.GetTicket(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Ticket{}, ErrNotFound
+			return models.Ticket{}, models.ErrTicketNotFound
 		}
-		return Ticket{}, err
+		return models.Ticket{}, err
 	}
 
 	return ticketFromPG(d), nil
 }
 
-func (p *PostgresRepo) Upsert(ctx context.Context, b Ticket) (Ticket, error) {
-	d, err := p.queries.UpsertTicket(ctx, pgUpsertParams(b))
+func (p *TicketRepo) Upsert(ctx context.Context, b models.Ticket) (models.Ticket, error) {
+	d, err := p.queries.UpsertTicket(ctx, ticketToUpsertParams(b))
 	if err != nil {
-		return Ticket{}, err
+		return models.Ticket{}, err
 	}
 
 	return ticketFromPG(d), nil
 }
 
-func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
+func (p *TicketRepo) Delete(ctx context.Context, id int) error {
 	if err := p.queries.DeleteTicket(ctx, id); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrNotFound
+			return models.ErrTicketNotFound
 		}
 		return err
 	}
@@ -67,7 +68,7 @@ func (p *PostgresRepo) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-func pgUpsertParams(t Ticket) db.UpsertTicketParams {
+func ticketToUpsertParams(t models.Ticket) db.UpsertTicketParams {
 	return db.UpsertTicketParams{
 		ID:        t.ID,
 		Summary:   t.Summary,
@@ -80,8 +81,8 @@ func pgUpsertParams(t Ticket) db.UpsertTicketParams {
 	}
 }
 
-func ticketFromPG(pg db.CwTicket) Ticket {
-	return Ticket{
+func ticketFromPG(pg db.CwTicket) models.Ticket {
+	return models.Ticket{
 		ID:        pg.ID,
 		Summary:   pg.Summary,
 		BoardID:   pg.BoardID,
