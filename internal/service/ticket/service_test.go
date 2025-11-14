@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,8 +14,6 @@ import (
 	"github.com/thecoretg/ticketbot/internal/external/psa"
 	"github.com/thecoretg/ticketbot/internal/postgres"
 )
-
-const testTicketID = 698014
 
 func TestNewService(t *testing.T) {
 	if _, err := newTestService(t, context.Background()); err != nil {
@@ -28,14 +28,19 @@ func TestService_getCwData(t *testing.T) {
 		t.Fatalf("creating service: %v", err)
 	}
 
-	cd, err := s.getCwData(testTicketID)
-	if err != nil {
-		t.Fatal(err)
+	for _, id := range testTicketIDs(t) {
+		cd, err := s.getCwData(id)
+		if err != nil {
+			t.Errorf("getting connectwise data: %v", err)
+			continue
+		}
+
+		if cd.ticket.ID != id {
+			t.Errorf("wanted ticket id %d, got %d", id, cd.ticket.ID)
+			continue
+		}
 	}
 
-	if cd.ticket.ID != testTicketID {
-		t.Fatalf("wanted ticket id %d, got %d", testTicketID, cd.ticket.ID)
-	}
 }
 
 func TestService_Run(t *testing.T) {
@@ -45,8 +50,11 @@ func TestService_Run(t *testing.T) {
 		t.Fatalf("creating service: %v", err)
 	}
 
-	if _, err := s.Run(ctx, testTicketID); err != nil {
-		t.Fatalf("running service: %v", err)
+	for _, id := range testTicketIDs(t) {
+		if _, err := s.Run(ctx, id); err != nil {
+			t.Errorf("running service: %v", err)
+			continue
+		}
 	}
 }
 
@@ -89,4 +97,22 @@ func newTestService(t *testing.T, ctx context.Context) (*Service, error) {
 		postgres.NewTicketNoteRepo(pool),
 		psa.NewClient(cwCreds),
 	), nil
+}
+
+func testTicketIDs(t *testing.T) []int {
+	t.Helper()
+	raw := os.Getenv("TEST_TICKET_IDS")
+	split := strings.Split(raw, ",")
+
+	var ids []int
+	for _, s := range split {
+		i, err := strconv.Atoi(s)
+		if err != nil {
+			t.Logf("couldn't convert ticket id '%s' to integer", s)
+			continue
+		}
+		ids = append(ids, i)
+	}
+
+	return ids
 }

@@ -51,20 +51,25 @@ func (s *Service) ensureBoard(ctx context.Context, id int) (models.Board, error)
 
 func (s *Service) ensureCompany(ctx context.Context, id int) (models.Company, error) {
 	c, err := s.Companies.Get(ctx, id)
-	if err != nil && !errors.Is(err, models.ErrCompanyNotFound) {
-		cw, err := s.cwClient.GetCompany(id, nil)
-		if err != nil {
-			return models.Company{}, fmt.Errorf("getting company from cw: %w", err)
-		}
+	if err == nil {
+		return c, nil
+	}
 
-		c, err = s.Companies.Upsert(ctx, models.Company{
-			ID:   cw.Id,
-			Name: cw.Name,
-		})
+	if !errors.Is(err, models.ErrCompanyNotFound) {
+		return models.Company{}, fmt.Errorf("getting company from store: %w", err)
+	}
 
-		if err != nil {
-			return models.Company{}, fmt.Errorf("inserting company into store: %w", err)
-		}
+	cw, err := s.cwClient.GetCompany(id, nil)
+	if err != nil {
+		return models.Company{}, fmt.Errorf("getting company from cw: %w", err)
+	}
+
+	c, err = s.Companies.Upsert(ctx, models.Company{
+		ID:   cw.Id,
+		Name: cw.Name,
+	})
+	if err != nil {
+		return models.Company{}, fmt.Errorf("inserting company into store: %w", err)
 	}
 
 	return c, nil
@@ -72,31 +77,36 @@ func (s *Service) ensureCompany(ctx context.Context, id int) (models.Company, er
 
 func (s *Service) ensureContact(ctx context.Context, id int) (models.Contact, error) {
 	c, err := s.Contacts.Get(ctx, id)
-	if err != nil && !errors.Is(err, models.ErrContactNotFound) {
-		cw, err := s.cwClient.GetContact(id, nil)
+	if err == nil {
+		return c, nil
+	}
+
+	if !errors.Is(err, models.ErrContactNotFound) {
+		return models.Contact{}, fmt.Errorf("getting contact from store: %w", err)
+	}
+
+	cw, err := s.cwClient.GetContact(id, nil)
+	if err != nil {
+		return models.Contact{}, fmt.Errorf("getting contact from cw: %w", err)
+	}
+
+	var compID *int
+	if cw.Company.ID != 0 {
+		comp, err := s.ensureCompany(ctx, cw.Company.ID)
 		if err != nil {
-			return models.Contact{}, fmt.Errorf("getting contact from cw: %w", err)
+			return models.Contact{}, fmt.Errorf("ensuring contact's company is in store: %w", err)
 		}
+		compID = intToPtr(comp.ID)
+	}
 
-		var compID *int
-		if cw.Company.ID != 0 {
-			comp, err := s.ensureCompany(ctx, cw.Company.ID)
-			if err != nil {
-				return models.Contact{}, fmt.Errorf("ensuring contact's company is in store: %w", err)
-			}
-			compID = intToPtr(comp.ID)
-		}
-
-		c, err = s.Contacts.Upsert(ctx, models.Contact{
-			ID:        cw.ID,
-			FirstName: cw.FirstName,
-			LastName:  strToPtr(cw.LastName),
-			CompanyID: compID,
-		})
-
-		if err != nil {
-			return models.Contact{}, fmt.Errorf("inserting contact into store: %w", err)
-		}
+	c, err = s.Contacts.Upsert(ctx, models.Contact{
+		ID:        cw.ID,
+		FirstName: cw.FirstName,
+		LastName:  strToPtr(cw.LastName),
+		CompanyID: compID,
+	})
+	if err != nil {
+		return models.Contact{}, fmt.Errorf("inserting contact into store: %w", err)
 	}
 
 	return c, nil
@@ -104,23 +114,28 @@ func (s *Service) ensureContact(ctx context.Context, id int) (models.Contact, er
 
 func (s *Service) ensureMember(ctx context.Context, id int) (models.Member, error) {
 	m, err := s.Members.Get(ctx, id)
-	if err != nil && !errors.Is(err, models.ErrMemberNotFound) {
-		cw, err := s.cwClient.GetMember(id, nil)
-		if err != nil {
-			return models.Member{}, fmt.Errorf("getting member from cw: %w", err)
-		}
+	if err == nil {
+		return m, nil
+	}
 
-		m, err = s.Members.Upsert(ctx, models.Member{
-			ID:           cw.ID,
-			Identifier:   cw.Identifier,
-			FirstName:    cw.FirstName,
-			LastName:     cw.LastName,
-			PrimaryEmail: cw.PrimaryEmail,
-		})
+	if !errors.Is(err, models.ErrMemberNotFound) {
+		return models.Member{}, fmt.Errorf("getting member from store: %w", err)
+	}
 
-		if err != nil {
-			return models.Member{}, fmt.Errorf("inserting member into store: %w", err)
-		}
+	cw, err := s.cwClient.GetMember(id, nil)
+	if err != nil {
+		return models.Member{}, fmt.Errorf("getting member from cw: %w", err)
+	}
+
+	m, err = s.Members.Upsert(ctx, models.Member{
+		ID:           cw.ID,
+		Identifier:   cw.Identifier,
+		FirstName:    cw.FirstName,
+		LastName:     cw.LastName,
+		PrimaryEmail: cw.PrimaryEmail,
+	})
+	if err != nil {
+		return models.Member{}, fmt.Errorf("inserting member into store: %w", err)
 	}
 
 	return m, nil
@@ -132,21 +147,26 @@ func (s *Service) ensureTicket(ctx context.Context, cwt *psa.Ticket) (models.Tic
 	}
 
 	t, err := s.Tickets.Get(ctx, cwt.ID)
-	if err != nil && !errors.Is(err, models.ErrTicketNotFound) {
-		t, err = s.Tickets.Upsert(ctx, models.Ticket{
-			ID:        cwt.ID,
-			Summary:   cwt.Summary,
-			BoardID:   cwt.Board.ID,
-			OwnerID:   intToPtr(cwt.Owner.ID),
-			CompanyID: cwt.Company.ID,
-			ContactID: intToPtr(cwt.Contact.ID),
-			Resources: &cwt.Resources,
-			UpdatedBy: &cwt.Info.UpdatedBy,
-		})
+	if err == nil {
+		return t, nil
+	}
 
-		if err != nil {
-			return models.Ticket{}, fmt.Errorf("inserting ticket into store: %w", err)
-		}
+	if !errors.Is(err, models.ErrTicketNotFound) {
+		return models.Ticket{}, fmt.Errorf("getting ticket from store: %w", err)
+	}
+
+	t, err = s.Tickets.Upsert(ctx, models.Ticket{
+		ID:        cwt.ID,
+		Summary:   cwt.Summary,
+		BoardID:   cwt.Board.ID,
+		OwnerID:   intToPtr(cwt.Owner.ID),
+		CompanyID: cwt.Company.ID,
+		ContactID: intToPtr(cwt.Contact.ID),
+		Resources: &cwt.Resources,
+		UpdatedBy: &cwt.Info.UpdatedBy,
+	})
+	if err != nil {
+		return models.Ticket{}, fmt.Errorf("inserting ticket into store: %w", err)
 	}
 
 	return t, nil
@@ -168,17 +188,22 @@ func (s *Service) ensureTicketNote(ctx context.Context, cwn *psa.ServiceTicketNo
 	}
 
 	n, err := s.Notes.Get(ctx, cwn.ID)
-	if err != nil && !errors.Is(err, models.ErrTicketNoteNotFound) {
-		n, err = s.Notes.Upsert(ctx, models.TicketNote{
-			ID:        cwn.ID,
-			TicketID:  cwn.TicketId,
-			MemberID:  memberID,
-			ContactID: contactID,
-		})
+	if err == nil {
+		return n, nil
+	}
 
-		if err != nil {
-			return models.TicketNote{}, fmt.Errorf("inserting note into store: %w", err)
-		}
+	if !errors.Is(err, models.ErrTicketNoteNotFound) {
+		return models.TicketNote{}, fmt.Errorf("getting note from store: %w", err)
+	}
+
+	n, err = s.Notes.Upsert(ctx, models.TicketNote{
+		ID:        cwn.ID,
+		TicketID:  cwn.TicketId,
+		MemberID:  memberID,
+		ContactID: contactID,
+	})
+	if err != nil {
+		return models.TicketNote{}, fmt.Errorf("inserting note into store: %w", err)
 	}
 
 	return n, nil
