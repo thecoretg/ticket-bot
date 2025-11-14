@@ -50,9 +50,27 @@ func TestService_Run(t *testing.T) {
 		t.Fatalf("creating service: %v", err)
 	}
 
-	for _, id := range testTicketIDs(t) {
-		if _, err := s.Run(ctx, id); err != nil {
-			t.Errorf("running service: %v", err)
+	ids := testTicketIDs(t)
+	// add
+	for _, id := range ids {
+		if _, err := s.Run(ctx, "added", id); err != nil {
+			t.Errorf("adding ticket %d: %v", id, err)
+			continue
+		}
+	}
+
+	// update (not changing anything, just simualting)
+	for _, id := range ids {
+		if _, err := s.Run(ctx, "updated", id); err != nil {
+			t.Errorf("updating ticket %d: %v", id, err)
+			continue
+		}
+	}
+
+	// delete
+	for _, id := range ids {
+		if _, err := s.Run(ctx, "deleted", id); err != nil {
+			t.Errorf("deleting ticket %d: %v", id, err)
 			continue
 		}
 	}

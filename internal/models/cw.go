@@ -8,6 +8,15 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+type FullTicket struct {
+	Board   Board
+	Ticket  Ticket
+	Company Company
+	Contact Contact
+	Owner   Member
+	Note    TicketNote
+}
+
 var ErrBoardNotFound = errors.New("board not found")
 
 type Board struct {

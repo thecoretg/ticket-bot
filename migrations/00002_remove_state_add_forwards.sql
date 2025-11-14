@@ -14,6 +14,15 @@ CREATE TABLE IF NOT EXISTS webex_user_forward (
     CHECK (start_date < end_date)
 );
 
+ALTER TABLE cw_ticket_note
+DROP CONSTRAINT cw_ticket_note_ticket_id_fkey;
+
+ALTER TABLE cw_ticket_note
+ADD CONSTRAINT fk_ticket_note_ticket
+    FOREIGN KEY (ticket_id)
+    REFERENCES cw_ticket(id)
+    ON DELETE CASCADE;
+
 DROP TABLE IF EXISTS app_state;
 -- +goose StatementEnd
 
@@ -24,4 +33,12 @@ CREATE TABLE IF NOT EXISTS app_state (
     syncing_tickets BOOLEAN NOT NULL DEFAULT false,
     syncing_webex_rooms BOOLEAN NOT NULL DEFAULT false
 );
+
+ALTER TABLE cw_ticket_note
+DROP CONSTRAINT fk_ticket_note_ticket;
+
+ALTER TABLE cw_ticket_note
+ADD CONSTRAINT cw_ticket_note_ticket_id_fkey
+    FOREIGN KEY (ticket_id)
+    REFERENCES cw_ticket(id);
 -- +goose StatementEnd
