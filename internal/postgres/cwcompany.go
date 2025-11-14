@@ -20,7 +20,7 @@ func NewCompanyRepo(pool *pgxpool.Pool) *CompanyRepo {
 	}
 }
 
-func (p *CompanyRepo) WithTx(tx pgx.Tx) *CompanyRepo {
+func (p *CompanyRepo) WithTx(tx pgx.Tx) models.CompanyRepository {
 	return &CompanyRepo{
 		queries: db.New(tx)}
 }

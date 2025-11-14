@@ -316,24 +316,18 @@ func (cl *Client) ensureStoredData(ctx context.Context, rs *requestState) (*requ
 		rs.logger = rs.logger.With(noteLogGroup(note))
 	}
 
-	cons, err := q.ListNotifierConnectionsByBoard(ctx, board.ID)
-	if err != nil {
-		return rs, fmt.Errorf("getting rooms to notify: %w", err)
-	}
-
 	if err := tx.Commit(ctx); err != nil {
 		return rs, fmt.Errorf("commit tx: %w", err)
 	}
 	committed = true
 
 	sd := &storedData{
-		ticket:       ticket,
-		company:      company,
-		contact:      contact,
-		owner:        owner,
-		note:         note,
-		board:        board,
-		enabledRooms: roomsFromNotifiers(cons),
+		ticket:  ticket,
+		company: company,
+		contact: contact,
+		owner:   owner,
+		note:    note,
+		board:   board,
 	}
 
 	rs.dbData = sd
@@ -551,13 +545,4 @@ func cwDataToUpdateTicketParams(cd *connectwiseData) db.UpsertTicketParams {
 		Resources: strToPtr(cd.ticket.Resources),
 		UpdatedBy: strToPtr(cd.ticket.Info.UpdatedBy),
 	}
-}
-
-func roomsFromNotifiers(notifiers []db.ListNotifierConnectionsByBoardRow) []db.WebexRoom {
-	var rooms []db.WebexRoom
-	for _, n := range notifiers {
-		rooms = append(rooms, n.WebexRoom)
-	}
-
-	return rooms
 }
