@@ -81,7 +81,7 @@ func (s *Service) processTicket(ctx context.Context, id int) (*models.FullTicket
 		return nil, fmt.Errorf("ensuring ticket in store: %w", err)
 	}
 
-	note := models.TicketNote{}
+	var note *models.FullTicketNote
 	if cd.note != nil && cd.note.ID != 0 {
 		note, err = txSvc.ensureTicketNote(ctx, cd.note)
 		if err != nil {
@@ -94,13 +94,23 @@ func (s *Service) processTicket(ctx context.Context, id int) (*models.FullTicket
 		return nil, fmt.Errorf("committing transaction: %w", err)
 	}
 
+	var ptrContact *models.Contact
+	if contact.ID != 0 {
+		ptrContact = &contact
+	}
+
+	var ptrOwner *models.Member
+	if owner.ID != 0 {
+		ptrOwner = &owner
+	}
+
 	return &models.FullTicket{
-		Board:   board,
-		Ticket:  ticket,
-		Company: company,
-		Contact: contact,
-		Owner:   owner,
-		Note:    note,
+		Board:      board,
+		Ticket:     ticket,
+		Company:    company,
+		Contact:    ptrContact,
+		Owner:      ptrOwner,
+		LatestNote: note,
 	}, nil
 }
 
@@ -134,17 +144,17 @@ func contactLogGrp(contact models.Contact) slog.Attr {
 	)
 }
 
-func noteLogGrp(note models.TicketNote) slog.Attr {
+func noteLogGrp(note *models.FullTicketNote) slog.Attr {
 	var (
 		senderID   int
 		senderType string
 	)
 
-	if note.MemberID != nil {
-		senderID = *note.MemberID
+	if note.Member != nil {
+		senderID = note.Member.ID
 		senderType = "member"
-	} else if note.ContactID != nil {
-		senderID = *note.ContactID
+	} else if note.Contact != nil {
+		senderID = note.Contact.ID
 		senderType = "contact"
 	}
 
@@ -322,28 +332,28 @@ func (s *Service) ensureTicket(ctx context.Context, cwt *psa.Ticket) (models.Tic
 	return t, nil
 }
 
-func (s *Service) ensureTicketNote(ctx context.Context, cwn *psa.ServiceTicketNote) (models.TicketNote, error) {
+func (s *Service) ensureTicketNote(ctx context.Context, cwn *psa.ServiceTicketNote) (*models.FullTicketNote, error) {
 	if cwn == nil {
-		return models.TicketNote{}, errors.New("received nil ticket note")
+		return nil, errors.New("received nil ticket note")
 	}
 
 	memberID, err := s.getNoteMemberID(ctx, cwn)
 	if err != nil {
-		return models.TicketNote{}, fmt.Errorf("getting member data: %w", err)
+		return nil, fmt.Errorf("getting member data: %w", err)
 	}
 
 	contactID, err := s.getNoteContactID(ctx, cwn)
 	if err != nil {
-		return models.TicketNote{}, fmt.Errorf("getting contact data: %w ", err)
+		return nil, fmt.Errorf("getting contact data: %w ", err)
 	}
 
 	n, err := s.Notes.Get(ctx, cwn.ID)
 	if err == nil {
-		return n, nil
+		return models.TicketNoteToFullTicketNote(ctx, n, s.Members, s.Contacts)
 	}
 
 	if !errors.Is(err, models.ErrTicketNoteNotFound) {
-		return models.TicketNote{}, fmt.Errorf("getting note from store: %w", err)
+		return nil, fmt.Errorf("getting note from store: %w", err)
 	}
 
 	n, err = s.Notes.Upsert(ctx, models.TicketNote{
@@ -353,10 +363,10 @@ func (s *Service) ensureTicketNote(ctx context.Context, cwn *psa.ServiceTicketNo
 		ContactID: contactID,
 	})
 	if err != nil {
-		return models.TicketNote{}, fmt.Errorf("inserting note into store: %w", err)
+		return nil, fmt.Errorf("inserting note into store: %w", err)
 	}
 
-	return n, nil
+	return models.TicketNoteToFullTicketNote(ctx, n, s.Members, s.Contacts)
 }
 
 func (s *Service) getNoteContactID(ctx context.Context, n *psa.ServiceTicketNote) (*int, error) {

@@ -92,6 +92,7 @@ type CwTicketNote struct {
 	UpdatedOn time.Time `json:"updated_on"`
 	AddedOn   time.Time `json:"added_on"`
 	Deleted   bool      `json:"deleted"`
+	Content   *string   `json:"content"`
 }
 
 type NotifierConnection struct {

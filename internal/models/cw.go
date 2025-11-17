@@ -9,12 +9,12 @@ import (
 )
 
 type FullTicket struct {
-	Board   Board
-	Ticket  Ticket
-	Company Company
-	Contact Contact
-	Owner   Member
-	Note    TicketNote
+	Board      Board
+	Ticket     Ticket
+	Company    Company
+	Contact    *Contact
+	Owner      *Member
+	LatestNote *FullTicketNote
 }
 
 var ErrBoardNotFound = errors.New("board not found")
@@ -118,6 +118,7 @@ var ErrTicketNoteNotFound = errors.New("ticket note not found")
 type TicketNote struct {
 	ID        int       `json:"id"`
 	TicketID  int       `json:"ticket_id"`
+	Content   *string   `json:"text"`
 	MemberID  *int      `json:"member_id"`
 	ContactID *int      `json:"contact_id"`
 	UpdatedOn time.Time `json:"updated_on"`
@@ -131,4 +132,46 @@ type TicketNoteRepository interface {
 	Get(ctx context.Context, id int) (TicketNote, error)
 	Upsert(ctx context.Context, c TicketNote) (TicketNote, error)
 	Delete(ctx context.Context, id int) error
+}
+
+type FullTicketNote struct {
+	ID        int
+	TicketID  int
+	Content   *string
+	Member    *Member
+	Contact   *Contact
+	UpdatedOn time.Time
+	AddedOn   time.Time
+}
+
+func TicketNoteToFullTicketNote(ctx context.Context, note TicketNote, m MemberRepository, c ContactRepository) (*FullTicketNote, error) {
+	var (
+		member  *Member
+		contact *Contact
+	)
+
+	if note.MemberID != nil {
+		r, err := m.Get(ctx, *note.MemberID)
+		if err != nil {
+			return nil, err
+		}
+		member = &r
+	}
+
+	if note.ContactID != nil {
+		r, err := c.Get(ctx, *note.ContactID)
+		if err != nil {
+			return nil, err
+		}
+		contact = &r
+	}
+
+	return &FullTicketNote{
+		ID:        note.ID,
+		TicketID:  note.TicketID,
+		Member:    member,
+		Contact:   contact,
+		UpdatedOn: note.UpdatedOn,
+		AddedOn:   note.AddedOn,
+	}, nil
 }

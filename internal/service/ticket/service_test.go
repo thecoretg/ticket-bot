@@ -40,7 +40,6 @@ func TestService_getCwData(t *testing.T) {
 			continue
 		}
 	}
-
 }
 
 func TestService_Run(t *testing.T) {

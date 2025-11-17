@@ -70,6 +70,7 @@ type TicketNotificationRepository interface {
 	WithTx(tx pgx.Tx) TicketNotificationRepository
 	ListAll(ctx context.Context) ([]TicketNotification, error)
 	ListByNoteID(ctx context.Context, noteID int) ([]TicketNotification, error)
+	ExistsForNote(ctx context.Context, noteID int) (bool, error)
 	Get(ctx context.Context, id int) (TicketNotification, error)
 	Insert(ctx context.Context, n TicketNotification) (TicketNotification, error)
 	Delete(ctx context.Context, id int) error

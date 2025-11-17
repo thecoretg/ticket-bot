@@ -9,12 +9,15 @@ import (
 )
 
 type Service struct {
-	Rooms     models.WebexRoomRepository
-	Notifiers models.NotifierRepository
-	Forwards  models.UserForwardRepository
+	Rooms         models.WebexRoomRepository
+	Notifiers     models.NotifierRepository
+	Notifications models.TicketNotificationRepository
+	Forwards      models.UserForwardRepository
 
-	pool        *pgxpool.Pool
-	webexClient *webex.Client
+	pool             *pgxpool.Pool
+	webexClient      *webex.Client
+	cwClientID       string
+	maxMessageLength int
 }
 
 type Result struct {
@@ -35,13 +38,17 @@ func newResult() *Result {
 	}
 }
 
-func New(pool *pgxpool.Pool, r models.WebexRoomRepository, n models.NotifierRepository, f models.UserForwardRepository, wc *webex.Client) *Service {
+func New(pool *pgxpool.Pool, r models.WebexRoomRepository, n models.NotifierRepository,
+	m models.TicketNotificationRepository, f models.UserForwardRepository, wc *webex.Client, cwClientID string, max int) *Service {
 	return &Service{
-		Rooms:       r,
-		Notifiers:   n,
-		Forwards:    f,
-		pool:        pool,
-		webexClient: wc,
+		Rooms:            r,
+		Notifiers:        n,
+		Notifications:    m,
+		Forwards:         f,
+		pool:             pool,
+		webexClient:      wc,
+		cwClientID:       cwClientID,
+		maxMessageLength: max,
 	}
 }
 

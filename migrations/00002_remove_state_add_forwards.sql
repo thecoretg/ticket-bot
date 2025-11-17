@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS ticket_notification (
 );
 
 ALTER TABLE cw_ticket_note
+ADD content TEXT,
 DROP CONSTRAINT cw_ticket_note_ticket_id_fkey,
 DROP COLUMN notified,
 DROP COLUMN skipped_notify;
@@ -49,6 +50,7 @@ CREATE TABLE IF NOT EXISTS app_state (
 );
 
 ALTER TABLE cw_ticket_note
+DROP COLUMN content,
 ADD notified BOOLEAN NOT NULL DEFAULT FALSE,
 ADD skipped_notify BOOLEAN NOT NULL DEFAULT FALSE,
 DROP CONSTRAINT fk_ticket_note_ticket;

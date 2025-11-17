@@ -9,6 +9,21 @@ import (
 	"context"
 )
 
+const checkNotificationsExist = `-- name: CheckNotificationsExist :one
+SELECT EXISTS (
+    SELECT 1
+    FROM ticket_notification
+    WHERE ticket_note_id = $1
+) AS exists
+`
+
+func (q *Queries) CheckNotificationsExist(ctx context.Context, ticketNoteID int) (bool, error) {
+	row := q.db.QueryRow(ctx, checkNotificationsExist, ticketNoteID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const deleteTicketNotification = `-- name: DeleteTicketNotification :exec
 DELETE FROM ticket_notification
 WHERE id = $1

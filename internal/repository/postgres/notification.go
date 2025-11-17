@@ -50,6 +50,15 @@ func (p NotificationRepo) ListByNoteID(ctx context.Context, noteID int) ([]model
 	return n, nil
 }
 
+func (p NotificationRepo) ExistsForNote(ctx context.Context, noteID int) (bool, error) {
+	exists, err := p.queries.CheckNotificationsExist(ctx, noteID)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}
+
 func (p NotificationRepo) Get(ctx context.Context, id int) (models.TicketNotification, error) {
 	d, err := p.queries.GetTicketNotification(ctx, id)
 	if err != nil {

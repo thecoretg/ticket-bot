@@ -54,7 +54,7 @@ func (q *Queries) GetTicket(ctx context.Context, id int) (CwTicket, error) {
 }
 
 const getTicketNote = `-- name: GetTicketNote :one
-SELECT id, ticket_id, member_id, contact_id, updated_on, added_on, deleted FROM cw_ticket_note
+SELECT id, ticket_id, member_id, contact_id, updated_on, added_on, deleted, content FROM cw_ticket_note
 WHERE id = $1 LIMIT 1
 `
 
@@ -69,12 +69,13 @@ func (q *Queries) GetTicketNote(ctx context.Context, id int) (CwTicketNote, erro
 		&i.UpdatedOn,
 		&i.AddedOn,
 		&i.Deleted,
+		&i.Content,
 	)
 	return i, err
 }
 
 const listAllTicketNotes = `-- name: ListAllTicketNotes :many
-SELECT id, ticket_id, member_id, contact_id, updated_on, added_on, deleted FROM cw_ticket_note
+SELECT id, ticket_id, member_id, contact_id, updated_on, added_on, deleted, content FROM cw_ticket_note
 ORDER BY id
 `
 
@@ -95,6 +96,7 @@ func (q *Queries) ListAllTicketNotes(ctx context.Context) ([]CwTicketNote, error
 			&i.UpdatedOn,
 			&i.AddedOn,
 			&i.Deleted,
+			&i.Content,
 		); err != nil {
 			return nil, err
 		}
@@ -107,7 +109,7 @@ func (q *Queries) ListAllTicketNotes(ctx context.Context) ([]CwTicketNote, error
 }
 
 const listTicketNotesByTicket = `-- name: ListTicketNotesByTicket :many
-SELECT id, ticket_id, member_id, contact_id, updated_on, added_on, deleted FROM cw_ticket_note
+SELECT id, ticket_id, member_id, contact_id, updated_on, added_on, deleted, content FROM cw_ticket_note
 WHERE ticket_id = $1
 ORDER BY id
 `
@@ -129,6 +131,7 @@ func (q *Queries) ListTicketNotesByTicket(ctx context.Context, ticketID int) ([]
 			&i.UpdatedOn,
 			&i.AddedOn,
 			&i.Deleted,
+			&i.Content,
 		); err != nil {
 			return nil, err
 		}
@@ -258,27 +261,30 @@ func (q *Queries) UpsertTicket(ctx context.Context, arg UpsertTicketParams) (CwT
 
 const upsertTicketNote = `-- name: UpsertTicketNote :one
 INSERT INTO cw_ticket_note
-(id, ticket_id, member_id, contact_id)
-VALUES ($1, $2, $3, $4)
+(id, ticket_id, content, member_id, contact_id)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (id) DO UPDATE SET
     ticket_id = EXCLUDED.ticket_id,
+    content = EXCLUDED.content,
     member_id = EXCLUDED.member_id,
     contact_id = EXCLUDED.contact_id,
     updated_on = NOW()
-RETURNING id, ticket_id, member_id, contact_id, updated_on, added_on, deleted
+RETURNING id, ticket_id, member_id, contact_id, updated_on, added_on, deleted, content
 `
 
 type UpsertTicketNoteParams struct {
-	ID        int  `json:"id"`
-	TicketID  int  `json:"ticket_id"`
-	MemberID  *int `json:"member_id"`
-	ContactID *int `json:"contact_id"`
+	ID        int     `json:"id"`
+	TicketID  int     `json:"ticket_id"`
+	Content   *string `json:"content"`
+	MemberID  *int    `json:"member_id"`
+	ContactID *int    `json:"contact_id"`
 }
 
 func (q *Queries) UpsertTicketNote(ctx context.Context, arg UpsertTicketNoteParams) (CwTicketNote, error) {
 	row := q.db.QueryRow(ctx, upsertTicketNote,
 		arg.ID,
 		arg.TicketID,
+		arg.Content,
 		arg.MemberID,
 		arg.ContactID,
 	)
@@ -291,6 +297,7 @@ func (q *Queries) UpsertTicketNote(ctx context.Context, arg UpsertTicketNotePara
 		&i.UpdatedOn,
 		&i.AddedOn,
 		&i.Deleted,
+		&i.Content,
 	)
 	return i, err
 }
