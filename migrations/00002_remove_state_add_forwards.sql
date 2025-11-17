@@ -14,6 +14,18 @@ CREATE TABLE IF NOT EXISTS webex_user_forward (
     CHECK (start_date < end_date)
 );
 
+CREATE TABLE IF NOT EXISTS ticket_notification (
+    id SERIAL PRIMARY KEY,
+    notifier_id INT NOT NULL REFERENCES notifier_connection(id) ON DELETE CASCADE,
+    ticket_note_id INT NOT NULL REFERENCES cw_ticket_note(id) ON DELETE CASCADE,
+    webex_room_id INT REFERENCES webex_room(id) ON DELETE CASCADE,
+    sent_to_email TEXT,
+    sent BOOLEAN NOT NULL DEFAULT FALSE,
+    skipped BOOLEAN NOT NULL DEFAULT TRUE,
+    created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 ALTER TABLE cw_ticket_note
 DROP CONSTRAINT cw_ticket_note_ticket_id_fkey,
 DROP COLUMN notified,
