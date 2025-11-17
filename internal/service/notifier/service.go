@@ -1,39 +1,37 @@
 package notifier
 
 import (
-	"context"
-
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thecoretg/ticketbot/internal/external/webex"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
 
 type Service struct {
+	Rooms            models.WebexRoomRepository
+	Notifiers        models.NotifierRepository
+	Notifications    models.TicketNotificationRepository
+	Forwards         models.UserForwardRepository
+	Pool             *pgxpool.Pool
+	WebexClient      *webex.Client
+	CWCompanyID      string
+	MaxMessageLength int
+}
+
+type Repos struct {
 	Rooms         models.WebexRoomRepository
 	Notifiers     models.NotifierRepository
 	Notifications models.TicketNotificationRepository
 	Forwards      models.UserForwardRepository
-
-	pool             *pgxpool.Pool
-	webexClient      *webex.Client
-	cwClientID       string
-	maxMessageLength int
 }
 
-func New(pool *pgxpool.Pool, r models.WebexRoomRepository, n models.NotifierRepository,
-	m models.TicketNotificationRepository, f models.UserForwardRepository, wc *webex.Client, cwClientID string, max int) *Service {
+func New(r Repos, wc *webex.Client, cwCompanyID string, max int) *Service {
 	return &Service{
-		Rooms:            r,
-		Notifiers:        n,
-		Notifications:    m,
-		Forwards:         f,
-		pool:             pool,
-		webexClient:      wc,
-		cwClientID:       cwClientID,
-		maxMessageLength: max,
+		Rooms:            r.Rooms,
+		Notifiers:        r.Notifiers,
+		Notifications:    r.Notifications,
+		Forwards:         r.Forwards,
+		WebexClient:      wc,
+		CWCompanyID:      cwCompanyID,
+		MaxMessageLength: max,
 	}
-}
-
-func (s *Service) Run(ctx context.Context, ticket *models.FullTicket, newTicket bool) *Result {
-
 }

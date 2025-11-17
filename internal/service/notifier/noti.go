@@ -50,7 +50,7 @@ func (s *Service) run(ctx context.Context, ticket *models.FullTicket, action, cw
 
 func (s *Service) makeMessages(ctx context.Context, action string, t *models.FullTicket) ([]webex.Message, error) {
 	var body string
-	body += messageHeader(t, action, s.cwClientID)
+	body += messageHeader(t, action, s.CWCompanyID)
 
 	// add company name if present (even Catchall is considered a company; this will always exist)
 	if t.Company.Name != "" {

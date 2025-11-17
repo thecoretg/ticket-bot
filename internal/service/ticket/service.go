@@ -12,27 +12,34 @@ import (
 )
 
 type Service struct {
+	Boards      models.BoardRepository
+	Companies   models.CompanyRepository
+	Contacts    models.ContactRepository
+	Members     models.MemberRepository
+	Tickets     models.TicketRepository
+	Notes       models.TicketNoteRepository
+	pool        *pgxpool.Pool
+	cwClient    *psa.Client
+	ticketLocks sync.Map
+}
+
+type Repos struct {
 	Boards    models.BoardRepository
 	Companies models.CompanyRepository
 	Contacts  models.ContactRepository
 	Members   models.MemberRepository
 	Tickets   models.TicketRepository
 	Notes     models.TicketNoteRepository
-
-	pool        *pgxpool.Pool
-	cwClient    *psa.Client
-	ticketLocks sync.Map
 }
 
-func New(pool *pgxpool.Pool, b models.BoardRepository, comp models.CompanyRepository, cn models.ContactRepository,
-	mem models.MemberRepository, tix models.TicketRepository, nt models.TicketNoteRepository, cl *psa.Client) *Service {
+func New(pool *pgxpool.Pool, r models.CWRepos, cl *psa.Client) *Service {
 	return &Service{
-		Boards:    b,
-		Companies: comp,
-		Contacts:  cn,
-		Members:   mem,
-		Tickets:   tix,
-		Notes:     nt,
+		Boards:    r.Board,
+		Companies: r.Company,
+		Contacts:  r.Contact,
+		Members:   r.Member,
+		Tickets:   r.Ticket,
+		Notes:     r.Note,
 		pool:      pool,
 		cwClient:  cl,
 	}
@@ -51,29 +58,13 @@ func (s *Service) withTx(tx pgx.Tx) *Service {
 	}
 }
 
-func (s *Service) Run(ctx context.Context, action string, id int) (*models.FullTicket, error) {
-	lock := s.getTicketLock(id)
-	if !lock.TryLock() {
-		lock.Lock()
+func (s *Service) DeleteTicket(ctx context.Context, id int) error {
+	if err := s.Tickets.Delete(ctx, id); err != nil {
+		return fmt.Errorf("deleting ticket from store: %w", err)
 	}
+	return nil
+}
 
-	defer func() {
-		lock.Unlock()
-	}()
-
-	switch action {
-	case "deleted":
-		if err := s.Tickets.Delete(ctx, id); err != nil {
-			return nil, fmt.Errorf("deleting ticket from store: %w", err)
-		}
-		return nil, nil
-	case "added", "updated":
-		t, err := s.processTicket(ctx, id)
-		if err != nil {
-			return nil, fmt.Errorf("processing ticket: %w", err)
-		}
-		return t, nil
-	default:
-		return nil, fmt.Errorf("invalid action; expected 'added', 'updated', or 'deleted', got '%s'", action)
-	}
+func (s *Service) ProcessTicket(ctx context.Context, id int) (*models.FullTicket, error) {
+	return s.processTicket(ctx, id)
 }

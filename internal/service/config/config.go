@@ -2,24 +2,27 @@ package config
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/thecoretg/ticketbot/internal/models"
 )
 
-type Service struct {
-	Config models.ConfigRepository
-}
-
-func New(c models.ConfigRepository) *Service {
-	return &Service{
-		Config: c,
+func (s *Service) ensureConfig(ctx context.Context) (*models.Config, error) {
+	c, err := s.Config.Get(ctx)
+	if err == nil {
+		return c, nil
 	}
-}
 
-func (s *Service) Get(ctx context.Context) (*models.Config, error) {
-	return s.Config.Get(ctx)
-}
+	if !errors.Is(err, models.ErrConfigNotFound) {
+		return nil, fmt.Errorf("getting config from store: %w", err)
+	}
 
-func (s *Service) Update(ctx context.Context, p *models.Config) (*models.Config, error) {
-	return s.Config.Upsert(ctx, p)
+	// if error was no config found, create the default
+	c, err = s.Config.InsertDefault(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("creating default config: %w", err)
+	}
+
+	return c, nil
 }
