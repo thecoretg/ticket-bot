@@ -19,7 +19,7 @@ type Config struct {
 
 type ConfigRepository interface {
 	WithTx(tx pgx.Tx) ConfigRepository
-	Get(ctx context.Context) (Config, error)
-	InsertDefault(ctx context.Context) (Config, error)
-	Upsert(ctx context.Context, c Config) (Config, error)
+	Get(ctx context.Context) (*Config, error)
+	InsertDefault(ctx context.Context) (*Config, error)
+	Upsert(ctx context.Context, c *Config) (*Config, error)
 }

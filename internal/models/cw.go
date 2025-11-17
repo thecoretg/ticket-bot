@@ -8,15 +8,6 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-type FullTicket struct {
-	Board      Board
-	Ticket     Ticket
-	Company    Company
-	Contact    *Contact
-	Owner      *Member
-	LatestNote *FullTicketNote
-}
-
 var ErrBoardNotFound = errors.New("board not found")
 
 type Board struct {
@@ -111,6 +102,15 @@ type TicketRepository interface {
 	Get(ctx context.Context, id int) (Ticket, error)
 	Upsert(ctx context.Context, c Ticket) (Ticket, error)
 	Delete(ctx context.Context, id int) error
+}
+
+type FullTicket struct {
+	Board      Board
+	Ticket     Ticket
+	Company    Company
+	Contact    *Contact
+	Owner      *Member
+	LatestNote *FullTicketNote
 }
 
 var ErrTicketNoteNotFound = errors.New("ticket note not found")

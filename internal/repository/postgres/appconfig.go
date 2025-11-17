@@ -19,43 +19,44 @@ func NewConfigRepo(pool *pgxpool.Pool) *ConfigRepo {
 		queries: db.New(pool),
 	}
 }
+
 func (p *ConfigRepo) WithTx(tx pgx.Tx) models.ConfigRepository {
 	return &ConfigRepo{
 		queries: db.New(tx),
 	}
 }
 
-func (p *ConfigRepo) Get(ctx context.Context) (models.Config, error) {
+func (p *ConfigRepo) Get(ctx context.Context) (*models.Config, error) {
 	d, err := p.queries.GetAppConfig(ctx)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return models.Config{}, models.ErrConfigNotFound
+			return nil, models.ErrConfigNotFound
 		}
-		return models.Config{}, err
+		return nil, err
 	}
 
 	return configFromPG(d), nil
 }
 
-func (p *ConfigRepo) InsertDefault(ctx context.Context) (models.Config, error) {
+func (p *ConfigRepo) InsertDefault(ctx context.Context) (*models.Config, error) {
 	d, err := p.queries.InsertDefaultAppConfig(ctx)
 	if err != nil {
-		return models.Config{}, err
+		return nil, err
 	}
 
 	return configFromPG(d), nil
 }
 
-func (p *ConfigRepo) Upsert(ctx context.Context, c models.Config) (models.Config, error) {
+func (p *ConfigRepo) Upsert(ctx context.Context, c *models.Config) (*models.Config, error) {
 	d, err := p.queries.UpsertAppConfig(ctx, configToUpsertParams(c))
 	if err != nil {
-		return models.Config{}, err
+		return nil, err
 	}
 
 	return configFromPG(d), nil
 }
 
-func configToUpsertParams(c models.Config) db.UpsertAppConfigParams {
+func configToUpsertParams(c *models.Config) db.UpsertAppConfigParams {
 	return db.UpsertAppConfigParams{
 		Debug:              c.Debug,
 		AttemptNotify:      c.AttemptNotify,
@@ -64,8 +65,8 @@ func configToUpsertParams(c models.Config) db.UpsertAppConfigParams {
 	}
 }
 
-func configFromPG(pg db.AppConfig) models.Config {
-	return models.Config{
+func configFromPG(pg db.AppConfig) *models.Config {
+	return &models.Config{
 		ID:                 pg.ID,
 		Debug:              pg.Debug,
 		AttemptNotify:      pg.AttemptNotify,

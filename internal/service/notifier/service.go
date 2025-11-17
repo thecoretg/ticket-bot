@@ -20,24 +20,6 @@ type Service struct {
 	maxMessageLength int
 }
 
-type Result struct {
-	MembersToNotify []models.Member
-	RoomsToNotify   []models.WebexRoom
-	SuccessNotis    []string
-	FailedNotis     []string
-	Error           error
-}
-
-func newResult() *Result {
-	return &Result{
-		MembersToNotify: []models.Member{},
-		RoomsToNotify:   []models.WebexRoom{},
-		SuccessNotis:    []string{},
-		FailedNotis:     []string{},
-		Error:           nil,
-	}
-}
-
 func New(pool *pgxpool.Pool, r models.WebexRoomRepository, n models.NotifierRepository,
 	m models.TicketNotificationRepository, f models.UserForwardRepository, wc *webex.Client, cwClientID string, max int) *Service {
 	return &Service{
@@ -53,6 +35,5 @@ func New(pool *pgxpool.Pool, r models.WebexRoomRepository, n models.NotifierRepo
 }
 
 func (s *Service) Run(ctx context.Context, ticket *models.FullTicket, newTicket bool) *Result {
-	res := newResult()
 
 }

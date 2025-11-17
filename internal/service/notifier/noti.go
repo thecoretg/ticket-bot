@@ -18,7 +18,6 @@ var (
 )
 
 func (s *Service) run(ctx context.Context, ticket *models.FullTicket, action, cwClientID string) error {
-	res := newResult()
 	if ticket == nil {
 		return errors.New("received nil ticket")
 	}
