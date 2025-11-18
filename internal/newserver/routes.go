@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/thecoretg/ticketbot/internal/handler"
 	"github.com/thecoretg/ticketbot/internal/middleware"
+	"github.com/thecoretg/ticketbot/internal/models"
 	"github.com/thecoretg/ticketbot/internal/service/config"
 	"github.com/thecoretg/ticketbot/internal/service/user"
 )
@@ -18,6 +19,9 @@ func (a *App) addRoutes(g *gin.Engine) {
 
 	c := g.Group("config", errh, auth)
 	registerConfigRoutes(c, a.Svc.Config)
+
+	b := g.Group("boards", errh, auth)
+	registerBoardRoutes(b, a.Stores.CW.Board)
 
 	th := handler.NewTicketHandler(a.Svc.Ticket)
 	g.POST("hooks/cw/tickets", th.ProcessTicket, errh, cws)
@@ -40,4 +44,10 @@ func registerConfigRoutes(r *gin.RouterGroup, svc *config.Service) {
 	h := handler.NewConfigHandler(svc)
 	r.GET("", h.Get)
 	r.PUT("", h.Update)
+}
+
+func registerBoardRoutes(r *gin.RouterGroup, rp models.BoardRepository) {
+	h := handler.NewBoardHandler(rp)
+	r.GET("", h.ListBoards)
+	r.GET(":id", h.GetBoard)
 }
