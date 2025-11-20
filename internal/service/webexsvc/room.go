@@ -19,18 +19,6 @@ func (s *Service) GetRoom(ctx context.Context, id int) (models.WebexRoom, error)
 	return s.Rooms.Get(ctx, id)
 }
 
-func (s *Service) GetRoomByWebexID(ctx context.Context, id string) (models.WebexRoom, error) {
-	return s.Rooms.GetByWebexID(ctx, id)
-}
-
-func (s *Service) UpsertRoom(ctx context.Context, r models.WebexRoom) (models.WebexRoom, error) {
-	return s.Rooms.Upsert(ctx, r)
-}
-
-func (s *Service) DeleteRoom(ctx context.Context, id int) error {
-	return s.Rooms.Delete(ctx, id)
-}
-
 func (s *Service) SyncRooms(ctx context.Context) error {
 	start := time.Now()
 	slog.Debug("beginning webex room sync")

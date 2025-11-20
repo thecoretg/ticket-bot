@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thecoretg/ticketbot/internal/external/psa"
 	"github.com/thecoretg/ticketbot/internal/external/webex"
@@ -14,6 +15,7 @@ import (
 	"github.com/thecoretg/ticketbot/internal/service/cwsvc"
 	"github.com/thecoretg/ticketbot/internal/service/ticketbot"
 	"github.com/thecoretg/ticketbot/internal/service/user"
+	"github.com/thecoretg/ticketbot/internal/service/webexsvc"
 )
 
 type App struct {
@@ -46,6 +48,7 @@ type Services struct {
 	Config   *config.Service
 	User     *user.Service
 	CW       *cwsvc.Service
+	Webex    *webexsvc.Service
 	Notifier *ticketbot.Service
 }
 
@@ -62,7 +65,10 @@ func Run() error {
 		return fmt.Errorf("initializing app: %w", err)
 	}
 
-	return nil
+	srv := gin.Default()
+	a.addRoutes(srv)
+
+	return srv.Run()
 }
 
 func newApp(ctx context.Context) (*App, error) {
@@ -95,8 +101,9 @@ func newApp(ctx context.Context) (*App, error) {
 	}
 
 	us := user.New(r.APIUser, r.APIKey)
-	ns := ticketbot.New(nr, wx, cr.cw.CompanyId, cfg.MaxMessageLength)
-	ts := cwsvc.New(s.pool, r.CW, cw)
+	tb := ticketbot.New(nr, wx, cr.cw.CompanyId, cfg.MaxMessageLength)
+	cws := cwsvc.New(s.pool, r.CW, cw)
+	ws := webexsvc.New(s.pool, r.WebexRoom, wx)
 
 	return &App{
 		Creds:       cr,
@@ -108,8 +115,9 @@ func newApp(ctx context.Context) (*App, error) {
 		Svc: &Services{
 			Config:   cs,
 			User:     us,
-			CW:       ts,
-			Notifier: ns,
+			CW:       cws,
+			Webex:    ws,
+			Notifier: tb,
 		},
 	}, nil
 }

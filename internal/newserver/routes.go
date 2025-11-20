@@ -23,6 +23,10 @@ func (a *App) addRoutes(g *gin.Engine) {
 	cwh := handler.NewCWHandler(a.Svc.CW)
 	registerCWRoutes(cw, cwh)
 
+	wx := g.Group("webex", errh, auth)
+	wh := handler.NewWebexHandler(a.Svc.Webex)
+	registerWebexRoutes(wx, wh)
+
 	n := g.Group("notifiers", errh, auth)
 	nh := handler.NewNotifierHandler(a.Stores.Notifiers, a.Stores.CW.Board, a.Stores.WebexRoom)
 	registerNotifierRoutes(n, nh)
@@ -56,6 +60,13 @@ func registerCWRoutes(r *gin.RouterGroup, h *handler.CWHandler) {
 
 	t := r.Group("tickets")
 	t.POST("sync", h.SyncOpenTickets)
+}
+
+func registerWebexRoutes(r *gin.RouterGroup, h *handler.WebexHandler) {
+	ro := r.Group("rooms")
+	ro.GET("", h.ListRooms)
+	ro.GET(":id", h.GetRoom)
+	ro.POST("", h.SyncRooms)
 }
 
 func registerNotifierRoutes(r *gin.RouterGroup, h *handler.NotifierHandler) {
