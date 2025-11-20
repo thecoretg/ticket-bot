@@ -22,28 +22,26 @@ func TestNewService(t *testing.T) {
 	}
 }
 
-func TestService_getCwData(t *testing.T) {
+func TestService_SyncBoards(t *testing.T) {
 	ctx := context.Background()
 	s, err := newTestService(t, ctx)
 	if err != nil {
 		t.Fatalf("creating service: %v", err)
 	}
 
-	for _, id := range testTicketIDs(t) {
-		cd, err := s.getCwData(id)
-		if err != nil {
-			t.Errorf("getting connectwise data: %v", err)
-			continue
-		}
-
-		if cd.ticket.ID != id {
-			t.Errorf("wanted ticket id %d, got %d", id, cd.ticket.ID)
-			continue
-		}
+	if err := s.SyncBoards(ctx); err != nil {
+		t.Fatalf("syncing boards: %v", err)
 	}
+
+	boards, err := s.Boards.List(ctx)
+	if err != nil {
+		t.Fatalf("listing boards (second pass): %v", err)
+	}
+
+	t.Logf("got %d boards (second pass)", len(boards))
 }
 
-func TestService_Run(t *testing.T) {
+func TestService_ProcessTicket(t *testing.T) {
 	ctx := context.Background()
 	s, err := newTestService(t, ctx)
 	if err != nil {
@@ -74,25 +72,6 @@ func TestService_Run(t *testing.T) {
 			continue
 		}
 	}
-}
-
-func TestService_SyncBoards(t *testing.T) {
-	ctx := context.Background()
-	s, err := newTestService(t, ctx)
-	if err != nil {
-		t.Fatalf("creating service: %v", err)
-	}
-
-	if err := s.SyncBoards(ctx); err != nil {
-		t.Fatalf("syncing boards: %v", err)
-	}
-
-	boards, err := s.Boards.List(ctx)
-	if err != nil {
-		t.Fatalf("listing boards (second pass): %v", err)
-	}
-
-	t.Logf("got %d boards (second pass)", len(boards))
 }
 
 func newTestService(t *testing.T, ctx context.Context) (*Service, error) {

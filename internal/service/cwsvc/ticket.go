@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/thecoretg/ticketbot/internal/external/psa"
 	"github.com/thecoretg/ticketbot/internal/models"
@@ -16,7 +17,62 @@ type cwData struct {
 	note   *psa.ServiceTicketNote
 }
 
-func (s *Service) processTicket(ctx context.Context, id int) (*models.FullTicket, error) {
+func (s *Service) DeleteTicket(ctx context.Context, id int) error {
+	if err := s.Tickets.Delete(ctx, id); err != nil {
+		return fmt.Errorf("deleting ticket from store: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) SyncOpenTickets(ctx context.Context, boardIDs []int, maxSyncs int) error {
+	start := time.Now()
+	slog.Debug("beginning ticket sync", "board_ids", boardIDs)
+	con := "closedFlag = false"
+	if len(boardIDs) > 0 {
+		con += fmt.Sprintf(" AND %s", boardIDParam(boardIDs))
+	}
+
+	params := map[string]string{
+		"pageSize":   "100",
+		"conditions": con,
+	}
+
+	tix, err := s.cwClient.ListTickets(params)
+	if err != nil {
+		return fmt.Errorf("getting open tickets from connectwise: %w", err)
+	}
+	slog.Debug("open ticket sync: got open tickets from connectwise", "total_tickets", len(tix))
+	sem := make(chan struct{}, maxSyncs)
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(tix))
+
+	for _, t := range tix {
+		sem <- struct{}{}
+		wg.Add(1)
+		go func(ticket psa.Ticket) {
+			defer func() { <-sem }()
+			if _, err := s.ProcessTicket(ctx, t.ID); err != nil {
+				slog.Error("ticket sync error", "ticket_id", t.ID, "error", err)
+				errCh <- fmt.Errorf("error syncing ticket %d: %w", t.ID, err)
+			} else {
+				errCh <- nil
+			}
+		}(t)
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		if err != nil {
+			slog.Error("syncing ticket", "error", err)
+		}
+	}
+	slog.Info("syncing tickets complete", "took_time", time.Since(start))
+	return nil
+}
+
+func (s *Service) ProcessTicket(ctx context.Context, id int) (*models.FullTicket, error) {
 	logger := slog.Default()
 	defer func() { logger.Info("ticket processed") }()
 

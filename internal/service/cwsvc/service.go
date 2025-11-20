@@ -1,8 +1,6 @@
 package cwsvc
 
 import (
-	"context"
-	"fmt"
 	"sync"
 
 	"github.com/jackc/pgx/v5"
@@ -56,15 +54,4 @@ func (s *Service) withTx(tx pgx.Tx) *Service {
 		pool:      s.pool,
 		cwClient:  s.cwClient,
 	}
-}
-
-func (s *Service) DeleteTicket(ctx context.Context, id int) error {
-	if err := s.Tickets.Delete(ctx, id); err != nil {
-		return fmt.Errorf("deleting ticket from store: %w", err)
-	}
-	return nil
-}
-
-func (s *Service) ProcessTicket(ctx context.Context, id int) (*models.FullTicket, error) {
-	return s.processTicket(ctx, id)
 }
