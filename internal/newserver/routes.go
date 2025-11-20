@@ -19,15 +19,15 @@ func (a *App) addRoutes(g *gin.Engine) {
 	ch := handler.NewConfigHandler(a.Svc.Config)
 	registerConfigRoutes(c, ch)
 
-	b := g.Group("boards", errh, auth)
-	bh := handler.NewBoardHandler(a.Stores.CW.Board)
-	registerBoardRoutes(b, bh)
+	cw := g.Group("cw", errh, auth)
+	cwh := handler.NewCWHandler(a.Svc.CW)
+	registerCWRoutes(cw, cwh)
 
 	n := g.Group("notifiers", errh, auth)
 	nh := handler.NewNotifierHandler(a.Stores.Notifiers, a.Stores.CW.Board, a.Stores.WebexRoom)
 	registerNotifierRoutes(n, nh)
 
-	th := handler.NewTicketHandler(a.Svc.Ticket)
+	th := handler.NewCWHandler(a.Svc.CW)
 	g.POST("hooks/cw/tickets", th.ProcessTicket, errh, cws)
 }
 
@@ -48,9 +48,14 @@ func registerConfigRoutes(r *gin.RouterGroup, h *handler.ConfigHandler) {
 	r.PUT("", h.Update)
 }
 
-func registerBoardRoutes(r *gin.RouterGroup, h *handler.BoardHandler) {
-	r.GET("", h.ListBoards)
-	r.GET(":id", h.GetBoard)
+func registerCWRoutes(r *gin.RouterGroup, h *handler.CWHandler) {
+	b := r.Group("boards")
+	b.GET("", h.ListBoards)
+	b.GET(":id", h.GetBoard)
+	b.POST("sync", h.SyncBoards)
+
+	t := r.Group("tickets")
+	t.POST("sync", h.SyncOpenTickets)
 }
 
 func registerNotifierRoutes(r *gin.RouterGroup, h *handler.NotifierHandler) {

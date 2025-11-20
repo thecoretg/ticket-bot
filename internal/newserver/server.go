@@ -6,13 +6,12 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thecoretg/ticketbot/internal/external/psa"
 	"github.com/thecoretg/ticketbot/internal/external/webex"
 	"github.com/thecoretg/ticketbot/internal/models"
 	"github.com/thecoretg/ticketbot/internal/service/config"
-	"github.com/thecoretg/ticketbot/internal/service/ticket"
+	"github.com/thecoretg/ticketbot/internal/service/cwsvc"
 	"github.com/thecoretg/ticketbot/internal/service/ticketbot"
 	"github.com/thecoretg/ticketbot/internal/service/user"
 )
@@ -46,7 +45,7 @@ type testFlags struct {
 type Services struct {
 	Config   *config.Service
 	User     *user.Service
-	Ticket   *ticket.Service
+	CW       *cwsvc.Service
 	Notifier *ticketbot.Service
 }
 
@@ -97,7 +96,7 @@ func newApp(ctx context.Context) (*App, error) {
 
 	us := user.New(r.APIUser, r.APIKey)
 	ns := ticketbot.New(nr, wx, cr.cw.CompanyId, cfg.MaxMessageLength)
-	ts := ticket.New(s.pool, r.CW, cw)
+	ts := cwsvc.New(s.pool, r.CW, cw)
 
 	return &App{
 		Creds:       cr,
@@ -109,7 +108,7 @@ func newApp(ctx context.Context) (*App, error) {
 		Svc: &Services{
 			Config:   cs,
 			User:     us,
-			Ticket:   ts,
+			CW:       ts,
 			Notifier: ns,
 		},
 	}, nil
