@@ -4,9 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/thecoretg/ticketbot/internal/handler"
 	"github.com/thecoretg/ticketbot/internal/middleware"
-	"github.com/thecoretg/ticketbot/internal/models"
-	"github.com/thecoretg/ticketbot/internal/service/config"
-	"github.com/thecoretg/ticketbot/internal/service/user"
 )
 
 func (a *App) addRoutes(g *gin.Engine) {
@@ -15,23 +12,26 @@ func (a *App) addRoutes(g *gin.Engine) {
 	cws := middleware.RequireConnectwiseSignature()
 
 	u := g.Group("users", errh, auth)
-	registerUserRoutes(u, a.Svc.User)
+	uh := handler.NewUserHandler(a.Svc.User)
+	registerUserRoutes(u, uh)
 
 	c := g.Group("config", errh, auth)
-	registerConfigRoutes(c, a.Svc.Config)
+	ch := handler.NewConfigHandler(a.Svc.Config)
+	registerConfigRoutes(c, ch)
 
 	b := g.Group("boards", errh, auth)
-	registerBoardRoutes(b, a.Stores.CW.Board)
+	bh := handler.NewBoardHandler(a.Stores.CW.Board)
+	registerBoardRoutes(b, bh)
+
+	n := g.Group("notifiers", errh, auth)
+	nh := handler.NewNotifierHandler(a.Stores.Notifiers, a.Stores.CW.Board, a.Stores.WebexRoom)
+	registerNotifierRoutes(n, nh)
 
 	th := handler.NewTicketHandler(a.Svc.Ticket)
 	g.POST("hooks/cw/tickets", th.ProcessTicket, errh, cws)
-
-	n := g.Group("notifiers", errh, auth)
-	registerNotifierRoutes(n, a.Stores.Notifiers, a.Stores.CW.Board, a.Stores.WebexRoom)
 }
 
-func registerUserRoutes(r *gin.RouterGroup, svc *user.Service) {
-	h := handler.NewUserHandler(svc)
+func registerUserRoutes(r *gin.RouterGroup, h *handler.UserHandler) {
 	r.GET("", h.ListUsers)
 	r.GET(":id", h.GetUser)
 	r.DELETE(":id")
@@ -43,20 +43,17 @@ func registerUserRoutes(r *gin.RouterGroup, svc *user.Service) {
 	k.DELETE(":id", h.DeleteAPIKey)
 }
 
-func registerConfigRoutes(r *gin.RouterGroup, svc *config.Service) {
-	h := handler.NewConfigHandler(svc)
+func registerConfigRoutes(r *gin.RouterGroup, h *handler.ConfigHandler) {
 	r.GET("", h.Get)
 	r.PUT("", h.Update)
 }
 
-func registerBoardRoutes(r *gin.RouterGroup, rp models.BoardRepository) {
-	h := handler.NewBoardHandler(rp)
+func registerBoardRoutes(r *gin.RouterGroup, h *handler.BoardHandler) {
 	r.GET("", h.ListBoards)
 	r.GET(":id", h.GetBoard)
 }
 
-func registerNotifierRoutes(r *gin.RouterGroup, nr models.NotifierRepository, br models.BoardRepository, wr models.WebexRoomRepository) {
-	h := handler.NewNotifierHandler(nr, br, wr)
+func registerNotifierRoutes(r *gin.RouterGroup, h *handler.NotifierHandler) {
 	r.GET("", h.ListNotifiers)
 	r.POST("", h.AddNotifier)
 }
