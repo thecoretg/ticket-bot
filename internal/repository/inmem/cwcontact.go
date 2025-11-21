@@ -2,91 +2,71 @@ package inmem
 
 import (
 	"context"
-	"errors"
+	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/thecoretg/ticketbot/internal/db"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
 
 type ContactRepo struct {
-	queries *db.Queries
+	mu   sync.RWMutex
+	data map[int]models.Contact
+	next int
 }
 
 func NewContactRepo(pool *pgxpool.Pool) *ContactRepo {
 	return &ContactRepo{
-		queries: db.New(pool),
+		data: make(map[int]models.Contact),
+		next: 1,
 	}
 }
 
 func (p *ContactRepo) WithTx(tx pgx.Tx) models.ContactRepository {
-	return &ContactRepo{
-		queries: db.New(tx)}
+	return p
 }
 
 func (p *ContactRepo) List(ctx context.Context) ([]models.Contact, error) {
-	dbs, err := p.queries.ListContacts(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	var b []models.Contact
-	for _, d := range dbs {
-		b = append(b, contactFromPG(d))
+	var out []models.Contact
+	for _, v := range p.data {
+		out = append(out, v)
 	}
-
-	return b, nil
+	return out, nil
 }
 
 func (p *ContactRepo) Get(ctx context.Context, id int) (models.Contact, error) {
-	d, err := p.queries.GetContact(ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.Contact{}, models.ErrContactNotFound
-		}
-		return models.Contact{}, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return contactFromPG(d), nil
+	v, ok := p.data[id]
+	if !ok {
+		return models.Contact{}, models.ErrContactNotFound
+	}
+	return v, nil
 }
 
-func (p *ContactRepo) Upsert(ctx context.Context, b models.Contact) (models.Contact, error) {
-	d, err := p.queries.UpsertContact(ctx, contactToUpsertParams(b))
-	if err != nil {
-		return models.Contact{}, err
-	}
+func (p *ContactRepo) Upsert(ctx context.Context, c models.Contact) (models.Contact, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return contactFromPG(d), nil
+	if c.ID == 0 {
+		c.ID = p.next
+		p.next++
+	}
+	p.data[c.ID] = c
+	return c, nil
 }
 
 func (p *ContactRepo) Delete(ctx context.Context, id int) error {
-	if err := p.queries.DeleteContact(ctx, id); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.ErrContactNotFound
-		}
-		return err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
+	if _, ok := p.data[id]; !ok {
+		return models.ErrContactNotFound
+	}
+	delete(p.data, id)
 	return nil
-}
-
-func contactToUpsertParams(c models.Contact) db.UpsertContactParams {
-	return db.UpsertContactParams{
-		ID:        c.ID,
-		FirstName: c.FirstName,
-		LastName:  c.LastName,
-		CompanyID: c.CompanyID,
-	}
-}
-
-func contactFromPG(pg db.CwContact) models.Contact {
-	return models.Contact{
-		ID:        pg.ID,
-		FirstName: pg.FirstName,
-		LastName:  pg.LastName,
-		CompanyID: pg.CompanyID,
-		UpdatedOn: pg.UpdatedOn,
-		AddedOn:   pg.AddedOn,
-	}
 }

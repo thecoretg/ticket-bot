@@ -2,87 +2,71 @@ package inmem
 
 import (
 	"context"
-	"errors"
+	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/thecoretg/ticketbot/internal/db"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
 
 type CompanyRepo struct {
-	queries *db.Queries
+	mu   sync.RWMutex
+	data map[int]models.Company
+	next int
 }
 
 func NewCompanyRepo(pool *pgxpool.Pool) *CompanyRepo {
 	return &CompanyRepo{
-		queries: db.New(pool),
+		data: make(map[int]models.Company),
+		next: 1,
 	}
 }
 
 func (p *CompanyRepo) WithTx(tx pgx.Tx) models.CompanyRepository {
-	return &CompanyRepo{
-		queries: db.New(tx)}
+	return p
 }
 
 func (p *CompanyRepo) List(ctx context.Context) ([]models.Company, error) {
-	dbs, err := p.queries.ListCompanies(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	var b []models.Company
-	for _, d := range dbs {
-		b = append(b, companyFromPG(d))
+	var out []models.Company
+	for _, v := range p.data {
+		out = append(out, v)
 	}
-
-	return b, nil
+	return out, nil
 }
 
 func (p *CompanyRepo) Get(ctx context.Context, id int) (models.Company, error) {
-	d, err := p.queries.GetCompany(ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.Company{}, models.ErrCompanyNotFound
-		}
-		return models.Company{}, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return companyFromPG(d), nil
+	v, ok := p.data[id]
+	if !ok {
+		return models.Company{}, models.ErrCompanyNotFound
+	}
+	return v, nil
 }
 
-func (p *CompanyRepo) Upsert(ctx context.Context, b models.Company) (models.Company, error) {
-	d, err := p.queries.UpsertCompany(ctx, companyToUpsertParams(b))
-	if err != nil {
-		return models.Company{}, err
-	}
+func (p *CompanyRepo) Upsert(ctx context.Context, c models.Company) (models.Company, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return companyFromPG(d), nil
+	if c.ID == 0 {
+		c.ID = p.next
+		p.next++
+	}
+	p.data[c.ID] = c
+	return c, nil
 }
 
 func (p *CompanyRepo) Delete(ctx context.Context, id int) error {
-	if err := p.queries.DeleteCompany(ctx, id); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.ErrCompanyNotFound
-		}
-		return err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
+	if _, ok := p.data[id]; !ok {
+		return models.ErrCompanyNotFound
+	}
+	delete(p.data, id)
 	return nil
-}
-
-func companyToUpsertParams(c models.Company) db.UpsertCompanyParams {
-	return db.UpsertCompanyParams{
-		ID:   c.ID,
-		Name: c.Name,
-	}
-}
-
-func companyFromPG(pg db.CwCompany) models.Company {
-	return models.Company{
-		ID:        pg.ID,
-		Name:      pg.Name,
-		UpdatedOn: pg.UpdatedOn,
-		AddedOn:   pg.AddedOn,
-	}
 }

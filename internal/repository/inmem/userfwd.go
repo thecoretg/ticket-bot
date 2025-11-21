@@ -2,110 +2,84 @@ package inmem
 
 import (
 	"context"
-	"errors"
+	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/thecoretg/ticketbot/internal/db"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
 
 type UserForwardRepo struct {
-	queries *db.Queries
+	mu   sync.RWMutex
+	data map[int]models.UserForward
+	next int
 }
 
 func NewUserForwardRepo(pool *pgxpool.Pool) *UserForwardRepo {
 	return &UserForwardRepo{
-		queries: db.New(pool),
+		data: make(map[int]models.UserForward),
+		next: 1,
 	}
 }
 
 func (p *UserForwardRepo) WithTx(tx pgx.Tx) models.UserForwardRepository {
-	return &UserForwardRepo{
-		queries: db.New(tx)}
+	return p
 }
 
 func (p *UserForwardRepo) ListAll(ctx context.Context) ([]models.UserForward, error) {
-	dm, err := p.queries.ListWebexUserForwards(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	var b []models.UserForward
-	for _, d := range dm {
-		b = append(b, forwardFromPG(d))
+	var out []models.UserForward
+	for _, v := range p.data {
+		out = append(out, v)
 	}
-
-	return b, nil
+	return out, nil
 }
 
 func (p *UserForwardRepo) ListByEmail(ctx context.Context, email string) ([]models.UserForward, error) {
-	dm, err := p.queries.ListWebexUserForwardsByEmail(ctx, email)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	var b []models.UserForward
-	for _, d := range dm {
-		b = append(b, forwardFromPG(d))
+	var out []models.UserForward
+	for _, v := range p.data {
+		if v.UserEmail == email {
+			out = append(out, v)
+		}
 	}
-
-	return b, nil
+	return out, nil
 }
 
 func (p *UserForwardRepo) Get(ctx context.Context, id int) (models.UserForward, error) {
-	d, err := p.queries.GetWebexUserForward(ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.UserForward{}, models.ErrUserForwardNotFound
-		}
-		return models.UserForward{}, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return forwardFromPG(d), nil
+	v, ok := p.data[id]
+	if !ok {
+		return models.UserForward{}, models.ErrUserForwardNotFound
+	}
+	return v, nil
 }
 
 func (p *UserForwardRepo) Insert(ctx context.Context, b models.UserForward) (models.UserForward, error) {
-	d, err := p.queries.InsertWebexUserForward(ctx, forwardToInsertParams(b))
-	if err != nil {
-		return models.UserForward{}, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return forwardFromPG(d), nil
+	if b.ID == 0 {
+		b.ID = p.next
+		p.next++
+	}
+	p.data[b.ID] = b
+	return b, nil
 }
 
 func (p *UserForwardRepo) Delete(ctx context.Context, id int) error {
-	if err := p.queries.DeleteWebexForward(ctx, id); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.ErrUserForwardNotFound
-		}
-		return err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
+	if _, ok := p.data[id]; !ok {
+		return models.ErrUserForwardNotFound
+	}
+	delete(p.data, id)
 	return nil
-}
-
-func forwardToInsertParams(t models.UserForward) db.InsertWebexUserForwardParams {
-	return db.InsertWebexUserForwardParams{
-		UserEmail:     t.UserEmail,
-		DestRoomID:    t.DestRoomID,
-		StartDate:     t.StartDate,
-		EndDate:       t.EndDate,
-		Enabled:       t.Enabled,
-		UserKeepsCopy: t.UserKeepsCopy,
-	}
-}
-
-func forwardFromPG(pg db.WebexUserForward) models.UserForward {
-	return models.UserForward{
-		ID:            pg.ID,
-		UserEmail:     pg.UserEmail,
-		DestRoomID:    pg.DestRoomID,
-		StartDate:     pg.StartDate,
-		EndDate:       pg.EndDate,
-		Enabled:       pg.Enabled,
-		UserKeepsCopy: pg.UserKeepsCopy,
-		UpdatedOn:     pg.UpdatedOn,
-		AddedOn:       pg.CreatedOn,
-	}
 }

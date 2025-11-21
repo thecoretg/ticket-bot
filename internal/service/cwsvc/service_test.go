@@ -14,18 +14,19 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/thecoretg/ticketbot/internal/external/psa"
 	"github.com/thecoretg/ticketbot/internal/models"
+	"github.com/thecoretg/ticketbot/internal/repository/inmem"
 	"github.com/thecoretg/ticketbot/internal/repository/postgres"
 )
 
 func TestNewService(t *testing.T) {
-	if _, err := newTestService(t, context.Background()); err != nil {
+	if _, err := newInmemTestService(t, context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestService_SyncBoards(t *testing.T) {
 	ctx := context.Background()
-	s, err := newTestService(t, ctx)
+	s, err := newInmemTestService(t, ctx)
 	if err != nil {
 		t.Fatalf("creating service: %v", err)
 	}
@@ -44,7 +45,7 @@ func TestService_SyncBoards(t *testing.T) {
 
 func TestService_ProcessTicket(t *testing.T) {
 	ctx := context.Background()
-	s, err := newTestService(t, ctx)
+	s, err := newInmemTestService(t, ctx)
 	if err != nil {
 		t.Fatalf("creating service: %v", err)
 	}
@@ -75,7 +76,25 @@ func TestService_ProcessTicket(t *testing.T) {
 	}
 }
 
-func newTestService(t *testing.T, ctx context.Context) (*Service, error) {
+func newInmemTestService(t *testing.T, ctx context.Context) (*Service, error) {
+	t.Helper()
+	if err := godotenv.Load("testing.env"); err != nil {
+		return nil, fmt.Errorf("loading .env")
+	}
+
+	r := models.CWRepos{
+		Board:   inmem.NewBoardRepo(nil),
+		Company: inmem.NewCompanyRepo(nil),
+		Contact: inmem.NewContactRepo(nil),
+		Member:  inmem.NewMemberRepo(nil),
+		Note:    inmem.NewTicketNoteRepo(nil),
+		Ticket:  inmem.NewTicketRepo(nil),
+	}
+
+	return New(nil, r, psa.NewClient(testGetCwCreds(t))), nil
+}
+
+func newPostgresTestService(t *testing.T, ctx context.Context) (*Service, error) {
 	t.Helper()
 	if err := godotenv.Load("testing.env"); err != nil {
 		return nil, fmt.Errorf("loading .env")
@@ -97,13 +116,6 @@ func newTestService(t *testing.T, ctx context.Context) (*Service, error) {
 		return nil, fmt.Errorf("pinging pool")
 	}
 
-	cwCreds := &psa.Creds{
-		PublicKey:  os.Getenv("CW_PUB_KEY"),
-		PrivateKey: os.Getenv("CW_PRIV_KEY"),
-		ClientId:   os.Getenv("CW_CLIENT_ID"),
-		CompanyId:  os.Getenv("CW_COMPANY_ID"),
-	}
-
 	r := models.CWRepos{
 		Board:   postgres.NewBoardRepo(pool),
 		Company: postgres.NewCompanyRepo(pool),
@@ -113,7 +125,17 @@ func newTestService(t *testing.T, ctx context.Context) (*Service, error) {
 		Ticket:  postgres.NewTicketRepo(pool),
 	}
 
-	return New(pool, r, psa.NewClient(cwCreds)), nil
+	return New(pool, r, psa.NewClient(testGetCwCreds(t))), nil
+}
+
+func testGetCwCreds(t *testing.T) *psa.Creds {
+	t.Helper()
+	return &psa.Creds{
+		PublicKey:  os.Getenv("CW_PUB_KEY"),
+		PrivateKey: os.Getenv("CW_PRIV_KEY"),
+		ClientId:   os.Getenv("CW_CLIENT_ID"),
+		CompanyId:  os.Getenv("CW_COMPANY_ID"),
+	}
 }
 
 func testTicketIDs(t *testing.T) []int {

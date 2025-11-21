@@ -28,7 +28,7 @@ func (i *APIKeyRepo) WithTx(tx pgx.Tx) models.APIKeyRepository {
 
 func (i *APIKeyRepo) List(ctx context.Context) ([]models.APIKey, error) {
 	i.mu.Lock()
-	defer i.mu.RUnlock()
+	defer i.mu.Unlock()
 
 	var out []models.APIKey
 	for _, v := range i.data {
@@ -39,7 +39,7 @@ func (i *APIKeyRepo) List(ctx context.Context) ([]models.APIKey, error) {
 
 func (i *APIKeyRepo) Get(ctx context.Context, id int) (*models.APIKey, error) {
 	i.mu.Lock()
-	defer i.mu.RUnlock()
+	defer i.mu.Unlock()
 
 	v, ok := i.data[id]
 	if !ok {
@@ -51,7 +51,7 @@ func (i *APIKeyRepo) Get(ctx context.Context, id int) (*models.APIKey, error) {
 
 func (i *APIKeyRepo) Insert(ctx context.Context, a *models.APIKey) (*models.APIKey, error) {
 	i.mu.Lock()
-	defer i.mu.RUnlock()
+	defer i.mu.Unlock()
 
 	a.ID = i.next
 	i.next++
@@ -62,7 +62,7 @@ func (i *APIKeyRepo) Insert(ctx context.Context, a *models.APIKey) (*models.APIK
 
 func (i *APIKeyRepo) Delete(ctx context.Context, id int) error {
 	i.mu.Lock()
-	defer i.mu.RUnlock()
+	defer i.mu.Unlock()
 
 	if _, ok := i.data[id]; !ok {
 		return models.ErrAPIKeyNotFound

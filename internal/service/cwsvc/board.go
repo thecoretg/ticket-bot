@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/thecoretg/ticketbot/internal/external/psa"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
@@ -33,19 +34,24 @@ func (s *Service) SyncBoards(ctx context.Context) error {
 	}
 	slog.Debug("board sync: got boards from store", "total_boards", len(sb))
 
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("beginning tx: %w", err)
-	}
-
-	txSvc := s.withTx(tx)
-
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback(ctx)
+	//TODO: this is a bandaid. Move this logic to the repo.
+	txSvc := s
+	var tx pgx.Tx
+	if s.pool != nil {
+		tx, err = s.pool.Begin(ctx)
+		if err != nil {
+			return fmt.Errorf("beginning tx: %w", err)
 		}
-	}()
+
+		txSvc = s.withTx(tx)
+
+		committed := false
+		defer func() {
+			if !committed {
+				_ = tx.Rollback(ctx)
+			}
+		}()
+	}
 
 	var syncErrs []error
 	for _, b := range s.boardsToUpsert(cwb) {
@@ -66,8 +72,11 @@ func (s *Service) SyncBoards(ctx context.Context) error {
 		}
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("committing tx: %w", err)
+	//TODO: this is a bandaid. Move this logic to the repo.
+	if s.pool != nil {
+		if err := tx.Commit(ctx); err != nil {
+			return fmt.Errorf("committing tx: %w", err)
+		}
 	}
 
 	slog.Debug("board sync complete", "took_time", time.Since(start))

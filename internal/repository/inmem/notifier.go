@@ -2,155 +2,118 @@ package inmem
 
 import (
 	"context"
-	"errors"
+	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/thecoretg/ticketbot/internal/db"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
 
 type NotifierRepo struct {
-	queries *db.Queries
+	mu   sync.RWMutex
+	data map[int]models.Notifier
+	next int
 }
 
 func NewNotifierRepo(pool *pgxpool.Pool) *NotifierRepo {
 	return &NotifierRepo{
-		queries: db.New(pool),
+		data: make(map[int]models.Notifier),
+		next: 1,
 	}
 }
 
 func (p *NotifierRepo) WithTx(tx pgx.Tx) models.NotifierRepository {
-	return &NotifierRepo{
-		queries: db.New(tx)}
+	return p
 }
 
 func (p *NotifierRepo) ListAll(ctx context.Context) ([]models.Notifier, error) {
-	dm, err := p.queries.ListNotifierConnections(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	var b []models.Notifier
-	for _, d := range dm {
-		n := notifierFromPG(d)
-		b = append(b, *n)
+	var out []models.Notifier
+	for _, v := range p.data {
+		out = append(out, v)
 	}
-
-	return b, nil
+	return out, nil
 }
 
 func (p *NotifierRepo) ListByBoard(ctx context.Context, boardID int) ([]models.Notifier, error) {
-	dm, err := p.queries.ListNotifierConnectionsByBoard(ctx, boardID)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	var b []models.Notifier
-	for _, d := range dm {
-		n := notifierFromPG(d)
-		b = append(b, *n)
+	var out []models.Notifier
+	for _, v := range p.data {
+		if v.CwBoardID == boardID {
+			out = append(out, v)
+		}
 	}
-
-	return b, nil
+	return out, nil
 }
 
 func (p *NotifierRepo) ListByRoom(ctx context.Context, roomID int) ([]models.Notifier, error) {
-	dm, err := p.queries.ListNotifierConnectionsByRoom(ctx, roomID)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	var b []models.Notifier
-	for _, d := range dm {
-		n := notifierFromPG(d)
-		b = append(b, *n)
+	var out []models.Notifier
+	for _, v := range p.data {
+		if v.WebexRoomID == roomID {
+			out = append(out, v)
+		}
 	}
-
-	return b, nil
+	return out, nil
 }
 
 func (p *NotifierRepo) Get(ctx context.Context, id int) (*models.Notifier, error) {
-	d, err := p.queries.GetNotifierConnection(ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, models.ErrNotifierNotFound
-		}
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return notifierFromPG(d), nil
+	v, ok := p.data[id]
+	if !ok {
+		return nil, models.ErrNotifierNotFound
+	}
+	return &v, nil
 }
 
 func (p *NotifierRepo) Exists(ctx context.Context, boardID, roomID int) (bool, error) {
-	ids := db.CheckNotifierExistsParams{
-		CwBoardID:   boardID,
-		WebexRoomID: roomID,
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	exists, err := p.queries.CheckNotifierExists(ctx, ids)
-	if err != nil {
-		return false, err
+	for _, v := range p.data {
+		if v.CwBoardID == boardID && v.WebexRoomID == roomID {
+			return true, nil
+		}
 	}
-
-	return exists, nil
+	return false, nil
 }
 
 func (p *NotifierRepo) Insert(ctx context.Context, n *models.Notifier) (*models.Notifier, error) {
-	d, err := p.queries.InsertNotifierConnection(ctx, notifierToInsertParams(n))
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return notifierFromPG(d), nil
+	n.ID = p.next
+	p.next++
+	p.data[n.ID] = *n
+	return n, nil
 }
 
 func (p *NotifierRepo) Update(ctx context.Context, n *models.Notifier) (*models.Notifier, error) {
-	d, err := p.queries.UpdateNotifierConnection(ctx, notifierToUpdateParams(n))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, models.ErrNotifierNotFound
-		}
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return notifierFromPG(d), nil
+	if _, ok := p.data[n.ID]; !ok {
+		return nil, models.ErrNotifierNotFound
+	}
+	p.data[n.ID] = *n
+	return n, nil
 }
 
 func (p *NotifierRepo) Delete(ctx context.Context, id int) error {
-	if err := p.queries.DeleteNotifierConnection(ctx, id); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.ErrNotifierNotFound
-		}
-		return err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
+	if _, ok := p.data[id]; !ok {
+		return models.ErrNotifierNotFound
+	}
+	delete(p.data, id)
 	return nil
-}
-
-func notifierToInsertParams(n *models.Notifier) db.InsertNotifierConnectionParams {
-	return db.InsertNotifierConnectionParams{
-		CwBoardID:     n.CwBoardID,
-		WebexRoomID:   n.WebexRoomID,
-		NotifyEnabled: n.NotifyEnabled,
-	}
-}
-
-func notifierToUpdateParams(n *models.Notifier) db.UpdateNotifierConnectionParams {
-	return db.UpdateNotifierConnectionParams{
-		ID:            n.ID,
-		CwBoardID:     n.CwBoardID,
-		WebexRoomID:   n.WebexRoomID,
-		NotifyEnabled: n.NotifyEnabled,
-	}
-}
-
-func notifierFromPG(pg db.NotifierConnection) *models.Notifier {
-	return &models.Notifier{
-		ID:            pg.ID,
-		CwBoardID:     pg.CwBoardID,
-		WebexRoomID:   pg.WebexRoomID,
-		NotifyEnabled: pg.NotifyEnabled,
-		CreatedOn:     pg.CreatedOn,
-	}
 }

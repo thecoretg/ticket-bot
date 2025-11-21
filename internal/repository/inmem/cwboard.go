@@ -2,88 +2,71 @@ package inmem
 
 import (
 	"context"
-	"errors"
+	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/thecoretg/ticketbot/internal/db"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
 
 type BoardRepo struct {
-	queries *db.Queries
+	mu   sync.RWMutex
+	data map[int]models.Board
+	next int
 }
 
 func NewBoardRepo(pool *pgxpool.Pool) *BoardRepo {
 	return &BoardRepo{
-		queries: db.New(pool),
+		data: make(map[int]models.Board),
+		next: 1,
 	}
 }
 
 func (p *BoardRepo) WithTx(tx pgx.Tx) models.BoardRepository {
-	return &BoardRepo{
-		queries: db.New(tx),
-	}
+	return p
 }
 
 func (p *BoardRepo) List(ctx context.Context) ([]models.Board, error) {
-	dbs, err := p.queries.ListBoards(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	var b []models.Board
-	for _, d := range dbs {
-		b = append(b, boardFromPG(d))
+	var out []models.Board
+	for _, v := range p.data {
+		out = append(out, v)
 	}
-
-	return b, nil
+	return out, nil
 }
 
 func (p *BoardRepo) Get(ctx context.Context, id int) (models.Board, error) {
-	d, err := p.queries.GetBoard(ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.Board{}, models.ErrBoardNotFound
-		}
-		return models.Board{}, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return boardFromPG(d), nil
+	v, ok := p.data[id]
+	if !ok {
+		return models.Board{}, models.ErrBoardNotFound
+	}
+	return v, nil
 }
 
 func (p *BoardRepo) Upsert(ctx context.Context, b models.Board) (models.Board, error) {
-	d, err := p.queries.UpsertBoard(ctx, boardToUpsertParams(b))
-	if err != nil {
-		return models.Board{}, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return boardFromPG(d), nil
+	if b.ID == 0 {
+		b.ID = p.next
+		p.next++
+	}
+	p.data[b.ID] = b
+	return b, nil
 }
 
 func (p *BoardRepo) Delete(ctx context.Context, id int) error {
-	if err := p.queries.DeleteBoard(ctx, id); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.ErrBoardNotFound
-		}
-		return err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
+	if _, ok := p.data[id]; !ok {
+		return models.ErrBoardNotFound
+	}
+	delete(p.data, id)
 	return nil
-}
-
-func boardToUpsertParams(b models.Board) db.UpsertBoardParams {
-	return db.UpsertBoardParams{
-		ID:   b.ID,
-		Name: b.Name,
-	}
-}
-
-func boardFromPG(pg db.CwBoard) models.Board {
-	return models.Board{
-		ID:        pg.ID,
-		Name:      pg.Name,
-		UpdatedOn: pg.UpdatedOn,
-		AddedOn:   pg.AddedOn,
-	}
 }

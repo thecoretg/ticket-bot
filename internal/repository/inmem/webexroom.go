@@ -2,102 +2,83 @@ package inmem
 
 import (
 	"context"
-	"errors"
+	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/thecoretg/ticketbot/internal/db"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
 
 type WebexRoomRepo struct {
-	queries *db.Queries
+	mu   sync.RWMutex
+	data map[int]models.WebexRoom
+	next int
 }
 
 func NewWebexRoomRepo(pool *pgxpool.Pool) *WebexRoomRepo {
 	return &WebexRoomRepo{
-		queries: db.New(pool),
+		data: make(map[int]models.WebexRoom),
+		next: 1,
 	}
 }
 
 func (p *WebexRoomRepo) WithTx(tx pgx.Tx) models.WebexRoomRepository {
-	return &WebexRoomRepo{
-		queries: db.New(tx)}
+	return p
 }
 
 func (p *WebexRoomRepo) List(ctx context.Context) ([]models.WebexRoom, error) {
-	dbr, err := p.queries.ListWebexRooms(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	var r []models.WebexRoom
-	for _, d := range dbr {
-		r = append(r, roomFromPG(d))
+	var out []models.WebexRoom
+	for _, v := range p.data {
+		out = append(out, v)
 	}
-
-	return r, nil
+	return out, nil
 }
 
 func (p *WebexRoomRepo) Get(ctx context.Context, id int) (models.WebexRoom, error) {
-	d, err := p.queries.GetWebexRoom(ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.WebexRoom{}, models.ErrWebexRoomNotFound
-		}
-		return models.WebexRoom{}, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return roomFromPG(d), nil
+	v, ok := p.data[id]
+	if !ok {
+		return models.WebexRoom{}, models.ErrWebexRoomNotFound
+	}
+	return v, nil
 }
 
 func (p *WebexRoomRepo) GetByWebexID(ctx context.Context, webexID string) (models.WebexRoom, error) {
-	d, err := p.queries.GetWebexRoomByWebexID(ctx, webexID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.WebexRoom{}, models.ErrWebexRoomNotFound
-		}
-		return models.WebexRoom{}, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return roomFromPG(d), nil
+	for _, v := range p.data {
+		if v.WebexID == webexID {
+			return v, nil
+		}
+	}
+	return models.WebexRoom{}, models.ErrWebexRoomNotFound
 }
 
 func (p *WebexRoomRepo) Upsert(ctx context.Context, r models.WebexRoom) (models.WebexRoom, error) {
-	d, err := p.queries.UpsertWebexRoom(ctx, webexRoomToUpsertParams(r))
-	if err != nil {
-		return models.WebexRoom{}, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return roomFromPG(d), nil
+	if r.ID == 0 {
+		r.ID = p.next
+		p.next++
+	}
+	p.data[r.ID] = r
+	return r, nil
 }
 
 func (p *WebexRoomRepo) Delete(ctx context.Context, id int) error {
-	if err := p.queries.DeleteWebexRoom(ctx, id); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.ErrWebexRoomNotFound
-		}
-		return err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
+	if _, ok := p.data[id]; !ok {
+		return models.ErrWebexRoomNotFound
+	}
+	delete(p.data, id)
 	return nil
-}
-
-func webexRoomToUpsertParams(r models.WebexRoom) db.UpsertWebexRoomParams {
-	return db.UpsertWebexRoomParams{
-		WebexID: r.WebexID,
-		Name:    r.Name,
-		Type:    r.Type,
-	}
-}
-
-func roomFromPG(pg db.WebexRoom) models.WebexRoom {
-	return models.WebexRoom{
-		ID:        pg.ID,
-		WebexID:   pg.WebexID,
-		Name:      pg.Name,
-		Type:      pg.Type,
-		CreatedOn: pg.CreatedOn,
-		UpdatedOn: pg.UpdatedOn,
-	}
 }

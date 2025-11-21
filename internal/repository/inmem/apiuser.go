@@ -2,109 +2,95 @@ package inmem
 
 import (
 	"context"
-	"errors"
+	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/thecoretg/ticketbot/internal/db"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
 
 type APIUserRepo struct {
-	queries *db.Queries
+	mu   sync.RWMutex
+	data map[int]models.APIUser
+	next int
 }
 
 func NewAPIUserRepo(pool *pgxpool.Pool) *APIUserRepo {
-	return &APIUserRepo{queries: db.New(pool)}
+	return &APIUserRepo{
+		data: make(map[int]models.APIUser),
+		next: 1,
+	}
 }
 
 func (p *APIUserRepo) WithTx(tx pgx.Tx) models.APIUserRepository {
-	return &APIUserRepo{queries: db.New(tx)}
+	return p
 }
 
 func (p *APIUserRepo) List(ctx context.Context) ([]models.APIUser, error) {
-	dk, err := p.queries.ListUsers(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	var k []models.APIUser
-	for _, d := range dk {
-		u := userFromPG(d)
-		k = append(k, *u)
+	var out []models.APIUser
+	for _, v := range p.data {
+		out = append(out, v)
 	}
-
-	return k, nil
+	return out, nil
 }
 
 func (p *APIUserRepo) Get(ctx context.Context, id int) (*models.APIUser, error) {
-	d, err := p.queries.GetUser(ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, models.ErrAPIUserNotFound
-		}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	v, ok := p.data[id]
+	if !ok {
 		return nil, models.ErrAPIUserNotFound
 	}
-
-	return userFromPG(d), nil
+	return &v, nil
 }
 
 func (p *APIUserRepo) GetByEmail(ctx context.Context, email string) (*models.APIUser, error) {
-	d, err := p.queries.GetUserByEmail(ctx, email)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, models.ErrAPIUserNotFound
-		}
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return userFromPG(d), nil
+	for _, v := range p.data {
+		if v.EmailAddress == email {
+			return &v, nil
+		}
+	}
+	return nil, models.ErrAPIUserNotFound
 }
 
 func (p *APIUserRepo) Insert(ctx context.Context, email string) (*models.APIUser, error) {
-	d, err := p.queries.InsertUser(ctx, email)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return userFromPG(d), nil
+	u := models.APIUser{
+		ID:           p.next,
+		EmailAddress: email,
+	}
+	p.next++
+	p.data[u.ID] = u
+	return &u, nil
 }
 
 func (p *APIUserRepo) Update(ctx context.Context, u *models.APIUser) (*models.APIUser, error) {
-	d, err := p.queries.UpdateUser(ctx, apiUserToUpdateParams(u))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, models.ErrAPIUserNotFound
-		}
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return userFromPG(d), nil
+	if _, ok := p.data[u.ID]; !ok {
+		return nil, models.ErrAPIUserNotFound
+	}
+	p.data[u.ID] = *u
+	return u, nil
 }
 
 func (p *APIUserRepo) Delete(ctx context.Context, id int) error {
-	if err := p.queries.DeleteUser(ctx, id); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.ErrAPIUserNotFound
-		}
-		return err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
+	if _, ok := p.data[id]; !ok {
+		return models.ErrAPIUserNotFound
+	}
+	delete(p.data, id)
 	return nil
-}
-
-func apiUserToUpdateParams(u *models.APIUser) db.UpdateUserParams {
-	return db.UpdateUserParams{
-		ID:           u.ID,
-		EmailAddress: u.EmailAddress,
-	}
-}
-
-func userFromPG(pg db.ApiUser) *models.APIUser {
-	return &models.APIUser{
-		ID:           pg.ID,
-		EmailAddress: pg.EmailAddress,
-		CreatedOn:    pg.CreatedOn,
-		UpdatedOn:    pg.UpdatedOn,
-	}
 }

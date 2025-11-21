@@ -2,99 +2,71 @@ package inmem
 
 import (
 	"context"
-	"errors"
+	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/thecoretg/ticketbot/internal/db"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
 
 type TicketRepo struct {
-	queries *db.Queries
+	mu   sync.RWMutex
+	data map[int]models.Ticket
+	next int
 }
 
 func NewTicketRepo(pool *pgxpool.Pool) *TicketRepo {
 	return &TicketRepo{
-		queries: db.New(pool),
+		data: make(map[int]models.Ticket),
+		next: 1,
 	}
 }
 
 func (p *TicketRepo) WithTx(tx pgx.Tx) models.TicketRepository {
-	return &TicketRepo{
-		queries: db.New(tx)}
+	return p
 }
 
 func (p *TicketRepo) List(ctx context.Context) ([]models.Ticket, error) {
-	dm, err := p.queries.ListTickets(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	var b []models.Ticket
-	for _, d := range dm {
-		b = append(b, ticketFromPG(d))
+	var out []models.Ticket
+	for _, v := range p.data {
+		out = append(out, v)
 	}
-
-	return b, nil
+	return out, nil
 }
 
 func (p *TicketRepo) Get(ctx context.Context, id int) (models.Ticket, error) {
-	d, err := p.queries.GetTicket(ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.Ticket{}, models.ErrTicketNotFound
-		}
-		return models.Ticket{}, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return ticketFromPG(d), nil
+	v, ok := p.data[id]
+	if !ok {
+		return models.Ticket{}, models.ErrTicketNotFound
+	}
+	return v, nil
 }
 
-func (p *TicketRepo) Upsert(ctx context.Context, b models.Ticket) (models.Ticket, error) {
-	d, err := p.queries.UpsertTicket(ctx, ticketToUpsertParams(b))
-	if err != nil {
-		return models.Ticket{}, err
-	}
+func (p *TicketRepo) Upsert(ctx context.Context, t models.Ticket) (models.Ticket, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return ticketFromPG(d), nil
+	if t.ID == 0 {
+		t.ID = p.next
+		p.next++
+	}
+	p.data[t.ID] = t
+	return t, nil
 }
 
 func (p *TicketRepo) Delete(ctx context.Context, id int) error {
-	if err := p.queries.DeleteTicket(ctx, id); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.ErrTicketNotFound
-		}
-		return err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
+	if _, ok := p.data[id]; !ok {
+		return models.ErrTicketNotFound
+	}
+	delete(p.data, id)
 	return nil
-}
-
-func ticketToUpsertParams(t models.Ticket) db.UpsertTicketParams {
-	return db.UpsertTicketParams{
-		ID:        t.ID,
-		Summary:   t.Summary,
-		BoardID:   t.BoardID,
-		OwnerID:   t.OwnerID,
-		CompanyID: t.CompanyID,
-		ContactID: t.ContactID,
-		Resources: t.Resources,
-		UpdatedBy: t.UpdatedBy,
-	}
-}
-
-func ticketFromPG(pg db.CwTicket) models.Ticket {
-	return models.Ticket{
-		ID:        pg.ID,
-		Summary:   pg.Summary,
-		BoardID:   pg.BoardID,
-		OwnerID:   pg.OwnerID,
-		CompanyID: pg.CompanyID,
-		ContactID: pg.ContactID,
-		Resources: pg.Resources,
-		UpdatedBy: pg.UpdatedBy,
-		UpdatedOn: pg.UpdatedOn,
-		AddedOn:   pg.AddedOn,
-	}
 }

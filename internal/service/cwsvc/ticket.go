@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/thecoretg/ticketbot/internal/external/psa"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
@@ -85,19 +86,24 @@ func (s *Service) ProcessTicket(ctx context.Context, id int) (*models.FullTicket
 		return nil, fmt.Errorf("no data returned from connectwise for ticket %d", id)
 	}
 
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("beginning tx: %w", err)
-	}
-
-	txSvc := s.withTx(tx)
-
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback(ctx)
+	//TODO: this is a bandaid. Move this logic to the repo.
+	txSvc := s
+	var tx pgx.Tx
+	if s.pool != nil {
+		tx, err = s.pool.Begin(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("beginning tx: %w", err)
 		}
-	}()
+
+		txSvc = s.withTx(tx)
+
+		committed := false
+		defer func() {
+			if !committed {
+				_ = tx.Rollback(ctx)
+			}
+		}()
+	}
 
 	cwt := cd.ticket
 	logger = logger.With(slog.Int("ticket_id", cwt.ID))
@@ -146,8 +152,11 @@ func (s *Service) ProcessTicket(ctx context.Context, id int) (*models.FullTicket
 		logger = logger.With(noteLogGrp(note))
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("committing transaction: %w", err)
+	//TODO: this is a bandaid. Move this logic to the repo.
+	if s.pool != nil {
+		if err := tx.Commit(ctx); err != nil {
+			return nil, fmt.Errorf("committing transaction: %w", err)
+		}
 	}
 
 	var ptrContact *models.Contact

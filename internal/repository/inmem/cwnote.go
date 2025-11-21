@@ -2,107 +2,84 @@ package inmem
 
 import (
 	"context"
-	"errors"
+	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/thecoretg/ticketbot/internal/db"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
 
 type TicketNoteRepo struct {
-	queries *db.Queries
+	mu   sync.RWMutex
+	data map[int]models.TicketNote
+	next int
 }
 
 func NewTicketNoteRepo(pool *pgxpool.Pool) *TicketNoteRepo {
 	return &TicketNoteRepo{
-		queries: db.New(pool),
+		data: make(map[int]models.TicketNote),
+		next: 1,
 	}
 }
 
 func (p *TicketNoteRepo) WithTx(tx pgx.Tx) models.TicketNoteRepository {
-	return &TicketNoteRepo{
-		queries: db.New(tx)}
+	return p
 }
 
 func (p *TicketNoteRepo) ListByTicketID(ctx context.Context, ticketID int) ([]models.TicketNote, error) {
-	dm, err := p.queries.ListTicketNotesByTicket(ctx, ticketID)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	var b []models.TicketNote
-	for _, d := range dm {
-		b = append(b, ticketNoteFromPG(d))
+	var out []models.TicketNote
+	for _, v := range p.data {
+		if v.TicketID == ticketID {
+			out = append(out, v)
+		}
 	}
-
-	return b, nil
+	return out, nil
 }
 
 func (p *TicketNoteRepo) ListAll(ctx context.Context) ([]models.TicketNote, error) {
-	dm, err := p.queries.ListAllTicketNotes(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	var b []models.TicketNote
-	for _, d := range dm {
-		b = append(b, ticketNoteFromPG(d))
+	var out []models.TicketNote
+	for _, v := range p.data {
+		out = append(out, v)
 	}
-
-	return b, nil
+	return out, nil
 }
 
 func (p *TicketNoteRepo) Get(ctx context.Context, id int) (models.TicketNote, error) {
-	d, err := p.queries.GetTicketNote(ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.TicketNote{}, models.ErrTicketNoteNotFound
-		}
-		return models.TicketNote{}, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return ticketNoteFromPG(d), nil
+	v, ok := p.data[id]
+	if !ok {
+		return models.TicketNote{}, models.ErrTicketNoteNotFound
+	}
+	return v, nil
 }
 
-func (p *TicketNoteRepo) Upsert(ctx context.Context, b models.TicketNote) (models.TicketNote, error) {
-	d, err := p.queries.UpsertTicketNote(ctx, ticketNoteToUpsertParams(b))
-	if err != nil {
-		return models.TicketNote{}, err
-	}
+func (p *TicketNoteRepo) Upsert(ctx context.Context, n models.TicketNote) (models.TicketNote, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return ticketNoteFromPG(d), nil
+	if n.ID == 0 {
+		n.ID = p.next
+		p.next++
+	}
+	p.data[n.ID] = n
+	return n, nil
 }
 
 func (p *TicketNoteRepo) Delete(ctx context.Context, id int) error {
-	if err := p.queries.DeleteTicketNote(ctx, id); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.ErrTicketNoteNotFound
-		}
-		return err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
+	if _, ok := p.data[id]; !ok {
+		return models.ErrTicketNoteNotFound
+	}
+	delete(p.data, id)
 	return nil
-}
-
-func ticketNoteToUpsertParams(t models.TicketNote) db.UpsertTicketNoteParams {
-	return db.UpsertTicketNoteParams{
-		ID:        t.ID,
-		TicketID:  t.TicketID,
-		Content:   t.Content,
-		MemberID:  t.MemberID,
-		ContactID: t.ContactID,
-	}
-}
-
-func ticketNoteFromPG(pg db.CwTicketNote) models.TicketNote {
-	return models.TicketNote{
-		ID:        pg.ID,
-		TicketID:  pg.TicketID,
-		Content:   pg.Content,
-		MemberID:  pg.MemberID,
-		ContactID: pg.ContactID,
-		UpdatedOn: pg.UpdatedOn,
-		AddedOn:   pg.AddedOn,
-	}
 }

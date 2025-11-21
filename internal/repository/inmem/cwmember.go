@@ -2,93 +2,71 @@ package inmem
 
 import (
 	"context"
-	"errors"
+	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/thecoretg/ticketbot/internal/db"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
 
 type MemberRepo struct {
-	queries *db.Queries
+	mu   sync.RWMutex
+	data map[int]models.Member
+	next int
 }
 
 func NewMemberRepo(pool *pgxpool.Pool) *MemberRepo {
 	return &MemberRepo{
-		queries: db.New(pool),
+		data: make(map[int]models.Member),
+		next: 1,
 	}
 }
 
 func (p *MemberRepo) WithTx(tx pgx.Tx) models.MemberRepository {
-	return &MemberRepo{
-		queries: db.New(tx)}
+	return p
 }
 
 func (p *MemberRepo) List(ctx context.Context) ([]models.Member, error) {
-	dm, err := p.queries.ListMembers(ctx)
-	if err != nil {
-		return nil, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	var b []models.Member
-	for _, d := range dm {
-		b = append(b, memberFromPG(d))
+	var out []models.Member
+	for _, v := range p.data {
+		out = append(out, v)
 	}
-
-	return b, nil
+	return out, nil
 }
 
 func (p *MemberRepo) Get(ctx context.Context, id int) (models.Member, error) {
-	d, err := p.queries.GetMember(ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.Member{}, models.ErrMemberNotFound
-		}
-		return models.Member{}, err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return memberFromPG(d), nil
+	v, ok := p.data[id]
+	if !ok {
+		return models.Member{}, models.ErrMemberNotFound
+	}
+	return v, nil
 }
 
-func (p *MemberRepo) Upsert(ctx context.Context, b models.Member) (models.Member, error) {
-	d, err := p.queries.UpsertMember(ctx, memberToUpsertParams(b))
-	if err != nil {
-		return models.Member{}, err
-	}
+func (p *MemberRepo) Upsert(ctx context.Context, m models.Member) (models.Member, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return memberFromPG(d), nil
+	if m.ID == 0 {
+		m.ID = p.next
+		p.next++
+	}
+	p.data[m.ID] = m
+	return m, nil
 }
 
 func (p *MemberRepo) Delete(ctx context.Context, id int) error {
-	if err := p.queries.DeleteMember(ctx, id); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.ErrMemberNotFound
-		}
-		return err
-	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
+	if _, ok := p.data[id]; !ok {
+		return models.ErrMemberNotFound
+	}
+	delete(p.data, id)
 	return nil
-}
-
-func memberToUpsertParams(m models.Member) db.UpsertMemberParams {
-	return db.UpsertMemberParams{
-		ID:           m.ID,
-		Identifier:   m.Identifier,
-		FirstName:    m.FirstName,
-		LastName:     m.LastName,
-		PrimaryEmail: m.PrimaryEmail,
-	}
-}
-
-func memberFromPG(pg db.CwMember) models.Member {
-	return models.Member{
-		ID:           pg.ID,
-		Identifier:   pg.Identifier,
-		FirstName:    pg.FirstName,
-		LastName:     pg.LastName,
-		PrimaryEmail: pg.PrimaryEmail,
-		UpdatedOn:    pg.UpdatedOn,
-		AddedOn:      pg.AddedOn,
-	}
 }
