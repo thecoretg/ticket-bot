@@ -78,3 +78,22 @@ func (h *NotifierHandler) AddNotifier(c *gin.Context) {
 
 	c.JSON(http.StatusOK, n)
 }
+
+func (h *NotifierHandler) DeleteNotifier(c *gin.Context) {
+	id, err := convertID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, badIntErrorOutput(c.Param("id")))
+		return
+	}
+
+	if err := h.NotifierRepo.Delete(c.Request.Context(), id); err != nil {
+		if errors.Is(err, models.ErrNotifierNotFound) {
+			c.JSON(http.StatusNotFound, errorOutput(err))
+			return
+		}
+		c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusOK)
+}

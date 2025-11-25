@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/thecoretg/ticketbot/internal/models"
 )
 
 var (
@@ -40,8 +42,8 @@ var (
 				return fmt.Errorf("retrieving notifier: %w", err)
 			}
 
-			fmt.Printf("ID: %d\nRoom: %s\nBoard: %s\nNotify: %v\n",
-				n.ID, n.WebexRoom.Name, n.CWBoard.Name, n.NotifyEnabled)
+			fmt.Printf("ID: %d\nRoom: %d\nBoard: %d\nNotify: %v\n",
+				n.ID, n.WebexRoomID, n.CwBoardID, n.NotifyEnabled)
 
 			return nil
 		},
@@ -50,13 +52,27 @@ var (
 	createNotifierCmd = &cobra.Command{
 		Use: "create",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			n, err := client.CreateNotifier(boardID, roomID, enableNotify)
+			if boardID == 0 {
+				return errors.New("board ID required")
+			}
+
+			if roomID == 0 {
+				return errors.New("room ID required")
+			}
+
+			p := &models.Notifier{
+				CwBoardID:     boardID,
+				WebexRoomID:   roomID,
+				NotifyEnabled: enableNotify,
+			}
+
+			n, err := client.CreateNotifier(p)
 			if err != nil {
 				return fmt.Errorf("creating notifier: %w", err)
 			}
 
-			fmt.Printf("ID: %d\nRoom: %s\nBoard: %s\nNotify: %v\n",
-				n.ID, n.WebexRoom.Name, n.CWBoard.Name, n.NotifyEnabled)
+			fmt.Printf("ID: %d\nRoom: %d\nBoard: %d\nNotify: %v\n",
+				n.ID, n.WebexRoomID, n.CwBoardID, n.NotifyEnabled)
 
 			return nil
 		},

@@ -26,5 +26,5 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.AddCommand(pingCmd, authCheckCmd, stateCmd, cfgCmd, webexRoomsCmd, cwBoardsCmd, notifiersCmd)
+	rootCmd.AddCommand(pingCmd, authCheckCmd, syncCmd, cfgCmd, webexRoomsCmd, cwBoardsCmd, notifiersCmd)
 }

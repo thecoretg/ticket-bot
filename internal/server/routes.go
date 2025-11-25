@@ -11,10 +11,10 @@ func (a *App) addRoutes(g *gin.Engine) {
 	auth := middleware.APIKeyAuth(a.Svc.User.Keys)
 
 	g.GET("", handler.HandlePing) // authless ping for lightsail health checks
-	g.GET("authtest", auth)
+	g.GET("authtest", errh, auth, handler.HandlePing)
 
 	sh := handler.NewSyncHandler(a.Svc.CW, a.Svc.Webex)
-	g.POST("sync", sh.HandleSync)
+	g.POST("sync", errh, auth, sh.HandleSync)
 
 	u := g.Group("users", errh, auth)
 	uh := handler.NewUserHandler(a.Svc.User)
@@ -72,4 +72,5 @@ func registerWebexRoutes(r *gin.RouterGroup, h *handler.WebexHandler) {
 func registerNotifierRoutes(r *gin.RouterGroup, h *handler.NotifierHandler) {
 	r.GET("", h.ListNotifiers)
 	r.POST("", h.AddNotifier)
+	r.DELETE(":id", h.DeleteNotifier)
 }

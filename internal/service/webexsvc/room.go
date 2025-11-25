@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/thecoretg/ticketbot/internal/external/webex"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
@@ -37,19 +38,24 @@ func (s *Service) SyncRooms(ctx context.Context) error {
 	}
 	slog.Debug("webex room sync: got rooms from store", "total_rooms", len(sr))
 
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("beginning tx: %w", err)
-	}
-
-	txSvc := s.withTx(tx)
-
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback(ctx)
+	//TODO: this is a bandaid. Move this logic to the repo.
+	txSvc := s
+	var tx pgx.Tx
+	if s.pool != nil {
+		tx, err = s.pool.Begin(ctx)
+		if err != nil {
+			return fmt.Errorf("beginning tx: %w", err)
 		}
-	}()
+
+		txSvc = s.withTx(tx)
+
+		committed := false
+		defer func() {
+			if !committed {
+				_ = tx.Rollback(ctx)
+			}
+		}()
+	}
 
 	var updateErrs []error
 	for _, r := range roomsToUpsert(wr) {
@@ -66,8 +72,11 @@ func (s *Service) SyncRooms(ctx context.Context) error {
 		syncErr = errors.New("error occured while syncing one or more rooms, see logs")
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("committing tx: %w", err)
+	//TODO: this is a bandaid. Move this logic to the repo.
+	if s.pool != nil {
+		if err := tx.Commit(ctx); err != nil {
+			return fmt.Errorf("committing tx: %w", err)
+		}
 	}
 
 	slog.Debug("webex room sync complete", "took_time", time.Since(start))

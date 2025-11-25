@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/thecoretg/ticketbot/internal/models"
 	"github.com/thecoretg/ticketbot/internal/service/cwsvc"
 	"github.com/thecoretg/ticketbot/internal/service/webexsvc"
 )
@@ -24,13 +25,7 @@ func NewSyncHandler(cw *cwsvc.Service, wx *webexsvc.Service) *SyncHandler {
 }
 
 func (h *SyncHandler) HandleSync(c *gin.Context) {
-	p := &struct {
-		WebexRooms         bool  `json:"webex_rooms"`
-		CWBoards           bool  `json:"cw_boards"`
-		CWTickets          bool  `json:"cw_tickets"`
-		BoardIDs           []int `json:"board_ids"`
-		MaxConcurrentSyncs int   `json:"max_concurrent_syncs"`
-	}{}
+	p := &models.SyncPayload{}
 
 	if err := c.ShouldBindJSON(p); err != nil {
 		c.Error(fmt.Errorf("bad json payload: %w", err))
@@ -56,8 +51,8 @@ func (h *SyncHandler) HandleSync(c *gin.Context) {
 }
 
 func (h *SyncHandler) syncRooms(ctx context.Context) {
-	if err := h.CW.SyncBoards(ctx); err != nil {
-		slog.Error("syncing connectwise boards", "error", err)
+	if err := h.Webex.SyncRooms(ctx); err != nil {
+		slog.Error("syncing webex rooms", "error", err)
 	}
 }
 

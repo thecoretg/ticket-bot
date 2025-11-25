@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"log/slog"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -21,9 +22,11 @@ type storesResult struct {
 
 func initStores(ctx context.Context, creds *creds, inMemory bool) (*storesResult, error) {
 	if inMemory {
+		slog.Info("running with in-memory store")
 		return initInMem(), nil
 	}
 
+	slog.Info("running with postgres store")
 	return initPostgres(ctx, creds)
 }
 

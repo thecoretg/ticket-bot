@@ -26,6 +26,7 @@ var (
 				return fmt.Errorf("testing api creds: %w", err)
 			}
 
+			fmt.Println("Successfully authenticated")
 			return nil
 		},
 	}

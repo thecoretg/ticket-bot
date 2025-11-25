@@ -7,8 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
-	"github.com/thecoretg/ticketbot/internal/db"
-	"github.com/thecoretg/ticketbot/internal/oldserver"
+	"github.com/thecoretg/ticketbot/internal/models"
 )
 
 var (
@@ -16,7 +15,7 @@ var (
 	cellStyle   = lipgloss.NewStyle().Padding(0, 1)
 )
 
-func webexRoomsToTable(rooms []db.WebexRoom) {
+func webexRoomsToTable(rooms []models.WebexRoom) {
 	sort.SliceStable(rooms, func(i, j int) bool {
 		return rooms[i].Name < rooms[j].Name
 	})
@@ -32,7 +31,7 @@ func webexRoomsToTable(rooms []db.WebexRoom) {
 	fmt.Println(t)
 }
 
-func cwBoardsToTable(boards []db.CwBoard) {
+func cwBoardsToTable(boards []models.Board) {
 	sort.SliceStable(boards, func(i, j int) bool {
 		return boards[i].Name < boards[j].Name
 	})
@@ -46,11 +45,11 @@ func cwBoardsToTable(boards []db.CwBoard) {
 	fmt.Println(t)
 }
 
-func notifiersTable(notifiers []oldserver.Notifier) {
+func notifiersTable(notifiers []models.Notifier) {
 	t := defaultTable()
 	t.Headers("ID", "ROOM", "BOARD", "NOTIFY")
 	for _, n := range notifiers {
-		t.Row(strconv.Itoa(n.ID), n.WebexRoom.Name, n.CWBoard.Name, fmt.Sprintf("%v", n.NotifyEnabled))
+		t.Row(strconv.Itoa(n.ID), strconv.Itoa(n.WebexRoomID), strconv.Itoa(n.CwBoardID), fmt.Sprintf("%v", n.NotifyEnabled))
 	}
 
 	fmt.Println(t)

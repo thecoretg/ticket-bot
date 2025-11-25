@@ -11,18 +11,6 @@ var (
 		Use: "rooms",
 	}
 
-	syncRoomsCmd = &cobra.Command{
-		Use: "sync",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := client.SyncRooms(); err != nil {
-				return fmt.Errorf("syncing webex rooms: %w", err)
-			}
-
-			fmt.Println("Webex rooms sync started. You will not get confirmation, but this is usually done in less than a second.")
-			return nil
-		},
-	}
-
 	listWebexRoomsCmd = &cobra.Command{
 		Use: "list",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -43,5 +31,5 @@ var (
 )
 
 func init() {
-	webexRoomsCmd.AddCommand(syncRoomsCmd, listWebexRoomsCmd)
+	webexRoomsCmd.AddCommand(listWebexRoomsCmd)
 }

@@ -217,6 +217,7 @@ func (c *creds) validate(tf *testFlags) error {
 
 func makeMessageSender(mocking bool, webexSecret string) models.MessageSender {
 	if mocking {
+		slog.Info("running with webex mocking")
 		return mock.NewWebexClient(webexSecret)
 	}
 

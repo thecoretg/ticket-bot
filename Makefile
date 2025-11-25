@@ -1,8 +1,8 @@
 create-bin-dir:
 	mkdir -p bin
 
-build: create-bin-dir
-	go build -o bin/server ./cmd/server && sudo cp bin/server /usr/local/bin/tbot-server
+build-cli: create-bin-dir
+	go build -o bin/cli ./cmd/cli && sudo cp bin/cli /usr/local/bin/tbot-admin
 
 gensql:
 	sqlc generate
@@ -15,6 +15,7 @@ test-db-up:
 
 test-db-down:
 	docker compose -f docker-compose-db.yml down -v
+
 test-api-up:
 	docker compose -f docker-compose-api.yml up --build
 

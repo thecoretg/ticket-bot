@@ -3,17 +3,13 @@ package sdk
 import (
 	"fmt"
 
-	"github.com/thecoretg/ticketbot/internal/db"
+	"github.com/thecoretg/ticketbot/internal/models"
 )
 
-func (c *Client) SyncBoards() error {
-	return c.Post("sync/boards", nil, nil)
+func (c *Client) ListBoards() ([]models.Board, error) {
+	return GetMany[models.Board](c, "cw/boards", nil)
 }
 
-func (c *Client) ListBoards() ([]db.CwBoard, error) {
-	return GetMany[db.CwBoard](c, "boards", nil)
-}
-
-func (c *Client) GetBoard(id int) (*db.CwBoard, error) {
-	return GetOne[db.CwBoard](c, fmt.Sprintf("boards/%d", id), nil)
+func (c *Client) GetBoard(id int) (*models.Board, error) {
+	return GetOne[models.Board](c, fmt.Sprintf("cw/boards/%d", id), nil)
 }
