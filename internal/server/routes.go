@@ -33,7 +33,7 @@ func (a *App) addRoutes(g *gin.Engine) {
 	registerWebexRoutes(wx, wh)
 
 	n := g.Group("notifiers", errh, auth)
-	nh := handler.NewNotifierHandler(a.Stores.Notifiers, a.Stores.CW.Board, a.Stores.WebexRoom)
+	nh := handler.NewNotifierHandler(a.Stores.Notifiers, a.Stores.CW.Board, a.Stores.WebexRoom, a.Stores.Forwards)
 	registerNotifierRoutes(n, nh)
 
 	tb := handler.NewTicketbotHandler(a.Svc.Ticketbot)
@@ -70,7 +70,15 @@ func registerWebexRoutes(r *gin.RouterGroup, h *handler.WebexHandler) {
 }
 
 func registerNotifierRoutes(r *gin.RouterGroup, h *handler.NotifierHandler) {
-	r.GET("", h.ListNotifiers)
-	r.POST("", h.AddNotifier)
-	r.DELETE(":id", h.DeleteNotifier)
+	ru := r.Group("rules")
+	ru.GET("", h.ListNotifierRules)
+	ru.GET(":id", h.GetNotifierRule)
+	ru.POST("", h.AddNotifierRule)
+	ru.DELETE(":id", h.DeleteNotifierRule)
+
+	fw := r.Group("forwards")
+	fw.GET("", h.ListForwards)
+	fw.GET(":id", h.GetForward)
+	fw.POST("", h.AddUserForward)
+	fw.DELETE(":id", h.DeleteUserForward)
 }

@@ -12,19 +12,21 @@ import (
 type NotifierHandler struct {
 	BoardRepo    models.BoardRepository
 	RoomRepo     models.WebexRoomRepository
-	NotifierRepo models.NotifierRepository
+	RulesRepo    models.NotifierRepository
+	ForwardsRepo models.UserForwardRepository
 }
 
-func NewNotifierHandler(r models.NotifierRepository, br models.BoardRepository, wr models.WebexRoomRepository) *NotifierHandler {
+func NewNotifierHandler(r models.NotifierRepository, br models.BoardRepository, wr models.WebexRoomRepository, fr models.UserForwardRepository) *NotifierHandler {
 	return &NotifierHandler{
 		BoardRepo:    br,
 		RoomRepo:     wr,
-		NotifierRepo: r,
+		RulesRepo:    r,
+		ForwardsRepo: fr,
 	}
 }
 
-func (h *NotifierHandler) ListNotifiers(c *gin.Context) {
-	n, err := h.NotifierRepo.ListAll(c.Request.Context())
+func (h *NotifierHandler) ListNotifierRules(c *gin.Context) {
+	n, err := h.RulesRepo.ListAll(c.Request.Context())
 	if err != nil {
 		c.Error(err)
 		return
@@ -33,7 +35,27 @@ func (h *NotifierHandler) ListNotifiers(c *gin.Context) {
 	c.JSON(http.StatusOK, n)
 }
 
-func (h *NotifierHandler) AddNotifier(c *gin.Context) {
+func (h *NotifierHandler) GetNotifierRule(c *gin.Context) {
+	id, err := convertID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, badIntErrorOutput(c.Param("id")))
+		return
+	}
+
+	n, err := h.RulesRepo.Get(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, models.ErrNotifierNotFound) {
+			c.JSON(http.StatusNotFound, errorOutput(err))
+			return
+		}
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, n)
+}
+
+func (h *NotifierHandler) AddNotifierRule(c *gin.Context) {
 	ctx := c.Request.Context()
 	p := &models.Notifier{}
 	if err := c.ShouldBindJSON(p); err != nil {
@@ -41,7 +63,7 @@ func (h *NotifierHandler) AddNotifier(c *gin.Context) {
 		return
 	}
 
-	exists, err := h.NotifierRepo.Exists(ctx, p.CwBoardID, p.WebexRoomID)
+	exists, err := h.RulesRepo.Exists(ctx, p.CwBoardID, p.WebexRoomID)
 	if err != nil {
 		c.Error(err)
 		return
@@ -70,7 +92,7 @@ func (h *NotifierHandler) AddNotifier(c *gin.Context) {
 		return
 	}
 
-	n, err := h.NotifierRepo.Insert(c.Request.Context(), p)
+	n, err := h.RulesRepo.Insert(c.Request.Context(), p)
 	if err != nil {
 		c.Error(err)
 		return
@@ -79,15 +101,80 @@ func (h *NotifierHandler) AddNotifier(c *gin.Context) {
 	c.JSON(http.StatusOK, n)
 }
 
-func (h *NotifierHandler) DeleteNotifier(c *gin.Context) {
+func (h *NotifierHandler) DeleteNotifierRule(c *gin.Context) {
 	id, err := convertID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, badIntErrorOutput(c.Param("id")))
 		return
 	}
 
-	if err := h.NotifierRepo.Delete(c.Request.Context(), id); err != nil {
+	if err := h.RulesRepo.Delete(c.Request.Context(), id); err != nil {
 		if errors.Is(err, models.ErrNotifierNotFound) {
+			c.JSON(http.StatusNotFound, errorOutput(err))
+			return
+		}
+		c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *NotifierHandler) ListForwards(c *gin.Context) {
+	n, err := h.ForwardsRepo.ListAll(c.Request.Context())
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, n)
+}
+
+func (h *NotifierHandler) GetForward(c *gin.Context) {
+	id, err := convertID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, badIntErrorOutput(c.Param("id")))
+		return
+	}
+
+	f, err := h.ForwardsRepo.Get(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, models.ErrUserForwardNotFound) {
+			c.JSON(http.StatusNotFound, errorOutput(err))
+			return
+		}
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, f)
+}
+
+func (h *NotifierHandler) AddUserForward(c *gin.Context) {
+	p := &models.UserForward{}
+	if err := c.ShouldBindJSON(p); err != nil {
+		c.JSON(http.StatusBadRequest, errorOutput(fmt.Errorf("bad json payload: %w", err)))
+		return
+	}
+
+	f, err := h.ForwardsRepo.Insert(c.Request.Context(), *p)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, f)
+}
+
+func (h *NotifierHandler) DeleteUserForward(c *gin.Context) {
+	id, err := convertID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, badIntErrorOutput(c.Param("id")))
+		return
+	}
+
+	if err := h.ForwardsRepo.Delete(c.Request.Context(), id); err != nil {
+		if errors.Is(err, models.ErrUserForwardNotFound) {
 			c.JSON(http.StatusNotFound, errorOutput(err))
 			return
 		}

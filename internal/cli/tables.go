@@ -45,11 +45,28 @@ func cwBoardsToTable(boards []models.Board) {
 	fmt.Println(t)
 }
 
-func notifiersTable(notifiers []models.Notifier) {
+func notifierRulesTable(notifiers []models.Notifier) {
 	t := defaultTable()
 	t.Headers("ID", "ROOM", "BOARD", "NOTIFY")
 	for _, n := range notifiers {
 		t.Row(strconv.Itoa(n.ID), strconv.Itoa(n.WebexRoomID), strconv.Itoa(n.CwBoardID), fmt.Sprintf("%v", n.NotifyEnabled))
+	}
+
+	fmt.Println(t)
+}
+
+func userForwardsTable(forwards []models.UserForward) {
+	t := defaultTable()
+	t.Headers("ID", "SRC EMAIL", "DEST EMAIL", "START DATE", "END DATE", "ENABLED")
+	for _, uf := range forwards {
+		t.Row(
+			strconv.Itoa(uf.ID),
+			uf.UserEmail,
+			uf.DestEmail,
+			uf.StartDate.Format("2006-01-02"),
+			uf.EndDate.Format("2006-01-02"),
+			fmt.Sprintf("%v", uf.Enabled),
+		)
 	}
 
 	fmt.Println(t)
