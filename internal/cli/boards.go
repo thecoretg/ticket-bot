@@ -16,7 +16,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			boards, err := client.ListBoards()
 			if err != nil {
-				return fmt.Errorf("retrieving boards from ticketbot: %w", err)
+				return err
 			}
 
 			if boards == nil || len(boards) == 0 {

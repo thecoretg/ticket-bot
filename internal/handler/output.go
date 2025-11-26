@@ -9,8 +9,12 @@ import (
 
 // Output wrappers for consistent json output in handlers
 
-type ErrorOutput struct {
-	Error error `json:"error"`
+type APIError struct {
+	Message string `json:"error"`
+}
+
+func (e *APIError) Error() string {
+	return e.Message
 }
 
 type ResultOutput struct {
@@ -48,5 +52,5 @@ func badIntError(c *gin.Context) {
 }
 
 func errJSON(c *gin.Context, code int, err error) {
-	c.JSON(code, ErrorOutput{Error: err})
+	c.JSON(code, APIError{Message: err.Error()})
 }

@@ -1,9 +1,7 @@
 package sdk
 
 import (
-	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"resty.dev/v3"
@@ -11,6 +9,14 @@ import (
 
 type Client struct {
 	restClient *resty.Client
+}
+
+type APIError struct {
+	Message string `json:"error"`
+}
+
+func (e *APIError) Error() string {
+	return e.Message
 }
 
 func NewClient(apiKey, baseURL string) (*Client, error) {
@@ -27,12 +33,10 @@ func NewClient(apiKey, baseURL string) (*Client, error) {
 	return &Client{restClient: c}, nil
 }
 
-var (
-	ErrNotFound = errors.New("404 status returned")
-)
-
 func (c *Client) Ping() error {
+	var apiErr APIError
 	res, err := c.restClient.R().
+		SetError(&apiErr).
 		Get("")
 
 	if err != nil {
@@ -47,7 +51,9 @@ func (c *Client) Ping() error {
 }
 
 func (c *Client) AuthTest() error {
+	var apiErr APIError
 	res, err := c.restClient.R().
+		SetError(&apiErr).
 		Get("authtest")
 
 	if err != nil {
@@ -62,10 +68,15 @@ func (c *Client) AuthTest() error {
 }
 
 func GetOne[T any](c *Client, endpoint string, params map[string]string) (*T, error) {
-	var target T
+	var (
+		target T
+		apiErr APIError
+	)
+
 	res, err := c.restClient.R().
 		SetQueryParams(params).
 		SetResult(&target).
+		SetError(&apiErr).
 		Get(endpoint)
 
 	if err != nil {
@@ -73,22 +84,23 @@ func GetOne[T any](c *Client, endpoint string, params map[string]string) (*T, er
 	}
 
 	if res.IsError() {
-		if res.StatusCode() == http.StatusNotFound {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("error response from ConnectWise API: %s", res.String())
+		return nil, &apiErr
 	}
 
 	return res.Result().(*T), nil
 }
 
 func GetMany[T any](c *Client, endpoint string, params map[string]string) ([]T, error) {
-	var allItems []T
+	var (
+		allItems []T
+		apiErr   APIError
+	)
 
 	for endpoint != "" {
 		var target []T
 		req := c.restClient.R().
 			SetQueryParams(params).
+			SetError(&apiErr).
 			SetResult(&target)
 
 		res, err := req.Get(endpoint)
@@ -97,10 +109,7 @@ func GetMany[T any](c *Client, endpoint string, params map[string]string) ([]T, 
 		}
 
 		if res.IsError() {
-			if res.StatusCode() == http.StatusNotFound {
-				return nil, ErrNotFound
-			}
-			return nil, fmt.Errorf("error response from ConnectWise API: %s", res.String())
+			return nil, &apiErr
 		}
 
 		for _, item := range target {
@@ -115,7 +124,9 @@ func GetMany[T any](c *Client, endpoint string, params map[string]string) ([]T, 
 }
 
 func (c *Client) Post(endpoint string, body, target any) error {
+	var apiErr APIError
 	req := c.restClient.R().
+		SetError(&apiErr).
 		SetBody(body)
 
 	if target != nil {
@@ -128,15 +139,17 @@ func (c *Client) Post(endpoint string, body, target any) error {
 	}
 
 	if res.IsError() {
-		return fmt.Errorf("error response from API: %s", res.String())
+		return &apiErr
 	}
 
 	return nil
 }
 
 func (c *Client) Put(endpoint string, body, target any) error {
+	var apiErr APIError
 	req := c.restClient.R().
-		SetBody(body)
+		SetBody(body).
+		SetError(&apiErr)
 
 	if target != nil {
 		req.SetResult(target)
@@ -148,14 +161,16 @@ func (c *Client) Put(endpoint string, body, target any) error {
 	}
 
 	if res.IsError() {
-		return fmt.Errorf("error response from API: %s", res.String())
+		return &apiErr
 	}
 
 	return nil
 }
 
 func (c *Client) Delete(endpoint string) error {
+	var apiErr APIError
 	res, err := c.restClient.R().
+		SetError(&apiErr).
 		Delete(endpoint)
 
 	if err != nil {
@@ -163,10 +178,7 @@ func (c *Client) Delete(endpoint string) error {
 	}
 
 	if res.IsError() {
-		if res.StatusCode() == http.StatusNotFound {
-			return ErrNotFound
-		}
-		return fmt.Errorf("error response from API: %s", res.String())
+		return &apiErr
 	}
 
 	return nil

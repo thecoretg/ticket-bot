@@ -37,7 +37,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ns, err := client.ListNotifierRules()
 			if err != nil {
-				return fmt.Errorf("retrieving notifiers: %w", err)
+				return err
 			}
 
 			if ns == nil || len(ns) == 0 {
@@ -55,7 +55,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			n, err := client.GetNotifierRule(notifierID)
 			if err != nil {
-				return fmt.Errorf("retrieving notifier: %w", err)
+				return err
 			}
 
 			fmt.Printf("ID: %d\nRoom: %d\nBoard: %d\nNotify: %v\n",
@@ -84,7 +84,7 @@ var (
 
 			n, err := client.CreateNotifierRule(p)
 			if err != nil {
-				return fmt.Errorf("creating notifier: %w", err)
+				return err
 			}
 
 			fmt.Printf("ID: %d\nRoom: %d\nBoard: %d\nNotify: %v\n",
@@ -98,7 +98,7 @@ var (
 		Use: "delete",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := client.DeleteNotifierRule(notifierID); err != nil {
-				return fmt.Errorf("deleting notifier: %w", err)
+				return err
 			}
 
 			fmt.Printf("Successfully deleted notifier with id of %d\n", notifierID)
@@ -111,7 +111,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ufs, err := client.ListUserForwards()
 			if err != nil {
-				return fmt.Errorf("retrieving user forwards: %w", err)
+				return err
 			}
 
 			if ufs == nil || len(ufs) == 0 {
@@ -129,7 +129,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			uf, err := client.GetUserForward(notifierID)
 			if err != nil {
-				return fmt.Errorf("retrieving user forward: %w", err)
+				return err
 			}
 
 			fmt.Printf("ID: %d\nUser: %s\nForward To: %s\nStart Date: %s\nEnd Date: %s\n"+
@@ -166,7 +166,7 @@ var (
 			if forwardEndDate != "" {
 				et, err := time.Parse("2006-01-02", forwardEndDate)
 				if err != nil {
-					return fmt.Errorf("parsing end date: %w", err)
+					return err
 				}
 				end = &et
 			}
@@ -196,7 +196,7 @@ var (
 		Use: "delete",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := client.DeleteUserForward(forwardID); err != nil {
-				return fmt.Errorf("deleting user forward: %w", err)
+				return err
 			}
 
 			fmt.Printf("Successfully deleted user forward with id of %d\n", forwardID)

@@ -23,7 +23,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := client.GetConfig()
 			if err != nil {
-				return fmt.Errorf("getting current config: %w", err)
+				return err
 			}
 
 			printCfg(cfg)
@@ -57,7 +57,7 @@ var (
 
 			cfg, err = client.UpdateConfig(cfg)
 			if err != nil {
-				return fmt.Errorf("updating config: %w", err)
+				return err
 			}
 
 			fmt.Println("Successfully updated app config. Current config:")

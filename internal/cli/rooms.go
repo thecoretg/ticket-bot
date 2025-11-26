@@ -16,7 +16,7 @@ var (
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rooms, err := client.ListRooms()
 			if err != nil {
-				return fmt.Errorf("retrieving rooms from ticketbot: %w", err)
+				return err
 			}
 
 			if rooms == nil || len(rooms) == 0 {

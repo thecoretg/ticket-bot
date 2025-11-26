@@ -37,7 +37,7 @@ var (
 				MaxConcurrentSyncs: maxConcurrentSyncs,
 			}
 			if err := client.Sync(p); err != nil {
-				return fmt.Errorf("syncing boards: %w", err)
+				return err
 			}
 
 			fmt.Println("Sync started. You will not get confirmation, but this is usually done in less than a second.")
