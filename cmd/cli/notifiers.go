@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 	"github.com/thecoretg/ticketbot/internal/models"
+	"github.com/thecoretg/ticketbot/pkg/sdk"
 )
 
 var (
-	enableNotify     bool
 	notifierID       int
 	forwardID        int
 	forwardSrcEmail  string
@@ -68,18 +69,21 @@ var (
 	createNotifierRuleCmd = &cobra.Command{
 		Use: "create",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if boardID == 0 {
-				return errors.New("board ID required")
-			}
+			var (
+				p   *models.Notifier
+				err error
+			)
 
-			if roomID == 0 {
-				return errors.New("room ID required")
-			}
-
-			p := &models.Notifier{
-				CwBoardID:     boardID,
-				WebexRoomID:   roomID,
-				NotifyEnabled: enableNotify,
+			if boardID == 0 || roomID == 0 {
+				p, err = createRuleParamsInteractive(client)
+				if err != nil {
+					return err
+				}
+			} else {
+				p = &models.Notifier{
+					CwBoardID:   boardID,
+					WebexRoomID: roomID,
+				}
 			}
 
 			n, err := client.CreateNotifierRule(p)
@@ -205,6 +209,69 @@ var (
 	}
 )
 
+func createRuleParamsInteractive(cl *sdk.Client) (*models.Notifier, error) {
+	boards, err := cl.ListBoards()
+	if err != nil {
+		return nil, fmt.Errorf("fetching boards: %w", err)
+	}
+
+	rooms, err := cl.ListRooms()
+	if err != nil {
+		return nil, fmt.Errorf("fetching rooms: %w", err)
+	}
+
+	var bo []huh.Option[models.Board]
+	for _, b := range boards {
+		opt := huh.Option[models.Board]{
+			Key:   b.Name,
+			Value: b,
+		}
+		bo = append(bo, opt)
+	}
+
+	var ro []huh.Option[models.WebexRoom]
+	for _, r := range rooms {
+		key := fmt.Sprintf("%d: %s (%s)", r.ID, r.Name, r.Type)
+		opt := huh.Option[models.WebexRoom]{
+			Key:   key,
+			Value: r,
+		}
+		ro = append(ro, opt)
+	}
+
+	var (
+		boardChoice models.Board
+		roomChoice  models.WebexRoom
+	)
+
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[models.Board]().
+				Title("Select a board").
+				Options(bo...).
+				Value(&boardChoice),
+		),
+		huh.NewGroup(
+			huh.NewSelect[models.WebexRoom]().
+				Title("Select a Webex room").
+				Options(ro...).
+				Value(&roomChoice),
+		),
+	).WithTheme(huh.ThemeBase16())
+
+	if err := form.Run(); err != nil {
+		return nil, fmt.Errorf("running form: %w", err)
+	}
+
+	n := &models.Notifier{
+		CwBoardID:     boardChoice.ID,
+		WebexRoomID:   roomChoice.ID,
+		NotifyEnabled: true,
+	}
+
+	return n, nil
+}
+
 func init() {
 	notifiersCmd.AddCommand(rulesCmd, forwardsCmd)
 	rulesCmd.AddCommand(createNotifierRuleCmd, listNotifierRulesCmd, getNotifierRuleCmd, deleteNotifierRuleCmd)
@@ -213,7 +280,6 @@ func init() {
 	forwardsCmd.PersistentFlags().IntVar(&forwardID, "id", 0, "id of user forward")
 	createNotifierRuleCmd.Flags().IntVarP(&boardID, "board-id", "b", 0, "board id to use")
 	createNotifierRuleCmd.Flags().IntVarP(&roomID, "room-id", "r", 0, "room id to use")
-	createNotifierRuleCmd.Flags().BoolVarP(&enableNotify, "enable", "x", false, "enable notify for rule")
 	createForwardCmd.Flags().BoolVarP(&forwardUserKeeps, "user-keeps-copy", "k", false, "user keeps a copy of forwarded emails")
 	createForwardCmd.Flags().StringVarP(&forwardSrcEmail, "source-email", "s", "", "source email address to forward from")
 	createForwardCmd.Flags().StringVarP(&forwardDestEmail, "dest-email", "d", "", "destination email address to forward to")

@@ -20,6 +20,8 @@ func (s *Service) GetBoard(ctx context.Context, id int) (models.Board, error) {
 }
 
 func (s *Service) SyncBoards(ctx context.Context) error {
+	// TODO: make this less bad
+
 	start := time.Now()
 	slog.Debug("beginning connectwise board sync")
 	cwb, err := s.cwClient.ListBoards(nil)
@@ -45,30 +47,20 @@ func (s *Service) SyncBoards(ctx context.Context) error {
 
 		txSvc = s.withTX(tx)
 
-		committed := false
 		defer func() {
-			if !committed {
-				_ = tx.Rollback(ctx)
-			}
+			_ = tx.Rollback(ctx)
 		}()
 	}
 
-	var syncErrs []error
 	for _, b := range s.boardsToUpsert(cwb) {
 		if _, err := txSvc.Boards.Upsert(ctx, b); err != nil {
-			syncErrs = append(syncErrs, fmt.Errorf("upserting board %d (%s): %w", b.ID, b.Name, err))
+			return fmt.Errorf("upserting board %d (%s): %w", b.ID, b.Name, err)
 		}
 	}
 
 	for _, b := range s.boardsToDelete(cwb, sb) {
 		if err := txSvc.Boards.Delete(ctx, b.ID); err != nil {
-			syncErrs = append(syncErrs, fmt.Errorf("deleting board %d (%s): %w", b.ID, b.Name, err))
-		}
-	}
-
-	if len(syncErrs) > 0 {
-		for _, e := range syncErrs {
-			slog.Error("board sync", "error", e)
+			return fmt.Errorf("deleting board %d (%s): %w", b.ID, b.Name, err)
 		}
 	}
 

@@ -2,7 +2,6 @@ package webexsvc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -21,6 +20,8 @@ func (s *Service) GetRoom(ctx context.Context, id int) (models.WebexRoom, error)
 }
 
 func (s *Service) SyncRooms(ctx context.Context) error {
+	// TODO: this function is gross and needs to be split up in some way.
+
 	start := time.Now()
 	slog.Debug("beginning webex room sync")
 
@@ -49,27 +50,15 @@ func (s *Service) SyncRooms(ctx context.Context) error {
 
 		txSvc = s.withTx(tx)
 
-		committed := false
 		defer func() {
-			if !committed {
-				_ = tx.Rollback(ctx)
-			}
+			_ = tx.Rollback(ctx)
 		}()
 	}
 
-	var updateErrs []error
 	for _, r := range roomsToUpsert(wr) {
 		if _, err := txSvc.Rooms.Upsert(ctx, r); err != nil {
-			updateErrs = append(updateErrs, fmt.Errorf("upserting room with name %s: %w", r.Name, err))
+			return fmt.Errorf("upserting room with name %s: %w", r.Name, err)
 		}
-	}
-
-	var syncErr error
-	if len(updateErrs) > 0 {
-		for _, e := range updateErrs {
-			slog.Error("webex room sync", "error", e)
-		}
-		syncErr = errors.New("error occured while syncing one or more rooms, see logs")
 	}
 
 	//TODO: this is a bandaid. Move this logic to the repo.
@@ -80,7 +69,7 @@ func (s *Service) SyncRooms(ctx context.Context) error {
 	}
 
 	slog.Debug("webex room sync complete", "took_time", time.Since(start))
-	return syncErr
+	return nil
 }
 
 func roomsToUpsert(webexRooms []webex.Room) []models.WebexRoom {

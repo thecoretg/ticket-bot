@@ -53,6 +53,7 @@ func (s *Service) SyncOpenTickets(ctx context.Context, boardIDs []int, maxSyncs 
 		wg.Add(1)
 		go func(ticket psa.Ticket) {
 			defer func() { <-sem }()
+			defer wg.Done()
 			if _, err := s.ProcessTicket(ctx, t.ID); err != nil {
 				slog.Error("cwsvc: ticket sync error", "ticket_id", t.ID, "error", err)
 				errCh <- fmt.Errorf("error syncing ticket %d: %w", t.ID, err)
@@ -75,6 +76,8 @@ func (s *Service) SyncOpenTickets(ctx context.Context, boardIDs []int, maxSyncs 
 }
 
 func (s *Service) ProcessTicket(ctx context.Context, id int) (*models.FullTicket, error) {
+	// TODO: make this less bad
+
 	logger := slog.Default()
 	defer func() { logger.Info("ticket processed") }()
 
@@ -98,11 +101,8 @@ func (s *Service) ProcessTicket(ctx context.Context, id int) (*models.FullTicket
 
 		txSvc = s.withTX(tx)
 
-		committed := false
 		defer func() {
-			if !committed {
-				_ = tx.Rollback(ctx)
-			}
+			_ = tx.Rollback(ctx)
 		}()
 	}
 
