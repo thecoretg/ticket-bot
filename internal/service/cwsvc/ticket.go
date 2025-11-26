@@ -459,6 +459,7 @@ func (s *Service) ensureTicketNote(ctx context.Context, cwn *psa.ServiceTicketNo
 	n, err = s.Notes.Upsert(ctx, models.TicketNote{
 		ID:        cwn.ID,
 		TicketID:  cwn.TicketId,
+		Content:   strToPtr(cwn.Text),
 		MemberID:  memberID,
 		ContactID: contactID,
 	})

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/thecoretg/ticketbot/internal/models"
+	"github.com/thecoretg/ticketbot/pkg/psa"
 	"github.com/thecoretg/ticketbot/pkg/webex"
 )
 
@@ -135,7 +136,7 @@ func (s *Service) checkExistingNoti(ctx context.Context, noteID int) (bool, erro
 }
 
 func (s *Service) makeNewTicketMessages(rooms []models.WebexRoom, ticket *models.FullTicket) []Message {
-	header := "**New Ticket:** "
+	header := fmt.Sprintf("**New Ticket:** %s %s", psa.MarkdownInternalTicketLink(ticket.Ticket.ID, s.CWCompanyID), ticket.Ticket.Summary)
 	body := makeMessageBody(ticket, header, s.MaxMessageLength)
 
 	var msgs []Message
@@ -159,7 +160,7 @@ func (s *Service) makeNewTicketMessages(rooms []models.WebexRoom, ticket *models
 }
 
 func (s *Service) makeUpdatedTicketMessages(ticket *models.FullTicket, emails []string) []Message {
-	header := "**Ticket Updated:** "
+	header := fmt.Sprintf("**Ticket Updated:** %s %s", psa.MarkdownInternalTicketLink(ticket.Ticket.ID, s.CWCompanyID), ticket.Ticket.Summary)
 	body := makeMessageBody(ticket, header, s.MaxMessageLength)
 
 	var msgs []Message

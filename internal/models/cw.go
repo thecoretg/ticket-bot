@@ -106,8 +106,8 @@ type TicketRepository interface {
 }
 
 type FullTicket struct {
-	Board      Board
 	Ticket     Ticket
+	Board      Board
 	Company    Company
 	Contact    *Contact
 	Owner      *Member
@@ -137,13 +137,9 @@ type TicketNoteRepository interface {
 }
 
 type FullTicketNote struct {
-	ID        int
-	TicketID  int
-	Content   *string
-	Member    *Member
-	Contact   *Contact
-	UpdatedOn time.Time
-	AddedOn   time.Time
+	TicketNote
+	Member  *Member
+	Contact *Contact
 }
 
 func TicketNoteToFullTicketNote(ctx context.Context, note TicketNote, m MemberRepository, c ContactRepository) (*FullTicketNote, error) {
@@ -169,11 +165,8 @@ func TicketNoteToFullTicketNote(ctx context.Context, note TicketNote, m MemberRe
 	}
 
 	return &FullTicketNote{
-		ID:        note.ID,
-		TicketID:  note.TicketID,
-		Member:    member,
-		Contact:   contact,
-		UpdatedOn: note.UpdatedOn,
-		AddedOn:   note.AddedOn,
+		TicketNote: note,
+		Member:     member,
+		Contact:    contact,
 	}, nil
 }
