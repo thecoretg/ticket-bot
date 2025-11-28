@@ -71,7 +71,7 @@ func (s *Service) BootstrapAdmin(ctx context.Context, email string, explicitKey 
 			return fmt.Errorf("getting admin by email: %w", err)
 		}
 	} else {
-		slog.Info("initial admin found in store: %w", err)
+		slog.Info("initial admin found in store")
 	}
 
 	keys, err := s.Keys.List(ctx)

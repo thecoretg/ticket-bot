@@ -101,6 +101,7 @@ type TicketRepository interface {
 	WithTx(tx pgx.Tx) TicketRepository
 	List(ctx context.Context) ([]Ticket, error)
 	Get(ctx context.Context, id int) (Ticket, error)
+	Exists(ctx context.Context, id int) (bool, error)
 	Upsert(ctx context.Context, c Ticket) (Ticket, error)
 	Delete(ctx context.Context, id int) error
 }

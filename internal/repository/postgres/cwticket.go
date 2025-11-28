@@ -51,6 +51,10 @@ func (p *TicketRepo) Get(ctx context.Context, id int) (models.Ticket, error) {
 	return ticketFromPG(d), nil
 }
 
+func (p *TicketRepo) Exists(ctx context.Context, id int) (bool, error) {
+	return p.queries.CheckTicketExists(ctx, id)
+}
+
 func (p *TicketRepo) Upsert(ctx context.Context, b models.Ticket) (models.Ticket, error) {
 	d, err := p.queries.UpsertTicket(ctx, ticketToUpsertParams(b))
 	if err != nil {

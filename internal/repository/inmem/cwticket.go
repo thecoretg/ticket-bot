@@ -48,6 +48,14 @@ func (p *TicketRepo) Get(ctx context.Context, id int) (models.Ticket, error) {
 	return v, nil
 }
 
+func (p *TicketRepo) Exists(ctx context.Context, id int) (bool, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	_, ok := p.data[id]
+	return ok, nil
+}
+
 func (p *TicketRepo) Upsert(ctx context.Context, t models.Ticket) (models.Ticket, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

@@ -28,10 +28,8 @@ func (h *TicketbotHandler) ProcessTicket(c *gin.Context) {
 
 	ctx := context.WithoutCancel(c.Request.Context())
 	switch action {
-	case "added":
-		go h.processTicket(ctx, id, true)
-	case "updated":
-		go h.processTicket(ctx, id, false)
+	case "added", "updated":
+		go h.processTicket(ctx, id)
 	case "deleted":
 		go h.deleteTicket(ctx, id)
 	default:
@@ -41,8 +39,8 @@ func (h *TicketbotHandler) ProcessTicket(c *gin.Context) {
 	resultJSON(c, "ticket payload received")
 }
 
-func (h *TicketbotHandler) processTicket(ctx context.Context, id int, isNew bool) {
-	if err := h.Service.ProcessTicket(ctx, id, isNew); err != nil {
+func (h *TicketbotHandler) processTicket(ctx context.Context, id int) {
+	if err := h.Service.ProcessTicket(ctx, id); err != nil {
 		slog.Error("processing ticket webhook", "ticket_id", id, "error", err)
 	}
 }

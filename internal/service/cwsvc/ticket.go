@@ -28,7 +28,7 @@ func (s *Service) DeleteTicket(ctx context.Context, id int) error {
 
 func (s *Service) SyncOpenTickets(ctx context.Context, boardIDs []int, maxSyncs int) error {
 	start := time.Now()
-	slog.Debug("cwsvc: beginning ticket sync", "board_ids", boardIDs)
+	slog.Info("cwsvc: beginning ticket sync", "board_ids", boardIDs)
 	con := "closedFlag = false"
 	if len(boardIDs) > 0 {
 		con += fmt.Sprintf(" AND %s", boardIDParam(boardIDs))
@@ -43,7 +43,7 @@ func (s *Service) SyncOpenTickets(ctx context.Context, boardIDs []int, maxSyncs 
 	if err != nil {
 		return fmt.Errorf("getting open tickets from connectwise: %w", err)
 	}
-	slog.Debug("cwsvc: open ticket sync: got open tickets from connectwise", "total_tickets", len(tix))
+	slog.Info("cwsvc: open ticket sync: got open tickets from connectwise", "total_tickets", len(tix))
 	sem := make(chan struct{}, maxSyncs)
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(tix))
@@ -146,7 +146,6 @@ func (s *Service) ProcessTicket(ctx context.Context, id int) (*models.FullTicket
 
 	var rsc []models.Member
 	if ticket.Resources != nil && *ticket.Resources != "" {
-		logger.Debug("cwsvc: processing resources", "resources", *ticket.Resources)
 		ids := resourceStringToSlice(*ticket.Resources)
 		for _, i := range ids {
 			member, err := s.ensureMemberByIdentifier(ctx, i)

@@ -23,21 +23,21 @@ func (s *Service) SyncRooms(ctx context.Context) error {
 	// TODO: this function is gross and needs to be split up in some way.
 
 	start := time.Now()
-	slog.Debug("beginning webex room sync")
+	slog.Info("beginning webex room sync")
 
 	// get rooms from webex as source of truth
 	wr, err := s.webexClient.ListRooms(nil)
 	if err != nil {
 		return fmt.Errorf("getting rooms from webex: %w", err)
 	}
-	slog.Debug("webex room sync: got rooms from webex", "total_rooms", len(wr))
+	slog.Info("webex room sync: got rooms from webex", "total_rooms", len(wr))
 
 	// get current rooms from store
 	sr, err := s.Rooms.List(ctx)
 	if err != nil {
 		return fmt.Errorf("getting rooms from store: %w", err)
 	}
-	slog.Debug("webex room sync: got rooms from store", "total_rooms", len(sr))
+	slog.Info("webex room sync: got rooms from store", "total_rooms", len(sr))
 
 	//TODO: this is a bandaid. Move this logic to the repo.
 	txSvc := s
@@ -68,7 +68,7 @@ func (s *Service) SyncRooms(ctx context.Context) error {
 		}
 	}
 
-	slog.Debug("webex room sync complete", "took_time", time.Since(start))
+	slog.Info("webex room sync complete", "took_time", time.Since(start))
 	return nil
 }
 

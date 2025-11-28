@@ -6,6 +6,12 @@ WHERE id = $1 LIMIT 1;
 SELECT * FROM cw_ticket
 ORDER BY id;
 
+-- name: CheckTicketExists :one
+SELECT EXISTS (
+    SELECT 1
+    FROM cw_ticket
+    WHERE id = $1
+) AS exists;
 
 -- name: UpsertTicket :one
 INSERT INTO cw_ticket

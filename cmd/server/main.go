@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/thecoretg/ticketbot/internal/server"
@@ -17,13 +18,11 @@ func main() {
 
 func Run() error {
 	ctx := context.Background()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
 	a, err := server.NewApp(ctx)
 	if err != nil {
 		return fmt.Errorf("initializing app: %w", err)
-	}
-	if a.Config.Debug {
-		slog.SetLogLoggerLevel(slog.LevelDebug)
-		slog.Debug("DEBUG ON")
 	}
 
 	if !a.TestFlags.SkipAuth {

@@ -4,12 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
-	"time"
+	"strconv"
 
 	"github.com/thecoretg/ticketbot/internal/models"
-	"github.com/thecoretg/ticketbot/pkg/psa"
-	"github.com/thecoretg/ticketbot/pkg/webex"
 )
 
 type Request struct {
@@ -22,60 +19,47 @@ type Request struct {
 	Error           error
 }
 
-type Message struct {
-	MsgType      string
-	WebexMsg     webex.Message
-	ToEmail      *string
-	WebexRoom    *models.WebexRoom
-	Notification models.TicketNotification
-	SendError    error
-}
-
 func newRequest(ticket *models.FullTicket) *Request {
 	return &Request{
-		Ticket:         ticket,
-		Notifications:  []models.TicketNotification{},
-		MessagesToSend: []Message{},
-		NoNotiReason:   "",
-		Error:          nil,
+		Ticket:          ticket,
+		Notifications:   []models.TicketNotification{},
+		MessagesToSend:  []Message{},
+		MessagesSent:    []Message{},
+		MessagesErrored: []Message{},
+		Error:           nil,
 	}
 }
 
-func newMessage(msgType string, wm webex.Message, toEmail *string, wr *models.WebexRoom, n models.TicketNotification) Message {
-	return Message{
-		MsgType:      msgType,
-		WebexMsg:     wm,
-		ToEmail:      toEmail,
-		WebexRoom:    wr,
-		Notification: n,
-	}
-}
-
-func (s *Service) ProcessTicket(ctx context.Context, ticket *models.FullTicket, isNew bool) *Request {
+func (s *Service) ProcessTicket(ctx context.Context, ticket *models.FullTicket, isNew bool) {
 	req := newRequest(ticket)
+	logger := slog.Default().With("ticket_id", ticket.Ticket.ID)
+	defer func() {
+		logRequest(req, logger)
+	}()
 
-	notifiers, err := s.Notifiers.ListByBoard(ctx, ticket.Board.ID)
+	rules, err := s.Notifiers.ListByBoard(ctx, ticket.Board.ID)
 	if err != nil {
-		req.Error = fmt.Errorf("listing notifiers for board: %w", err)
-		return req
+		req.Error = fmt.Errorf("listing notifier rules for board: %w", err)
+		return
 	}
+	logger = logger.With(ruleLogGroup(rules))
 
-	if len(notifiers) == 0 {
-		req.NoNotiReason = "no notifiers found"
-		return req
+	if len(rules) == 0 {
+		req.NoNotiReason = "no notifier rules found for board"
+		return
 	}
 
 	if isNew {
 		var rooms []models.WebexRoom
-		for _, n := range notifiers {
+		for _, n := range rules {
 			if !n.NotifyEnabled {
 				continue
 			}
 
 			r, err := s.Rooms.Get(ctx, n.WebexRoomID)
 			if err != nil {
-				req.Error = fmt.Errorf("getting webex room from notifier: %w", err)
-				return req
+				req.Error = fmt.Errorf("getting webex room from notifier rule: %w", err)
+				return
 			}
 
 			rooms = append(rooms, r)
@@ -86,24 +70,25 @@ func (s *Service) ProcessTicket(ctx context.Context, ticket *models.FullTicket, 
 
 		if ticket.LatestNote == nil {
 			req.NoNotiReason = "no note found for ticket"
-			return req
+			return
 		}
 
 		exists, err := s.checkExistingNoti(ctx, ticket.LatestNote.ID)
 		if err != nil {
 			req.Error = fmt.Errorf("checking for existing notification for ticket note: %w", err)
-			return req
+			req.NoNotiReason = "errored"
+			return
 		}
 
 		if exists {
 			req.NoNotiReason = "note already notified"
-			return req
+			return
 		}
 
-		emails := s.getUpdateRecipientEmails(ctx, ticket)
+		emails := s.getRecipientEmails(ctx, ticket)
 		if len(emails) == 0 {
 			req.NoNotiReason = "no resources to notify"
-			return req
+			return
 		}
 		req.MessagesToSend = s.makeUpdatedTicketMessages(ticket, emails)
 	}
@@ -120,7 +105,15 @@ func (s *Service) ProcessTicket(ctx context.Context, ticket *models.FullTicket, 
 		}
 	}
 
-	return req
+	if len(req.MessagesSent) > 0 {
+		logger = logger.With(msgsLogGroup("messages_sent", req.MessagesSent))
+	}
+
+	if len(req.MessagesErrored) > 0 {
+		logger = logger.With(msgsLogGroup("messages_errored", req.MessagesErrored))
+	}
+
+	return
 }
 
 func (s *Service) checkExistingNoti(ctx context.Context, noteID int) (bool, error) {
@@ -133,111 +126,6 @@ func (s *Service) checkExistingNoti(ctx context.Context, noteID int) (bool, erro
 	}
 
 	return false, nil
-}
-
-func (s *Service) makeNewTicketMessages(rooms []models.WebexRoom, ticket *models.FullTicket) []Message {
-	header := fmt.Sprintf("**New Ticket:** %s %s", psa.MarkdownInternalTicketLink(ticket.Ticket.ID, s.CWCompanyID), ticket.Ticket.Summary)
-	body := makeMessageBody(ticket, header, s.MaxMessageLength)
-
-	var msgs []Message
-	for _, r := range rooms {
-		wm := webex.NewMessageToRoom(r.WebexID, r.Name, body)
-
-		n := &models.TicketNotification{
-			TicketID:    ticket.Ticket.ID,
-			WebexRoomID: &r.ID,
-			Sent:        true,
-		}
-
-		if ticket.LatestNote != nil {
-			n.TicketNoteID = &ticket.LatestNote.ID
-		}
-
-		msgs = append(msgs, newMessage("new_ticket", wm, nil, &r, *n))
-	}
-
-	return msgs
-}
-
-func (s *Service) makeUpdatedTicketMessages(ticket *models.FullTicket, emails []string) []Message {
-	header := fmt.Sprintf("**Ticket Updated:** %s %s", psa.MarkdownInternalTicketLink(ticket.Ticket.ID, s.CWCompanyID), ticket.Ticket.Summary)
-	body := makeMessageBody(ticket, header, s.MaxMessageLength)
-
-	var msgs []Message
-	for _, e := range emails {
-		wm := webex.NewMessageToPerson(e, body)
-
-		n := &models.TicketNotification{
-			TicketID:    ticket.Ticket.ID,
-			SentToEmail: &e,
-			Sent:        true,
-		}
-
-		if ticket.LatestNote != nil {
-			n.TicketNoteID = &ticket.LatestNote.ID
-		}
-
-		msgs = append(msgs, newMessage("updated_ticket", wm, &e, nil, *n))
-	}
-
-	return msgs
-}
-
-func (s *Service) getUpdateRecipientEmails(ctx context.Context, ticket *models.FullTicket) []string {
-	var excluded []models.Member
-
-	// if the sender of the note is a member, exclude them from messages;
-	// they don't need a notification for their own note
-	if ticket.LatestNote != nil && ticket.LatestNote.Member != nil {
-		excluded = append(excluded, *ticket.LatestNote.Member)
-	}
-
-	var emails []string
-	for _, r := range ticket.Resources {
-		if memberSliceContains(excluded, r) {
-			continue
-		}
-
-		e, err := s.forwardsToEmails(ctx, r.PrimaryEmail)
-		if err != nil {
-			slog.Warn("notifier: checking forwards for email", "email", r.PrimaryEmail, "error", err)
-		}
-
-		emails = append(emails, e...)
-	}
-
-	return filterDuplicateEmails(emails)
-}
-
-func (s *Service) forwardsToEmails(ctx context.Context, email string) ([]string, error) {
-	noFwdSlice := []string{email}
-	fwds, err := s.Forwards.ListByEmail(ctx, email)
-	if err != nil {
-		return noFwdSlice, fmt.Errorf("checking forwards: %w", err)
-	}
-
-	if len(fwds) == 0 {
-		return noFwdSlice, nil
-	}
-
-	activeFwds := filterActiveFwds(fwds)
-	if len(activeFwds) == 0 {
-		return noFwdSlice, nil
-	}
-
-	var emails []string
-	for _, f := range activeFwds {
-		if f.UserKeepsCopy {
-			emails = append(emails, email)
-			break
-		}
-	}
-
-	for _, f := range activeFwds {
-		emails = append(emails, f.DestEmail)
-	}
-
-	return emails, nil
 }
 
 func (s *Service) sendNotification(ctx context.Context, m *Message) *Message {
@@ -254,120 +142,61 @@ func (s *Service) sendNotification(ctx context.Context, m *Message) *Message {
 	return m
 }
 
-func makeMessageBody(ticket *models.FullTicket, header string, maxLen int) string {
-	body := header
-	if ticket.Company.Name != "" {
-		body += fmt.Sprintf("\n**Company:** %s", ticket.Company.Name)
+func ruleLogGroup(rules []models.Notifier) slog.Attr {
+	var attrs []any
+	for _, r := range rules {
+		g := slog.Group(
+			strconv.Itoa(r.ID),
+			slog.Int("board_id", r.CwBoardID),
+			slog.Int("webex_room_id", r.WebexRoomID),
+		)
+		attrs = append(attrs, g)
 	}
 
-	if ticket.Contact != nil {
-		name := fullName(ticket.Contact.FirstName, ticket.Contact.LastName)
-		body += fmt.Sprintf("\n**Ticket Contact:** %s", name)
-	}
-
-	if ticket.LatestNote != nil && ticket.LatestNote.Content != nil {
-		body += messageText(ticket, maxLen)
-	}
-
-	// Divider line for easily distinguishable breaks in notifications
-	body += fmt.Sprintf("\n\n---")
-	return body
+	return slog.Group("notifier_rules", attrs...)
 }
 
-func filterDuplicateEmails(emails []string) []string {
-	seenEmails := make(map[string]struct{})
-	for _, e := range emails {
-		if _, ok := seenEmails[e]; !ok {
-			seenEmails[e] = struct{}{}
+func msgsLogGroup(key string, msgs []Message) slog.Attr {
+	var msgGrps []any
+	msgID := 0
+	for _, m := range msgs {
+		attrs := []any{
+			slog.String("type", m.MsgType),
 		}
-	}
 
-	var uniqueEmails []string
-	for e := range seenEmails {
-		uniqueEmails = append(uniqueEmails, e)
-	}
-
-	return uniqueEmails
-}
-
-func filterActiveFwds(fwds []models.UserForward) []models.UserForward {
-	var activeFwds []models.UserForward
-	for _, f := range fwds {
-		if f.Enabled && dateRangeActive(f.StartDate, f.EndDate) {
-			activeFwds = append(activeFwds, f)
+		if m.WebexRoom != nil {
+			g := slog.Group(
+				"webex_room",
+				slog.Int("id", m.WebexRoom.ID),
+				slog.String("name", m.WebexRoom.Name),
+				slog.String("type", m.WebexRoom.Type),
+			)
+			attrs = append(attrs, g)
 		}
-	}
 
-	return activeFwds
-}
-
-func dateRangeActive(start, end *time.Time) bool {
-	now := time.Now()
-	if start == nil {
-		return false
-	}
-
-	if end == nil {
-		return now.After(*start)
-	}
-
-	return now.After(*start) && now.Before(*end)
-}
-
-func messageText(t *models.FullTicket, maxLen int) string {
-	var body string
-	sender := getSenderName(t)
-	if sender != "" {
-		body += fmt.Sprintf("\n**Latest Note Sent By:** %s", sender)
-	}
-
-	content := ""
-	if t.LatestNote.Content != nil {
-		content = *t.LatestNote.Content
-	}
-
-	if len(content) > maxLen {
-		content = content[:maxLen] + "..."
-	}
-	body += fmt.Sprintf("\n%s", blockQuoteText(content))
-	return body
-}
-
-// blockQuoteText creates a markdown block quote from a string, also respects line breaks
-func blockQuoteText(text string) string {
-	parts := strings.Split(text, "\n")
-	for i, part := range parts {
-		parts[i] = "> " + part
-	}
-
-	return strings.Join(parts, "\n")
-}
-
-// getSenderName determines the name of the sender of a note. It checks for members in Connectwise and external contacts from companies.
-func getSenderName(t *models.FullTicket) string {
-	if t.LatestNote.Member != nil {
-		return fullName(t.LatestNote.Member.FirstName, &t.LatestNote.Member.LastName)
-	} else if t.LatestNote.Contact != nil {
-		return fullName(t.LatestNote.Contact.FirstName, t.LatestNote.Contact.LastName)
-	}
-
-	return ""
-}
-
-func fullName(first string, last *string) string {
-	if last != nil {
-		return fmt.Sprintf("%s %s", first, *last)
-	}
-
-	return first
-}
-
-func memberSliceContains(members []models.Member, check models.Member) bool {
-	for _, x := range members {
-		if x.ID == check.ID {
-			return true
+		if m.ToEmail != nil {
+			attrs = append(attrs, slog.String("to_email", *m.ToEmail))
 		}
+
+		if m.SendError != nil {
+			attrs = append(attrs, slog.String("send_error", m.SendError.Error()))
+		}
+
+		msgGrps = append(msgGrps, slog.Group(strconv.Itoa(msgID), attrs...))
+		msgID++
 	}
 
-	return false
+	return slog.Group(key, msgGrps...)
+}
+
+func logRequest(req *Request, logger *slog.Logger) {
+	if req.NoNotiReason != "" {
+		logger = logger.With("no_noti_reason", req.NoNotiReason)
+	}
+
+	if req.Error != nil {
+		logger.Error("error occured with notification", "error", req.Error)
+	} else {
+		logger.Info("notification processed")
+	}
 }

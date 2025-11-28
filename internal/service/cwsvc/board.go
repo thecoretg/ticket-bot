@@ -23,18 +23,18 @@ func (s *Service) SyncBoards(ctx context.Context) error {
 	// TODO: make this less bad
 
 	start := time.Now()
-	slog.Debug("beginning connectwise board sync")
+	slog.Info("beginning connectwise board sync")
 	cwb, err := s.cwClient.ListBoards(nil)
 	if err != nil {
 		return fmt.Errorf("listing connectwise boards: %w", err)
 	}
-	slog.Debug("board sync: got boards from connectwise", "total_boards", len(cwb))
+	slog.Info("board sync: got boards from connectwise", "total_boards", len(cwb))
 
 	sb, err := s.Boards.List(ctx)
 	if err != nil {
 		return fmt.Errorf("listing boards from store: %w", err)
 	}
-	slog.Debug("board sync: got boards from store", "total_boards", len(sb))
+	slog.Info("board sync: got boards from store", "total_boards", len(sb))
 
 	//TODO: this is a bandaid. Move this logic to the repo.
 	txSvc := s
@@ -71,7 +71,7 @@ func (s *Service) SyncBoards(ctx context.Context) error {
 		}
 	}
 
-	slog.Debug("board sync complete", "took_time", time.Since(start))
+	slog.Info("board sync complete", "took_time", time.Since(start))
 	return nil
 }
 
