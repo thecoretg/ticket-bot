@@ -68,7 +68,7 @@ func (s *Service) SyncRooms(ctx context.Context) error {
 		}
 	}
 
-	slog.Info("webex room sync complete", "took_time", time.Since(start))
+	slog.Info("webex room sync complete", "took_time", time.Since(start).Seconds())
 	return nil
 }
 

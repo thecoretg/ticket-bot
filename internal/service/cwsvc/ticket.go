@@ -148,7 +148,7 @@ func (s *Service) ProcessTicket(ctx context.Context, id int) (*models.FullTicket
 	if ticket.Resources != nil && *ticket.Resources != "" {
 		ids := resourceStringToSlice(*ticket.Resources)
 		for _, i := range ids {
-			member, err := s.ensureMemberByIdentifier(ctx, i)
+			member, err := txSvc.ensureMemberByIdentifier(ctx, i)
 			if err != nil {
 				logger.Warn("cwsvc: error getting resource member by identifier", "identifier", i, "error", err)
 				continue

@@ -52,13 +52,13 @@ func (s *Service) SyncBoards(ctx context.Context) error {
 		}()
 	}
 
-	for _, b := range s.boardsToUpsert(cwb) {
+	for _, b := range txSvc.boardsToUpsert(cwb) {
 		if _, err := txSvc.Boards.Upsert(ctx, b); err != nil {
 			return fmt.Errorf("upserting board %d (%s): %w", b.ID, b.Name, err)
 		}
 	}
 
-	for _, b := range s.boardsToDelete(cwb, sb) {
+	for _, b := range txSvc.boardsToDelete(cwb, sb) {
 		if err := txSvc.Boards.Delete(ctx, b.ID); err != nil {
 			return fmt.Errorf("deleting board %d (%s): %w", b.ID, b.Name, err)
 		}
@@ -71,7 +71,7 @@ func (s *Service) SyncBoards(ctx context.Context) error {
 		}
 	}
 
-	slog.Info("board sync complete", "took_time", time.Since(start))
+	slog.Info("board sync complete", "took_time", time.Since(start).Seconds())
 	return nil
 }
 
