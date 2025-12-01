@@ -19,7 +19,7 @@ import (
 )
 
 func TestNewService(t *testing.T) {
-	_, err := testNewService(t, models.DefaultConfig)
+	_, err := testNewService(t, &models.DefaultConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,21 +27,21 @@ func TestNewService(t *testing.T) {
 
 func TestService_ProcessNewTicket_AttemptNotifyOff(t *testing.T) {
 	ctx := context.Background()
-	s, err := testNewService(t, models.DefaultConfig)
+	s, err := testNewService(t, &models.DefaultConfig)
 	if err != nil {
 		t.Fatalf("creating service: %v", err)
 	}
 
 	// Process as New tickets
 	for _, id := range testTicketIDs(t) {
-		if err := s.ProcessTicket(ctx, id, true); err != nil {
+		if err := s.ProcessTicket(ctx, id); err != nil {
 			t.Errorf("processing new ticket %d: %v", id, err)
 		}
 	}
 
 	// Then process again as updated tickets
 	for _, id := range testTicketIDs(t) {
-		if err := s.ProcessTicket(ctx, id, false); err != nil {
+		if err := s.ProcessTicket(ctx, id); err != nil {
 			t.Errorf("processing updated ticket %d: %v", id, err)
 		}
 	}
@@ -52,7 +52,7 @@ func TestService_ProcessNewTicket_AttemptNotifyOn(t *testing.T) {
 	cfg := &models.DefaultConfig
 	cfg.AttemptNotify = true
 
-	s, err := testNewService(t, *cfg)
+	s, err := testNewService(t, cfg)
 	if err != nil {
 		t.Fatalf("creating service: %v", err)
 	}
@@ -63,7 +63,7 @@ func TestService_ProcessNewTicket_AttemptNotifyOn(t *testing.T) {
 
 	// Process as New tickets
 	for _, id := range testTicketIDs(t) {
-		if err := s.ProcessTicket(ctx, id, true); err != nil {
+		if err := s.ProcessTicket(ctx, id); err != nil {
 			t.Errorf("processing new ticket %d: %v", id, err)
 		}
 	}
@@ -79,13 +79,13 @@ func TestService_ProcessNewTicket_AttemptNotifyOn(t *testing.T) {
 
 	// Then process again as updated tickets
 	for _, id := range testTicketIDs(t) {
-		if err := s.ProcessTicket(ctx, id, false); err != nil {
+		if err := s.ProcessTicket(ctx, id); err != nil {
 			t.Errorf("processing updated ticket %d: %v", id, err)
 		}
 	}
 }
 
-func testNewService(t *testing.T, cfg models.Config) (*Service, error) {
+func testNewService(t *testing.T, cfg *models.Config) (*Service, error) {
 	t.Helper()
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 	if err := godotenv.Load("testing.env"); err != nil {
@@ -114,7 +114,7 @@ func testNewService(t *testing.T, cfg models.Config) (*Service, error) {
 	cs := cwsvc.New(nil, cwRepos, psa.NewClient(cwCreds))
 	ns := notifier.New(cfg, notiRepos, mock.NewWebexClient(webexSecret), cwCreds.CompanyId, cfg.MaxConcurrentSyncs)
 
-	return New(models.DefaultConfig, cs, ns), nil
+	return New(cfg, cs, ns), nil
 }
 
 func testGetCwCreds(t *testing.T) *psa.Creds {
