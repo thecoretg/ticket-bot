@@ -10,6 +10,8 @@ import (
 	"github.com/thecoretg/ticketbot/internal/server"
 )
 
+const currentMigVersion = 2
+
 func main() {
 	if err := Run(); err != nil {
 		fmt.Println("An error occured:", err)
@@ -20,7 +22,7 @@ func Run() error {
 	ctx := context.Background()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
-	a, err := server.NewApp(ctx)
+	a, err := server.NewApp(ctx, currentMigVersion)
 	if err != nil {
 		return fmt.Errorf("initializing app: %w", err)
 	}

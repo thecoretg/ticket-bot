@@ -21,14 +21,15 @@ import (
 )
 
 type App struct {
-	Creds         *Creds
-	TestFlags     *TestFlags
-	Stores        *models.AllRepos
-	CWClient      *psa.Client
-	MessageSender models.MessageSender
-	Pool          *pgxpool.Pool
-	Config        *models.Config
-	Svc           *Services
+	Creds                   *Creds
+	TestFlags               *TestFlags
+	Stores                  *models.AllRepos
+	CWClient                *psa.Client
+	MessageSender           models.MessageSender
+	Pool                    *pgxpool.Pool
+	Config                  *models.Config
+	Svc                     *Services
+	CurrentMigrationVersion int64
 }
 
 type Creds struct {
@@ -58,7 +59,7 @@ type Services struct {
 	Ticketbot *ticketbot.Service
 }
 
-func NewApp(ctx context.Context) (*App, error) {
+func NewApp(ctx context.Context, migVersion int64) (*App, error) {
 	cr := getCreds()
 	tf := getTestFlags()
 	if err := cr.validate(tf); err != nil {
@@ -68,7 +69,7 @@ func NewApp(ctx context.Context) (*App, error) {
 	cw := psa.NewClient(cr.CWCreds)
 	ms := makeMessageSender(tf.MockWebex, cr.WebexSecret)
 
-	s, err := CreateStores(ctx, cr, tf.InMemory)
+	s, err := CreateStores(ctx, cr, tf.InMemory, migVersion)
 	if err != nil {
 		return nil, fmt.Errorf("initializing stores: %w", err)
 	}
