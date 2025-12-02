@@ -57,12 +57,12 @@ func notifierRulesTable(notifiers []models.NotifierRule) {
 
 func userForwardsTable(forwards []models.UserForward) {
 	t := defaultTable()
-	t.Headers("ID", "SRC EMAIL", "DEST EMAIL", "START DATE", "END DATE", "ENABLED", "USER KEEPS COPY")
+	t.Headers("ID", "SRC ID", "DEST ID", "START DATE", "END DATE", "ENABLED", "USER KEEPS COPY")
 	for _, uf := range forwards {
 		t.Row(
 			strconv.Itoa(uf.ID),
-			uf.UserEmail,
-			uf.DestEmail,
+			strconv.Itoa(uf.SourceRoomID),
+			strconv.Itoa(uf.DestRoomID),
 			uf.StartDate.Format("2006-01-02"),
 			uf.EndDate.Format("2006-01-02"),
 			fmt.Sprintf("%v", uf.Enabled),

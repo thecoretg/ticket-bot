@@ -89,12 +89,23 @@ func (s *Service) processNotifications(ctx context.Context, ticket *models.FullT
 			return nil
 		}
 
-		emails := s.getRecipientEmails(ctx, ticket)
-		if len(emails) == 0 {
+		roomIDs := s.getRecipientRoomIDs(ctx, ticket)
+		if len(roomIDs) == 0 {
 			req.NoNotiReason = "no resources to notify"
 			return nil
 		}
-		req.MessagesToSend = s.makeUpdatedTicketMessages(ticket, emails)
+
+		var recips []models.WebexRoom
+		for _, i := range roomIDs {
+			r, err := s.Rooms.Get(ctx, i)
+			if err != nil {
+				logger.Error("error getting message recipient webex room from id", "room_id", i, "error", err)
+				continue
+			}
+
+			recips = append(recips, r)
+		}
+		req.MessagesToSend = s.makeUpdatedTicketMessages(ticket, recips)
 	}
 
 	if len(req.MessagesToSend) > 0 {
@@ -169,7 +180,7 @@ func msgsLogGroup(key string, msgs []Message) slog.Attr {
 			slog.String("type", m.MsgType),
 		}
 
-		if m.WebexRoom != nil {
+		if m.WebexRoom.ID != 0 {
 			g := slog.Group(
 				"webex_room",
 				slog.Int("id", m.WebexRoom.ID),
@@ -177,10 +188,6 @@ func msgsLogGroup(key string, msgs []Message) slog.Attr {
 				slog.String("type", m.WebexRoom.Type),
 			)
 			attrs = append(attrs, g)
-		}
-
-		if m.ToEmail != nil {
-			attrs = append(attrs, slog.String("to_email", *m.ToEmail))
 		}
 
 		if m.SendError != nil {

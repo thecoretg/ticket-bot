@@ -12,17 +12,15 @@ import (
 type Message struct {
 	MsgType      string
 	WebexMsg     webex.Message
-	ToEmail      *string
-	WebexRoom    *models.WebexRoom
+	WebexRoom    models.WebexRoom
 	Notification models.TicketNotification
 	SendError    error
 }
 
-func newMessage(msgType string, wm webex.Message, toEmail *string, wr *models.WebexRoom, n models.TicketNotification) Message {
+func newMessage(msgType string, wm webex.Message, wr models.WebexRoom, n models.TicketNotification) Message {
 	return Message{
 		MsgType:      msgType,
 		WebexMsg:     wm,
-		ToEmail:      toEmail,
 		WebexRoom:    wr,
 		Notification: n,
 	}
@@ -38,7 +36,7 @@ func (s *Service) makeNewTicketMessages(rooms []models.WebexRoom, ticket *models
 
 		n := &models.TicketNotification{
 			TicketID:    ticket.Ticket.ID,
-			WebexRoomID: &r.ID,
+			WebexRoomID: r.ID,
 			Sent:        true,
 		}
 
@@ -46,23 +44,23 @@ func (s *Service) makeNewTicketMessages(rooms []models.WebexRoom, ticket *models
 			n.TicketNoteID = &ticket.LatestNote.ID
 		}
 
-		msgs = append(msgs, newMessage("new_ticket", wm, nil, &r, *n))
+		msgs = append(msgs, newMessage("new_ticket", wm, r, *n))
 	}
 
 	return msgs
 }
 
-func (s *Service) makeUpdatedTicketMessages(ticket *models.FullTicket, emails []string) []Message {
+func (s *Service) makeUpdatedTicketMessages(ticket *models.FullTicket, recips []models.WebexRoom) []Message {
 	header := fmt.Sprintf("**Ticket Updated:** %s %s", psa.MarkdownInternalTicketLink(ticket.Ticket.ID, s.CWCompanyID), ticket.Ticket.Summary)
 	body := makeMessageBody(ticket, header, s.MaxMessageLength)
 
 	var msgs []Message
-	for _, e := range emails {
-		wm := webex.NewMessageToPerson(e, body)
+	for _, r := range recips {
+		wm := webex.NewMessageToRoom(r.WebexID, r.Name, body)
 
 		n := &models.TicketNotification{
 			TicketID:    ticket.Ticket.ID,
-			SentToEmail: &e,
+			WebexRoomID: r.ID,
 			Sent:        true,
 		}
 
@@ -70,7 +68,7 @@ func (s *Service) makeUpdatedTicketMessages(ticket *models.FullTicket, emails []
 			n.TicketNoteID = &ticket.LatestNote.ID
 		}
 
-		msgs = append(msgs, newMessage("updated_ticket", wm, &e, nil, *n))
+		msgs = append(msgs, newMessage("updated_ticket", wm, r, *n))
 	}
 
 	return msgs
@@ -92,7 +90,7 @@ func makeMessageBody(ticket *models.FullTicket, header string, maxLen int) strin
 	}
 
 	// Divider line for easily distinguishable breaks in notifications
-	body += fmt.Sprintf("\n\n---")
+	body += "\n\n---"
 	return body
 }
 

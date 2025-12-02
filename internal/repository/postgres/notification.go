@@ -105,7 +105,6 @@ func notificationToInsertParams(n models.TicketNotification) db.InsertTicketNoti
 		TicketID:     n.TicketID,
 		TicketNoteID: n.TicketNoteID,
 		WebexRoomID:  n.WebexRoomID,
-		SentToEmail:  n.SentToEmail,
 		Sent:         n.Sent,
 		Skipped:      n.Sent,
 	}
@@ -117,7 +116,6 @@ func notificationFromPG(pg db.TicketNotification) models.TicketNotification {
 		TicketID:     pg.TicketID,
 		TicketNoteID: pg.TicketNoteID,
 		WebexRoomID:  pg.WebexRoomID,
-		SentToEmail:  pg.SentToEmail,
 		Sent:         pg.Sent,
 		Skipped:      pg.Skipped,
 		CreatedOn:    pg.CreatedOn,

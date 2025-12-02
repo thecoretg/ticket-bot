@@ -15,8 +15,8 @@ import (
 var (
 	notifierID       int
 	forwardID        int
-	forwardSrcEmail  string
-	forwardDestEmail string
+	forwardSrcID     int
+	forwardDestID    int
 	forwardStartDate string
 	forwardEndDate   string
 	forwardEnabled   bool
@@ -140,9 +140,9 @@ var (
 				return err
 			}
 
-			fmt.Printf("ID: %d\nUser: %s\nForward To: %s\nStart Date: %s\nEnd Date: %s\n"+
+			fmt.Printf("ID: %d\nSource: %d\nForward To: %d\nStart Date: %s\nEnd Date: %s\n"+
 				"User Keeps Copy: %v\nEnabled: %v\n",
-				uf.ID, uf.UserEmail, uf.DestEmail, uf.StartDate, uf.EndDate, uf.UserKeepsCopy, uf.Enabled)
+				uf.ID, uf.SourceRoomID, uf.DestRoomID, uf.StartDate, uf.EndDate, uf.UserKeepsCopy, uf.Enabled)
 
 			return nil
 		},
@@ -151,11 +151,11 @@ var (
 	createForwardCmd = &cobra.Command{
 		Use: "create",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if forwardSrcEmail == "" {
+			if forwardSrcID == 0 {
 				return errors.New("source email required")
 			}
 
-			if forwardDestEmail == "" {
+			if forwardDestID == 0 {
 				return errors.New("destination email required")
 			}
 
@@ -180,8 +180,8 @@ var (
 			}
 
 			p := &models.UserForward{
-				UserEmail:     forwardSrcEmail,
-				DestEmail:     forwardDestEmail,
+				SourceRoomID:  forwardSrcID,
+				DestRoomID:    forwardDestID,
 				StartDate:     start,
 				EndDate:       end,
 				Enabled:       forwardEnabled,
@@ -193,8 +193,8 @@ var (
 				return fmt.Errorf("creating user forward: %w", err)
 			}
 
-			fmt.Printf("ID: %d\nUser: %s\nForward To: %s\nStart Date: %s\nEnd Date: %s\nUser Keeps Copy: %v\nEnabled: %v\n",
-				uf.ID, uf.UserEmail, uf.DestEmail, uf.StartDate, uf.EndDate, uf.UserKeepsCopy, uf.Enabled)
+			fmt.Printf("ID: %d\nSource: %d\nForward To: %d\nStart Date: %s\nEnd Date: %s\nUser Keeps Copy: %v\nEnabled: %v\n",
+				uf.ID, uf.SourceRoomID, uf.DestRoomID, uf.StartDate, uf.EndDate, uf.UserKeepsCopy, uf.Enabled)
 
 			return nil
 		},
@@ -307,8 +307,8 @@ func init() {
 	createNotifierRuleCmd.Flags().IntVarP(&boardID, "board-id", "b", 0, "board id to use")
 	createNotifierRuleCmd.Flags().IntVarP(&roomID, "room-id", "r", 0, "room id to use")
 	createForwardCmd.Flags().BoolVarP(&forwardUserKeeps, "user-keeps-copy", "k", false, "user keeps a copy of forwarded emails")
-	createForwardCmd.Flags().StringVarP(&forwardSrcEmail, "source-email", "s", "", "source email address to forward from")
-	createForwardCmd.Flags().StringVarP(&forwardDestEmail, "dest-email", "d", "", "destination email address to forward to")
+	createForwardCmd.Flags().IntVarP(&forwardSrcID, "source-id", "s", 0, "source room id to forward from")
+	createForwardCmd.Flags().IntVarP(&forwardDestID, "dest-id", "d", 0, "destination room id to forward to")
 	createForwardCmd.Flags().StringVarP(&forwardStartDate, "start-date", "a", "", "start date for forward (YYYY-MM-DD)")
 	createForwardCmd.Flags().StringVarP(&forwardEndDate, "end-date", "e", "", "end date for forward (YYYY-MM-DD)")
 	createForwardCmd.Flags().BoolVarP(&forwardEnabled, "enabled", "x", true, "enable the forward")

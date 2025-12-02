@@ -65,8 +65,7 @@ type TicketNotification struct {
 	ID           int       `json:"id"`
 	TicketID     int       `json:"ticket_id"`
 	TicketNoteID *int      `json:"ticket_note_id"`
-	WebexRoomID  *int      `json:"webex_room_id"`
-	SentToEmail  *string   `json:"sent_to_email"`
+	WebexRoomID  int       `json:"webex_room_id"`
 	Sent         bool      `json:"sent"`
 	Skipped      bool      `json:"skipped"`
 	CreatedOn    time.Time `json:"created_on"`
