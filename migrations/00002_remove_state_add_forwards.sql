@@ -2,15 +2,16 @@
 -- +goose StatementBegin
 CREATE TABLE IF NOT EXISTS webex_user_forward (
     id SERIAL PRIMARY KEY,
-    user_email TEXT NOT NULL,
-    dest_email TEXT NOT NULL,
+    source_room_id INT NOT NULL REFERENCES webex_room(id),
+    dest_room_id INT NOT NULL REFERENCES webex_room(id),
     start_date TIMESTAMP,
     end_date TIMESTAMP,
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
     user_keeps_copy BOOLEAN NOT NULL DEFAULT TRUE,
     created_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (user_email, dest_email, start_date, end_date),
+    UNIQUE (source_room_id, dest_room_id, start_date, end_date),
+    CHECK(source_room_id <> dest_room_id),
     CHECK (start_date < end_date)
 );
 
@@ -30,6 +31,10 @@ ALTER TABLE app_config DROP COLUMN debug;
 
 ALTER TABLE notifier_connection RENAME TO notifier_rule;
 
+ALTER TABLE webex_room
+ADD COLUMN email TEXT,
+ADD COLUMN last_activity TIMESTAMP NOT NULL;
+
 ALTER TABLE cw_ticket_note
 ADD content TEXT,
 DROP CONSTRAINT cw_ticket_note_ticket_id_fkey,
@@ -48,6 +53,10 @@ DROP TABLE IF EXISTS app_state;
 -- +goose Down
 -- +goose StatementBegin
 ALTER TABLE notifier_rule RENAME TO notifier_connection;
+
+ALTER TABLE webex_room
+DROP COLUMN email
+DROP COLUMN last_activity;
 
 CREATE TABLE IF NOT EXISTS app_state (
     id INT PRIMARY KEY DEFAULT 1,

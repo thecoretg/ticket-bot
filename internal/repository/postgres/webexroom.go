@@ -22,11 +22,26 @@ func NewWebexRoomRepo(pool *pgxpool.Pool) *WebexRoomRepo {
 
 func (p *WebexRoomRepo) WithTx(tx pgx.Tx) models.WebexRoomRepository {
 	return &WebexRoomRepo{
-		queries: db.New(tx)}
+		queries: db.New(tx),
+	}
 }
 
 func (p *WebexRoomRepo) List(ctx context.Context) ([]models.WebexRoom, error) {
 	dbr, err := p.queries.ListWebexRooms(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var r []models.WebexRoom
+	for _, d := range dbr {
+		r = append(r, roomFromPG(d))
+	}
+
+	return r, nil
+}
+
+func (p *WebexRoomRepo) ListByEmail(ctx context.Context, email string) ([]models.WebexRoom, error) {
+	dbr, err := p.queries.ListByEmail(ctx, &email)
 	if err != nil {
 		return nil, err
 	}
@@ -85,19 +100,23 @@ func (p *WebexRoomRepo) Delete(ctx context.Context, id int) error {
 
 func webexRoomToUpsertParams(r models.WebexRoom) db.UpsertWebexRoomParams {
 	return db.UpsertWebexRoomParams{
-		WebexID: r.WebexID,
-		Name:    r.Name,
-		Type:    r.Type,
+		WebexID:      r.WebexID,
+		Name:         r.Name,
+		Type:         r.Type,
+		Email:        r.Email,
+		LastActivity: r.LastActivity,
 	}
 }
 
 func roomFromPG(pg db.WebexRoom) models.WebexRoom {
 	return models.WebexRoom{
-		ID:        pg.ID,
-		WebexID:   pg.WebexID,
-		Name:      pg.Name,
-		Type:      pg.Type,
-		CreatedOn: pg.CreatedOn,
-		UpdatedOn: pg.UpdatedOn,
+		ID:           pg.ID,
+		WebexID:      pg.WebexID,
+		Name:         pg.Name,
+		Type:         pg.Type,
+		Email:        pg.Email,
+		LastActivity: pg.LastActivity,
+		CreatedOn:    pg.CreatedOn,
+		UpdatedOn:    pg.UpdatedOn,
 	}
 }

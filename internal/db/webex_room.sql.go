@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 )
 
 const deleteWebexRoom = `-- name: DeleteWebexRoom :exec
@@ -20,7 +21,7 @@ func (q *Queries) DeleteWebexRoom(ctx context.Context, id int) error {
 }
 
 const getWebexRoom = `-- name: GetWebexRoom :one
-SELECT id, webex_id, name, type, created_on, updated_on, deleted FROM webex_room
+SELECT id, webex_id, name, type, created_on, updated_on, deleted, email, last_activity FROM webex_room
 WHERE id = $1
 `
 
@@ -35,12 +36,14 @@ func (q *Queries) GetWebexRoom(ctx context.Context, id int) (WebexRoom, error) {
 		&i.CreatedOn,
 		&i.UpdatedOn,
 		&i.Deleted,
+		&i.Email,
+		&i.LastActivity,
 	)
 	return i, err
 }
 
 const getWebexRoomByWebexID = `-- name: GetWebexRoomByWebexID :one
-SELECT id, webex_id, name, type, created_on, updated_on, deleted FROM webex_room
+SELECT id, webex_id, name, type, created_on, updated_on, deleted, email, last_activity FROM webex_room
 WHERE webex_id = $1
 `
 
@@ -55,12 +58,49 @@ func (q *Queries) GetWebexRoomByWebexID(ctx context.Context, webexID string) (We
 		&i.CreatedOn,
 		&i.UpdatedOn,
 		&i.Deleted,
+		&i.Email,
+		&i.LastActivity,
 	)
 	return i, err
 }
 
+const listByEmail = `-- name: ListByEmail :many
+SELECT id, webex_id, name, type, created_on, updated_on, deleted, email, last_activity FROM webex_room
+WHERE email = $1
+`
+
+func (q *Queries) ListByEmail(ctx context.Context, email *string) ([]WebexRoom, error) {
+	rows, err := q.db.Query(ctx, listByEmail, email)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WebexRoom
+	for rows.Next() {
+		var i WebexRoom
+		if err := rows.Scan(
+			&i.ID,
+			&i.WebexID,
+			&i.Name,
+			&i.Type,
+			&i.CreatedOn,
+			&i.UpdatedOn,
+			&i.Deleted,
+			&i.Email,
+			&i.LastActivity,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWebexRooms = `-- name: ListWebexRooms :many
-SELECT id, webex_id, name, type, created_on, updated_on, deleted FROM webex_room
+SELECT id, webex_id, name, type, created_on, updated_on, deleted, email, last_activity FROM webex_room
 ORDER BY id
 `
 
@@ -81,6 +121,8 @@ func (q *Queries) ListWebexRooms(ctx context.Context) ([]WebexRoom, error) {
 			&i.CreatedOn,
 			&i.UpdatedOn,
 			&i.Deleted,
+			&i.Email,
+			&i.LastActivity,
 		); err != nil {
 			return nil, err
 		}
@@ -107,23 +149,33 @@ func (q *Queries) SoftDeleteWebexRoom(ctx context.Context, id int) error {
 
 const upsertWebexRoom = `-- name: UpsertWebexRoom :one
 INSERT INTO webex_room
-(webex_id, name, type)
-VALUES ($1, $2, $3)
+(webex_id, name, type, email, last_activity)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (webex_id) DO UPDATE SET
     name = EXCLUDED.name,
     type = EXCLUDED.type,
+    email = EXCLUDED.email,
+    last_activity = EXCLUDED.last_activity,
     updated_on = NOW()
-RETURNING id, webex_id, name, type, created_on, updated_on, deleted
+RETURNING id, webex_id, name, type, created_on, updated_on, deleted, email, last_activity
 `
 
 type UpsertWebexRoomParams struct {
-	WebexID string `json:"webex_id"`
-	Name    string `json:"name"`
-	Type    string `json:"type"`
+	WebexID      string    `json:"webex_id"`
+	Name         string    `json:"name"`
+	Type         string    `json:"type"`
+	Email        *string   `json:"email"`
+	LastActivity time.Time `json:"last_activity"`
 }
 
 func (q *Queries) UpsertWebexRoom(ctx context.Context, arg UpsertWebexRoomParams) (WebexRoom, error) {
-	row := q.db.QueryRow(ctx, upsertWebexRoom, arg.WebexID, arg.Name, arg.Type)
+	row := q.db.QueryRow(ctx, upsertWebexRoom,
+		arg.WebexID,
+		arg.Name,
+		arg.Type,
+		arg.Email,
+		arg.LastActivity,
+	)
 	var i WebexRoom
 	err := row.Scan(
 		&i.ID,
@@ -133,6 +185,8 @@ func (q *Queries) UpsertWebexRoom(ctx context.Context, arg UpsertWebexRoomParams
 		&i.CreatedOn,
 		&i.UpdatedOn,
 		&i.Deleted,
+		&i.Email,
+		&i.LastActivity,
 	)
 	return i, err
 }

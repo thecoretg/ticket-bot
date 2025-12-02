@@ -37,13 +37,13 @@ func (p *UserForwardRepo) ListAll(ctx context.Context) ([]models.UserForward, er
 	return out, nil
 }
 
-func (p *UserForwardRepo) ListByEmail(ctx context.Context, email string) ([]models.UserForward, error) {
+func (p *UserForwardRepo) ListBySourceRoomID(ctx context.Context, id int) ([]models.UserForward, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	var out []models.UserForward
 	for _, v := range p.data {
-		if v.UserEmail == email {
+		if v.SourceRoomID == id {
 			out = append(out, v)
 		}
 	}

@@ -37,6 +37,20 @@ func (p *WebexRoomRepo) List(ctx context.Context) ([]models.WebexRoom, error) {
 	return out, nil
 }
 
+func (p *WebexRoomRepo) ListByEmail(ctx context.Context, email string) ([]models.WebexRoom, error) {
+	p.mu.Lock()
+	defer p.mu.Lock()
+
+	var rms []models.WebexRoom
+	for _, v := range p.data {
+		if v.Email != nil && *v.Email == email {
+			rms = append(rms, v)
+		}
+	}
+
+	return rms, nil
+}
+
 func (p *WebexRoomRepo) Get(ctx context.Context, id int) (models.WebexRoom, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

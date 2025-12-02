@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 	"time"
 
 	"github.com/thecoretg/ticketbot/internal/models"
@@ -35,9 +36,26 @@ func (s *Service) getRecipientEmails(ctx context.Context, ticket *models.FullTic
 	return filterDuplicateEmails(emails)
 }
 
-func (s *Service) forwardsToEmails(ctx context.Context, email string) ([]string, error) {
+func (s *Service) forwardsToEmails(ctx context.Context, srcRoom models.WebexRoom) ([]models.WebexRoom, error) {
+	rooms, err := s.Rooms.ListByEmail(ctx, email)
+	if err != nil {
+		return noFwdSlice, fmt.Errorf("listing webex rooms by email: %w", err)
+	}
+
+	if len(rooms) == 0 {
+		return noFwdSlice, fmt.Errorf("no rooms found by email %s", email)
+	}
+
+	var room models.WebexRoom
+	if len(rooms) > 1 {
+		sort.Slice(rooms, func(i, j int) bool {
+			return rooms[i].LastActivity.After(rooms[j].LastActivity)
+		})
+	}
+	room = rooms[0]
 	noFwdSlice := []string{email}
-	fwds, err := s.Forwards.ListByEmail(ctx, email)
+
+	fwds, err := s.Forwards.ListBySourceRoomID(ctx, room.ID)
 	if err != nil {
 		return noFwdSlice, fmt.Errorf("checking forwards: %w", err)
 	}

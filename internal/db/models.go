@@ -115,19 +115,21 @@ type TicketNotification struct {
 }
 
 type WebexRoom struct {
-	ID        int       `json:"id"`
-	WebexID   string    `json:"webex_id"`
-	Name      string    `json:"name"`
-	Type      string    `json:"type"`
-	CreatedOn time.Time `json:"created_on"`
-	UpdatedOn time.Time `json:"updated_on"`
-	Deleted   bool      `json:"deleted"`
+	ID           int       `json:"id"`
+	WebexID      string    `json:"webex_id"`
+	Name         string    `json:"name"`
+	Type         string    `json:"type"`
+	CreatedOn    time.Time `json:"created_on"`
+	UpdatedOn    time.Time `json:"updated_on"`
+	Deleted      bool      `json:"deleted"`
+	Email        *string   `json:"email"`
+	LastActivity time.Time `json:"last_activity"`
 }
 
 type WebexUserForward struct {
 	ID            int        `json:"id"`
-	UserEmail     string     `json:"user_email"`
-	DestEmail     string     `json:"dest_email"`
+	SourceRoomID  int        `json:"source_room_id"`
+	DestRoomID    int        `json:"dest_room_id"`
 	StartDate     *time.Time `json:"start_date"`
 	EndDate       *time.Time `json:"end_date"`
 	Enabled       bool       `json:"enabled"`

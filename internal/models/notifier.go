@@ -18,8 +18,8 @@ var ErrUserForwardNotFound = errors.New("forward rule not found")
 
 type UserForward struct {
 	ID            int        `json:"id"`
-	UserEmail     string     `json:"user_email"`
-	DestEmail     string     `json:"dest_email"`
+	SourceRoomID  int        `json:"user_email"`
+	DestRoomID    int        `json:"dest_email"`
 	StartDate     *time.Time `json:"start_date"`
 	EndDate       *time.Time `json:"end_date"`
 	Enabled       bool       `json:"enabled"`
@@ -31,7 +31,7 @@ type UserForward struct {
 type UserForwardRepository interface {
 	WithTx(tx pgx.Tx) UserForwardRepository
 	ListAll(ctx context.Context) ([]UserForward, error)
-	ListByEmail(ctx context.Context, email string) ([]UserForward, error)
+	ListBySourceRoomID(ctx context.Context, id int) ([]UserForward, error)
 	Get(ctx context.Context, id int) (UserForward, error)
 	Insert(ctx context.Context, c UserForward) (UserForward, error)
 	Delete(ctx context.Context, id int) error

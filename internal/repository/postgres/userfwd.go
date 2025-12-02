@@ -22,7 +22,8 @@ func NewUserForwardRepo(pool *pgxpool.Pool) *UserForwardRepo {
 
 func (p *UserForwardRepo) WithTx(tx pgx.Tx) models.UserForwardRepository {
 	return &UserForwardRepo{
-		queries: db.New(tx)}
+		queries: db.New(tx),
+	}
 }
 
 func (p *UserForwardRepo) ListAll(ctx context.Context) ([]models.UserForward, error) {
@@ -39,8 +40,8 @@ func (p *UserForwardRepo) ListAll(ctx context.Context) ([]models.UserForward, er
 	return b, nil
 }
 
-func (p *UserForwardRepo) ListByEmail(ctx context.Context, email string) ([]models.UserForward, error) {
-	dm, err := p.queries.ListWebexUserForwardsByEmail(ctx, email)
+func (p *UserForwardRepo) ListBySourceRoomID(ctx context.Context, id int) ([]models.UserForward, error) {
+	dm, err := p.queries.ListWebexUserForwardsBySourceRoomID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -87,8 +88,8 @@ func (p *UserForwardRepo) Delete(ctx context.Context, id int) error {
 
 func forwardToInsertParams(t models.UserForward) db.InsertWebexUserForwardParams {
 	return db.InsertWebexUserForwardParams{
-		UserEmail:     t.UserEmail,
-		DestEmail:     t.DestEmail,
+		SourceRoomID:  t.SourceRoomID,
+		DestRoomID:    t.DestRoomID,
 		StartDate:     t.StartDate,
 		EndDate:       t.EndDate,
 		Enabled:       t.Enabled,
@@ -99,8 +100,8 @@ func forwardToInsertParams(t models.UserForward) db.InsertWebexUserForwardParams
 func forwardFromPG(pg db.WebexUserForward) models.UserForward {
 	return models.UserForward{
 		ID:            pg.ID,
-		UserEmail:     pg.UserEmail,
-		DestEmail:     pg.DestEmail,
+		SourceRoomID:  pg.SourceRoomID,
+		DestRoomID:    pg.DestRoomID,
 		StartDate:     pg.StartDate,
 		EndDate:       pg.EndDate,
 		Enabled:       pg.Enabled,

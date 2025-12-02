@@ -6,14 +6,14 @@ ORDER BY id;
 SELECT * FROM webex_user_forward
 WHERE id = $1 LIMIT 1;
 
--- name: ListWebexUserForwardsByEmail :many
+-- name: ListWebexUserForwardsBySourceRoomID :many
 SELECT * FROM webex_user_forward
-WHERE user_email = $1
+WHERE source_room_id = $1
 ORDER BY id;
 
 -- name: InsertWebexUserForward :one
 INSERT INTO webex_user_forward (
-    user_email, dest_email, start_date, end_date, enabled, user_keeps_copy
+    source_room_id, dest_room_id, start_date, end_date, enabled, user_keeps_copy
 ) VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
