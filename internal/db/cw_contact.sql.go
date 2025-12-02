@@ -20,7 +20,7 @@ func (q *Queries) DeleteContact(ctx context.Context, id int) error {
 }
 
 const getContact = `-- name: GetContact :one
-SELECT id, first_name, last_name, company_id, updated_on, added_on, deleted FROM cw_contact
+SELECT id, first_name, last_name, company_id, updated_on, added_on FROM cw_contact
 WHERE id = $1 LIMIT 1
 `
 
@@ -34,13 +34,12 @@ func (q *Queries) GetContact(ctx context.Context, id int) (CwContact, error) {
 		&i.CompanyID,
 		&i.UpdatedOn,
 		&i.AddedOn,
-		&i.Deleted,
 	)
 	return i, err
 }
 
 const listContacts = `-- name: ListContacts :many
-SELECT id, first_name, last_name, company_id, updated_on, added_on, deleted FROM cw_contact
+SELECT id, first_name, last_name, company_id, updated_on, added_on FROM cw_contact
 ORDER BY id
 `
 
@@ -60,7 +59,6 @@ func (q *Queries) ListContacts(ctx context.Context) ([]CwContact, error) {
 			&i.CompanyID,
 			&i.UpdatedOn,
 			&i.AddedOn,
-			&i.Deleted,
 		); err != nil {
 			return nil, err
 		}
@@ -81,7 +79,7 @@ ON CONFLICT (id) DO UPDATE SET
     last_name = EXCLUDED.last_name,
     company_id = EXCLUDED.company_id,
     updated_on = NOW()
-RETURNING id, first_name, last_name, company_id, updated_on, added_on, deleted
+RETURNING id, first_name, last_name, company_id, updated_on, added_on
 `
 
 type UpsertContactParams struct {
@@ -106,7 +104,6 @@ func (q *Queries) UpsertContact(ctx context.Context, arg UpsertContactParams) (C
 		&i.CompanyID,
 		&i.UpdatedOn,
 		&i.AddedOn,
-		&i.Deleted,
 	)
 	return i, err
 }

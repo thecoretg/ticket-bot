@@ -42,7 +42,7 @@ func (s *Service) getRecipientRoomIDs(ctx context.Context, ticket *models.FullTi
 func (s *Service) processFwds(ctx context.Context, email string) ([]int, error) {
 	rooms, err := s.Rooms.ListByEmail(ctx, email)
 	if err != nil {
-		return nil, fmt.Errorf("listing webex rooms by email: %w", err)
+		return nil, fmt.Errorf("listing webex rooms by email %s: %w", email, err)
 	}
 
 	if len(rooms) == 0 {

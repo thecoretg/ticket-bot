@@ -14,7 +14,6 @@ type ApiKey struct {
 	KeyHash   []byte    `json:"key_hash"`
 	CreatedOn time.Time `json:"created_on"`
 	UpdatedOn time.Time `json:"updated_on"`
-	Deleted   bool      `json:"deleted"`
 }
 
 type ApiUser struct {
@@ -22,7 +21,6 @@ type ApiUser struct {
 	EmailAddress string    `json:"email_address"`
 	CreatedOn    time.Time `json:"created_on"`
 	UpdatedOn    time.Time `json:"updated_on"`
-	Deleted      bool      `json:"deleted"`
 }
 
 type AppConfig struct {
@@ -37,7 +35,6 @@ type CwBoard struct {
 	Name      string    `json:"name"`
 	UpdatedOn time.Time `json:"updated_on"`
 	AddedOn   time.Time `json:"added_on"`
-	Deleted   bool      `json:"deleted"`
 }
 
 type CwCompany struct {
@@ -45,7 +42,6 @@ type CwCompany struct {
 	Name      string    `json:"name"`
 	UpdatedOn time.Time `json:"updated_on"`
 	AddedOn   time.Time `json:"added_on"`
-	Deleted   bool      `json:"deleted"`
 }
 
 type CwContact struct {
@@ -55,7 +51,6 @@ type CwContact struct {
 	CompanyID *int      `json:"company_id"`
 	UpdatedOn time.Time `json:"updated_on"`
 	AddedOn   time.Time `json:"added_on"`
-	Deleted   bool      `json:"deleted"`
 }
 
 type CwMember struct {
@@ -66,7 +61,6 @@ type CwMember struct {
 	PrimaryEmail string    `json:"primary_email"`
 	UpdatedOn    time.Time `json:"updated_on"`
 	AddedOn      time.Time `json:"added_on"`
-	Deleted      bool      `json:"deleted"`
 }
 
 type CwTicket struct {
@@ -80,7 +74,6 @@ type CwTicket struct {
 	UpdatedBy *string   `json:"updated_by"`
 	UpdatedOn time.Time `json:"updated_on"`
 	AddedOn   time.Time `json:"added_on"`
-	Deleted   bool      `json:"deleted"`
 }
 
 type CwTicketNote struct {
@@ -88,51 +81,49 @@ type CwTicketNote struct {
 	TicketID  int       `json:"ticket_id"`
 	MemberID  *int      `json:"member_id"`
 	ContactID *int      `json:"contact_id"`
+	Content   *string   `json:"content"`
 	UpdatedOn time.Time `json:"updated_on"`
 	AddedOn   time.Time `json:"added_on"`
-	Deleted   bool      `json:"deleted"`
-	Content   *string   `json:"content"`
 }
 
-type NotifierRule struct {
-	ID            int       `json:"id"`
-	CwBoardID     int       `json:"cw_board_id"`
-	WebexRoomID   int       `json:"webex_room_id"`
-	NotifyEnabled bool      `json:"notify_enabled"`
-	CreatedOn     time.Time `json:"created_on"`
-}
-
-type TicketNotification struct {
-	ID           int       `json:"id"`
-	TicketID     int       `json:"ticket_id"`
-	TicketNoteID *int      `json:"ticket_note_id"`
-	WebexRoomID  int       `json:"webex_room_id"`
-	Sent         bool      `json:"sent"`
-	Skipped      bool      `json:"skipped"`
-	CreatedOn    time.Time `json:"created_on"`
-	UpdatedOn    time.Time `json:"updated_on"`
-}
-
-type WebexRoom struct {
-	ID           int       `json:"id"`
-	WebexID      string    `json:"webex_id"`
-	Name         string    `json:"name"`
-	Type         string    `json:"type"`
-	CreatedOn    time.Time `json:"created_on"`
-	UpdatedOn    time.Time `json:"updated_on"`
-	Deleted      bool      `json:"deleted"`
-	Email        *string   `json:"email"`
-	LastActivity time.Time `json:"last_activity"`
-}
-
-type WebexUserForward struct {
+type NotifierForward struct {
 	ID            int        `json:"id"`
-	SourceRoomID  int        `json:"source_room_id"`
-	DestRoomID    int        `json:"dest_room_id"`
+	SourceID      int        `json:"source_id"`
+	DestinationID int        `json:"destination_id"`
 	StartDate     *time.Time `json:"start_date"`
 	EndDate       *time.Time `json:"end_date"`
 	Enabled       bool       `json:"enabled"`
 	UserKeepsCopy bool       `json:"user_keeps_copy"`
 	CreatedOn     time.Time  `json:"created_on"`
 	UpdatedOn     time.Time  `json:"updated_on"`
+}
+
+type NotifierRule struct {
+	ID               int       `json:"id"`
+	CwBoardID        int       `json:"cw_board_id"`
+	WebexRecipientID int       `json:"webex_recipient_id"`
+	NotifyEnabled    bool      `json:"notify_enabled"`
+	CreatedOn        time.Time `json:"created_on"`
+}
+
+type NotifierTicketNotification struct {
+	ID           int       `json:"id"`
+	TicketID     int       `json:"ticket_id"`
+	TicketNoteID *int      `json:"ticket_note_id"`
+	RecipientID  int       `json:"recipient_id"`
+	Sent         bool      `json:"sent"`
+	Skipped      bool      `json:"skipped"`
+	CreatedOn    time.Time `json:"created_on"`
+	UpdatedOn    time.Time `json:"updated_on"`
+}
+
+type WebexRecipient struct {
+	ID           int       `json:"id"`
+	WebexID      string    `json:"webex_id"`
+	Name         string    `json:"name"`
+	Email        *string   `json:"email"`
+	Type         string    `json:"type"`
+	LastActivity time.Time `json:"last_activity"`
+	CreatedOn    time.Time `json:"created_on"`
+	UpdatedOn    time.Time `json:"updated_on"`
 }

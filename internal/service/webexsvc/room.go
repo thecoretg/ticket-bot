@@ -39,7 +39,7 @@ func (s *Service) SyncRooms(ctx context.Context) error {
 	}
 	slog.Info("webex room sync: got rooms from store", "total_rooms", len(sr))
 
-	//TODO: this is a bandaid. Move this logic to the repo.
+	// TODO: this is a bandaid. Move this logic to the repo.
 	txSvc := s
 	var tx pgx.Tx
 	if s.pool != nil {
@@ -61,7 +61,7 @@ func (s *Service) SyncRooms(ctx context.Context) error {
 		}
 	}
 
-	//TODO: this is a bandaid. Move this logic to the repo.
+	// TODO: this is a bandaid. Move this logic to the repo.
 	if s.pool != nil {
 		if err := tx.Commit(ctx); err != nil {
 			return fmt.Errorf("committing tx: %w", err)
@@ -76,9 +76,12 @@ func roomsToUpsert(webexRooms []webex.Room) []models.WebexRoom {
 	var toUpsert []models.WebexRoom
 	for _, w := range webexRooms {
 		r := models.WebexRoom{
-			WebexID: w.Id,
-			Name:    w.Title,
-			Type:    w.Type,
+			WebexID:      w.Id,
+			Name:         w.Title,
+			Type:         w.Type,
+			Email:        "something",
+			LastActivity: time.Time{},
+			ID:           0,
 		}
 		toUpsert = append(toUpsert, r)
 	}

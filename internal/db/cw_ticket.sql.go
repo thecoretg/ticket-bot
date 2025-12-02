@@ -34,18 +34,8 @@ func (q *Queries) DeleteTicket(ctx context.Context, id int) error {
 	return err
 }
 
-const deleteTicketNote = `-- name: DeleteTicketNote :exec
-DELETE FROM cw_ticket_note
-WHERE id = $1
-`
-
-func (q *Queries) DeleteTicketNote(ctx context.Context, id int) error {
-	_, err := q.db.Exec(ctx, deleteTicketNote, id)
-	return err
-}
-
 const getTicket = `-- name: GetTicket :one
-SELECT id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on, deleted FROM cw_ticket
+SELECT id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on FROM cw_ticket
 WHERE id = $1 LIMIT 1
 `
 
@@ -63,103 +53,12 @@ func (q *Queries) GetTicket(ctx context.Context, id int) (CwTicket, error) {
 		&i.UpdatedBy,
 		&i.UpdatedOn,
 		&i.AddedOn,
-		&i.Deleted,
 	)
 	return i, err
-}
-
-const getTicketNote = `-- name: GetTicketNote :one
-SELECT id, ticket_id, member_id, contact_id, updated_on, added_on, deleted, content FROM cw_ticket_note
-WHERE id = $1 LIMIT 1
-`
-
-func (q *Queries) GetTicketNote(ctx context.Context, id int) (CwTicketNote, error) {
-	row := q.db.QueryRow(ctx, getTicketNote, id)
-	var i CwTicketNote
-	err := row.Scan(
-		&i.ID,
-		&i.TicketID,
-		&i.MemberID,
-		&i.ContactID,
-		&i.UpdatedOn,
-		&i.AddedOn,
-		&i.Deleted,
-		&i.Content,
-	)
-	return i, err
-}
-
-const listAllTicketNotes = `-- name: ListAllTicketNotes :many
-SELECT id, ticket_id, member_id, contact_id, updated_on, added_on, deleted, content FROM cw_ticket_note
-ORDER BY id
-`
-
-func (q *Queries) ListAllTicketNotes(ctx context.Context) ([]CwTicketNote, error) {
-	rows, err := q.db.Query(ctx, listAllTicketNotes)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []CwTicketNote
-	for rows.Next() {
-		var i CwTicketNote
-		if err := rows.Scan(
-			&i.ID,
-			&i.TicketID,
-			&i.MemberID,
-			&i.ContactID,
-			&i.UpdatedOn,
-			&i.AddedOn,
-			&i.Deleted,
-			&i.Content,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listTicketNotesByTicket = `-- name: ListTicketNotesByTicket :many
-SELECT id, ticket_id, member_id, contact_id, updated_on, added_on, deleted, content FROM cw_ticket_note
-WHERE ticket_id = $1
-ORDER BY id
-`
-
-func (q *Queries) ListTicketNotesByTicket(ctx context.Context, ticketID int) ([]CwTicketNote, error) {
-	rows, err := q.db.Query(ctx, listTicketNotesByTicket, ticketID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []CwTicketNote
-	for rows.Next() {
-		var i CwTicketNote
-		if err := rows.Scan(
-			&i.ID,
-			&i.TicketID,
-			&i.MemberID,
-			&i.ContactID,
-			&i.UpdatedOn,
-			&i.AddedOn,
-			&i.Deleted,
-			&i.Content,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const listTickets = `-- name: ListTickets :many
-SELECT id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on, deleted FROM cw_ticket
+SELECT id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on FROM cw_ticket
 ORDER BY id
 `
 
@@ -183,7 +82,6 @@ func (q *Queries) ListTickets(ctx context.Context) ([]CwTicket, error) {
 			&i.UpdatedBy,
 			&i.UpdatedOn,
 			&i.AddedOn,
-			&i.Deleted,
 		); err != nil {
 			return nil, err
 		}
@@ -208,17 +106,6 @@ func (q *Queries) SoftDeleteTicket(ctx context.Context, id int) error {
 	return err
 }
 
-const softDeleteTicketNote = `-- name: SoftDeleteTicketNote :exec
-UPDATE cw_ticket_note
-SET deleted = TRUE
-WHERE id = $1
-`
-
-func (q *Queries) SoftDeleteTicketNote(ctx context.Context, id int) error {
-	_, err := q.db.Exec(ctx, softDeleteTicketNote, id)
-	return err
-}
-
 const upsertTicket = `-- name: UpsertTicket :one
 INSERT INTO cw_ticket
 (id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by)
@@ -232,7 +119,7 @@ ON CONFLICT (id) DO UPDATE SET
     resources = EXCLUDED.resources,
     updated_by = EXCLUDED.updated_by,
     updated_on = NOW()
-RETURNING id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on, deleted
+RETURNING id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on
 `
 
 type UpsertTicketParams struct {
@@ -269,50 +156,6 @@ func (q *Queries) UpsertTicket(ctx context.Context, arg UpsertTicketParams) (CwT
 		&i.UpdatedBy,
 		&i.UpdatedOn,
 		&i.AddedOn,
-		&i.Deleted,
-	)
-	return i, err
-}
-
-const upsertTicketNote = `-- name: UpsertTicketNote :one
-INSERT INTO cw_ticket_note
-(id, ticket_id, content, member_id, contact_id)
-VALUES ($1, $2, $3, $4, $5)
-ON CONFLICT (id) DO UPDATE SET
-    ticket_id = EXCLUDED.ticket_id,
-    content = EXCLUDED.content,
-    member_id = EXCLUDED.member_id,
-    contact_id = EXCLUDED.contact_id,
-    updated_on = NOW()
-RETURNING id, ticket_id, member_id, contact_id, updated_on, added_on, deleted, content
-`
-
-type UpsertTicketNoteParams struct {
-	ID        int     `json:"id"`
-	TicketID  int     `json:"ticket_id"`
-	Content   *string `json:"content"`
-	MemberID  *int    `json:"member_id"`
-	ContactID *int    `json:"contact_id"`
-}
-
-func (q *Queries) UpsertTicketNote(ctx context.Context, arg UpsertTicketNoteParams) (CwTicketNote, error) {
-	row := q.db.QueryRow(ctx, upsertTicketNote,
-		arg.ID,
-		arg.TicketID,
-		arg.Content,
-		arg.MemberID,
-		arg.ContactID,
-	)
-	var i CwTicketNote
-	err := row.Scan(
-		&i.ID,
-		&i.TicketID,
-		&i.MemberID,
-		&i.ContactID,
-		&i.UpdatedOn,
-		&i.AddedOn,
-		&i.Deleted,
-		&i.Content,
 	)
 	return i, err
 }

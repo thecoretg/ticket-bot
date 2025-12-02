@@ -20,7 +20,7 @@ func (q *Queries) DeleteBoard(ctx context.Context, id int) error {
 }
 
 const getBoard = `-- name: GetBoard :one
-SELECT id, name, updated_on, added_on, deleted FROM cw_board
+SELECT id, name, updated_on, added_on FROM cw_board
 WHERE id = $1 LIMIT 1
 `
 
@@ -32,13 +32,12 @@ func (q *Queries) GetBoard(ctx context.Context, id int) (CwBoard, error) {
 		&i.Name,
 		&i.UpdatedOn,
 		&i.AddedOn,
-		&i.Deleted,
 	)
 	return i, err
 }
 
 const listBoards = `-- name: ListBoards :many
-SELECT id, name, updated_on, added_on, deleted FROM cw_board
+SELECT id, name, updated_on, added_on FROM cw_board
 ORDER BY id
 `
 
@@ -56,7 +55,6 @@ func (q *Queries) ListBoards(ctx context.Context) ([]CwBoard, error) {
 			&i.Name,
 			&i.UpdatedOn,
 			&i.AddedOn,
-			&i.Deleted,
 		); err != nil {
 			return nil, err
 		}
@@ -88,7 +86,7 @@ VALUES ($1, $2)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     updated_on = NOW()
-RETURNING id, name, updated_on, added_on, deleted
+RETURNING id, name, updated_on, added_on
 `
 
 type UpsertBoardParams struct {
@@ -104,7 +102,6 @@ func (q *Queries) UpsertBoard(ctx context.Context, arg UpsertBoardParams) (CwBoa
 		&i.Name,
 		&i.UpdatedOn,
 		&i.AddedOn,
-		&i.Deleted,
 	)
 	return i, err
 }

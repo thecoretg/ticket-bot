@@ -1,4 +1,4 @@
--- name: GetAPILKey :one
+-- name: GetAPIKey :one
 SELECT * FROM api_key
 WHERE id = $1;
 

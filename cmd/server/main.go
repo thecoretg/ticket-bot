@@ -10,7 +10,7 @@ import (
 	"github.com/thecoretg/ticketbot/internal/server"
 )
 
-const currentMigVersion = 2
+const currentMigVersion = 1
 
 func main() {
 	if err := Run(); err != nil {

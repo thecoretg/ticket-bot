@@ -10,7 +10,7 @@ WHERE id = $1 LIMIT 1;
 SELECT EXISTS (
     SELECT 1
     FROM notifier_rule
-    WHERE cw_board_id = $1 AND webex_room_id = $2
+    WHERE cw_board_id = $1 AND webex_recipient_id = $2
 ) AS exists;
 
 -- name: ListNotifierRulesByBoard :many
@@ -20,11 +20,11 @@ ORDER BY id;
 
 -- name: ListNotifierRulesByRoom :many
 SELECT * FROM notifier_rule
-WHERE webex_room_id = $1
+WHERE webex_recipient_id = $1
 ORDER BY id;
 
 -- name: InsertNotifierRule :one
-INSERT INTO notifier_rule(cw_board_id, webex_room_id, notify_enabled)
+INSERT INTO notifier_rule(cw_board_id, webex_recipient_id, notify_enabled)
 VALUES ($1, $2, $3)
 RETURNING *;
 
@@ -32,7 +32,7 @@ RETURNING *;
 UPDATE notifier_rule
 SET
     cw_board_id = $2,
-    webex_room_id = $3,
+    webex_recipient_id = $3,
     notify_enabled = $4
 WHERE id = $1
 RETURNING *;
