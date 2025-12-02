@@ -123,6 +123,7 @@ func (s *Service) processTicket(ctx context.Context, id int) (req *Request, err 
 
 	var rsc []models.Member
 	if ticket.Resources != nil && *ticket.Resources != "" {
+		logger = logger.With(slog.String("resources", *ticket.Resources))
 		ids := resourceStringToSlice(*ticket.Resources)
 		for _, i := range ids {
 			member, err := txSvc.ensureMemberByIdentifier(ctx, i)
