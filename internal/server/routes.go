@@ -12,7 +12,7 @@ func AddRoutes(a *App, g *gin.Engine) {
 	g.GET("", handlers.HandlePing) // authless ping for lightsail health checks
 	g.GET("authtest", auth, handlers.HandlePing)
 
-	sh := handlers.NewSyncHandler(a.Svc.CW, a.Svc.Webex)
+	sh := handlers.NewSyncHandler(a.Svc.Sync)
 	g.POST("sync", auth, sh.HandleSync)
 
 	u := g.Group("users", auth)

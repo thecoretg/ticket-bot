@@ -25,7 +25,7 @@ func (s *Service) SyncOpenTickets(ctx context.Context, boardIDs []int, maxSyncs 
 		"conditions": con,
 	}
 
-	tix, err := s.cwClient.ListTickets(params)
+	tix, err := s.CWClient.ListTickets(params)
 	if err != nil {
 		return fmt.Errorf("getting open tickets from connectwise: %w", err)
 	}
@@ -66,7 +66,7 @@ func (s *Service) SyncBoards(ctx context.Context) error {
 
 	start := time.Now()
 	slog.Info("beginning connectwise board sync")
-	cwb, err := s.cwClient.ListBoards(nil)
+	cwb, err := s.CWClient.ListBoards(nil)
 	if err != nil {
 		return fmt.Errorf("listing connectwise boards: %w", err)
 	}
@@ -78,7 +78,7 @@ func (s *Service) SyncBoards(ctx context.Context) error {
 	}
 	slog.Info("board sync: got boards from store", "total_boards", len(sb))
 
-	//TODO: this is a bandaid. Move this logic to the repo.
+	// TODO: this is a bandaid. Move this logic to the repo.
 	txSvc := s
 	var tx pgx.Tx
 	if s.pool != nil {
@@ -87,7 +87,7 @@ func (s *Service) SyncBoards(ctx context.Context) error {
 			return fmt.Errorf("beginning tx: %w", err)
 		}
 
-		txSvc = s.withTX(tx)
+		txSvc = s.WithTX(tx)
 
 		defer func() {
 			_ = tx.Rollback(ctx)
@@ -106,7 +106,7 @@ func (s *Service) SyncBoards(ctx context.Context) error {
 		}
 	}
 
-	//TODO: this is a bandaid. Move this logic to the repo.
+	// TODO: this is a bandaid. Move this logic to the repo.
 	if s.pool != nil {
 		if err := tx.Commit(ctx); err != nil {
 			return fmt.Errorf("committing tx: %w", err)

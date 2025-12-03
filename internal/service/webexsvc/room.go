@@ -12,11 +12,11 @@ import (
 )
 
 func (s *Service) ListRooms(ctx context.Context) ([]models.WebexRecipient, error) {
-	return s.Rooms.List(ctx)
+	return s.Recipients.List(ctx)
 }
 
 func (s *Service) GetRoom(ctx context.Context, id int) (models.WebexRecipient, error) {
-	return s.Rooms.Get(ctx, id)
+	return s.Recipients.Get(ctx, id)
 }
 
 func (s *Service) SyncRooms(ctx context.Context) error {
@@ -26,14 +26,14 @@ func (s *Service) SyncRooms(ctx context.Context) error {
 	slog.Info("beginning webex room sync")
 
 	// get rooms from webex as source of truth
-	wr, err := s.webexClient.ListRooms(nil)
+	wr, err := s.WebexClient.ListRooms(nil)
 	if err != nil {
 		return fmt.Errorf("getting rooms from webex: %w", err)
 	}
 	slog.Info("webex room sync: got rooms from webex", "total_rooms", len(wr))
 
 	// get current rooms from store
-	sr, err := s.Rooms.List(ctx)
+	sr, err := s.Recipients.List(ctx)
 	if err != nil {
 		return fmt.Errorf("getting rooms from store: %w", err)
 	}
@@ -48,7 +48,7 @@ func (s *Service) SyncRooms(ctx context.Context) error {
 			return fmt.Errorf("beginning tx: %w", err)
 		}
 
-		txSvc = s.withTx(tx)
+		txSvc = s.WithTx(tx)
 
 		defer func() {
 			_ = tx.Rollback(ctx)
@@ -56,7 +56,7 @@ func (s *Service) SyncRooms(ctx context.Context) error {
 	}
 
 	for _, r := range roomsToUpsert(wr) {
-		if _, err := txSvc.Rooms.Upsert(ctx, r); err != nil {
+		if _, err := txSvc.Recipients.Upsert(ctx, r); err != nil {
 			return fmt.Errorf("upserting room with name %s: %w", r.Name, err)
 		}
 	}

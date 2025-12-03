@@ -57,5 +57,5 @@ func newTestService(t *testing.T, ctx context.Context) (*Service, error) {
 
 	secret := os.Getenv("WEBEX_SECRET")
 
-	return New(pool, postgres.NewWebexRoomRepo(pool), webex.NewClient(secret)), nil
+	return New(pool, postgres.NewWebexRecipientRepo(pool), webex.NewClient(secret)), nil
 }

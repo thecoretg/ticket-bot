@@ -35,7 +35,7 @@ func (h *WebexHandler) GetRoom(c *gin.Context) {
 
 	r, err := h.Service.GetRoom(c.Request.Context(), id)
 	if err != nil {
-		if errors.Is(err, models.ErrWebexRoomNotFound) {
+		if errors.Is(err, models.ErrWebexRecipientNotFound) {
 			notFoundError(c, err)
 			return
 		}

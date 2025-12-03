@@ -40,6 +40,34 @@ func (p *WebexRecipientRepo) List(ctx context.Context) ([]models.WebexRecipient,
 	return r, nil
 }
 
+func (p *WebexRecipientRepo) ListRooms(ctx context.Context) ([]models.WebexRecipient, error) {
+	dbr, err := p.queries.ListWebexRooms(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var r []models.WebexRecipient
+	for _, d := range dbr {
+		r = append(r, roomFromPG(d))
+	}
+
+	return r, nil
+}
+
+func (p *WebexRecipientRepo) ListPeople(ctx context.Context) ([]models.WebexRecipient, error) {
+	dbr, err := p.queries.ListWebexPeople(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var r []models.WebexRecipient
+	for _, d := range dbr {
+		r = append(r, roomFromPG(d))
+	}
+
+	return r, nil
+}
+
 func (p *WebexRecipientRepo) ListByEmail(ctx context.Context, email string) ([]models.WebexRecipient, error) {
 	dbr, err := p.queries.ListByEmail(ctx, &email)
 	if err != nil {

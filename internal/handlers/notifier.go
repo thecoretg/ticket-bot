@@ -85,7 +85,7 @@ func (h *NotifierHandler) AddNotifierRule(c *gin.Context) {
 	}
 
 	if _, err = h.RoomRepo.Get(ctx, p.WebexRoomID); err != nil {
-		if errors.Is(err, models.ErrWebexRoomNotFound) {
+		if errors.Is(err, models.ErrWebexRecipientNotFound) {
 			notFoundError(c, err)
 			return
 		}

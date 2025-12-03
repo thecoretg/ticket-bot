@@ -10,6 +10,14 @@ WHERE webex_id = $1;
 SELECT * FROM webex_recipient
 ORDER BY id;
 
+-- name: ListWebexRooms :many
+SELECT * FROM webex_recipient
+WHERE type = 'room';
+
+-- name: ListWebexPeople :many
+SELECT * FROM webex_recipient
+WHERE type = 'person';
+
 -- name: ListByEmail :many
 SELECT * FROM webex_recipient
 WHERE email = $1;

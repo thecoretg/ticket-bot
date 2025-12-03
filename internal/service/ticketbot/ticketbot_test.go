@@ -166,7 +166,7 @@ func testNewService(t *testing.T, cfg *models.Config) (*Service, error) {
 	}
 
 	notiRepos := notifier.Repos{
-		Rooms:         inmem.NewWebexRoomRepo(nil),
+		Rooms:         inmem.NewWebexRecipientRepo(nil),
 		Notifiers:     inmem.NewNotifierRuleRepo(nil),
 		Notifications: inmem.NewNotificationRepo(nil),
 		Forwards:      inmem.NewUserForwardRepo(nil),

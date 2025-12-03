@@ -7,23 +7,23 @@ import (
 )
 
 type Service struct {
-	Rooms       models.WebexRecipientRepository
+	Recipients  models.WebexRecipientRepository
 	pool        *pgxpool.Pool
-	webexClient models.MessageSender
+	WebexClient models.MessageSender
 }
 
 func New(pool *pgxpool.Pool, r models.WebexRecipientRepository, cl models.MessageSender) *Service {
 	return &Service{
-		Rooms:       r,
+		Recipients:  r,
+		WebexClient: cl,
 		pool:        pool,
-		webexClient: cl,
 	}
 }
 
-func (s *Service) withTx(tx pgx.Tx) *Service {
+func (s *Service) WithTx(tx pgx.Tx) *Service {
 	return &Service{
-		Rooms:       s.Rooms.WithTx(tx),
+		Recipients:  s.Recipients.WithTx(tx),
+		WebexClient: s.WebexClient,
 		pool:        s.pool,
-		webexClient: s.webexClient,
 	}
 }

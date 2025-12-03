@@ -30,7 +30,7 @@ var (
 			}
 
 			p := &models.SyncPayload{
-				WebexRooms:         syncRooms,
+				WebexRecipients:    syncRooms,
 				CWBoards:           syncBoards,
 				CWTickets:          syncTickets,
 				BoardIDs:           syncBoardIDs,

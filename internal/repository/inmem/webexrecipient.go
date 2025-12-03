@@ -37,6 +37,34 @@ func (p *WebexRecipientRepo) List(ctx context.Context) ([]models.WebexRecipient,
 	return out, nil
 }
 
+func (p *WebexRecipientRepo) ListRooms(ctx context.Context) ([]models.WebexRecipient, error) {
+	p.mu.Lock()
+	defer p.mu.Lock()
+
+	var rms []models.WebexRecipient
+	for _, v := range p.data {
+		if v.Type == "room" {
+			rms = append(rms, v)
+		}
+	}
+
+	return rms, nil
+}
+
+func (p *WebexRecipientRepo) ListPeople(ctx context.Context) ([]models.WebexRecipient, error) {
+	p.mu.Lock()
+	defer p.mu.Lock()
+
+	var rms []models.WebexRecipient
+	for _, v := range p.data {
+		if v.Type == "person" {
+			rms = append(rms, v)
+		}
+	}
+
+	return rms, nil
+}
+
 func (p *WebexRecipientRepo) ListByEmail(ctx context.Context, email string) ([]models.WebexRecipient, error) {
 	p.mu.Lock()
 	defer p.mu.Lock()

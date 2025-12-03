@@ -12,6 +12,7 @@ import (
 type MessageSender interface {
 	PostMessage(message *webex.Message) (*webex.Message, error)
 	ListRooms(params map[string]string) ([]webex.Room, error)
+	ListPeople(email string) ([]webex.Person, error)
 }
 
 var ErrUserForwardNotFound = errors.New("forward rule not found")

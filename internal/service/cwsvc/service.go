@@ -15,7 +15,7 @@ type Service struct {
 	Tickets   models.TicketRepository
 	Notes     models.TicketNoteRepository
 	pool      *pgxpool.Pool
-	cwClient  *psa.Client
+	CWClient  *psa.Client
 }
 
 type Repos struct {
@@ -36,11 +36,11 @@ func New(pool *pgxpool.Pool, r models.CWRepos, cl *psa.Client) *Service {
 		Tickets:   r.Ticket,
 		Notes:     r.Note,
 		pool:      pool,
-		cwClient:  cl,
+		CWClient:  cl,
 	}
 }
 
-func (s *Service) withTX(tx pgx.Tx) *Service {
+func (s *Service) WithTX(tx pgx.Tx) *Service {
 	return &Service{
 		Boards:    s.Boards.WithTx(tx),
 		Companies: s.Companies.WithTx(tx),
@@ -49,6 +49,6 @@ func (s *Service) withTX(tx pgx.Tx) *Service {
 		Tickets:   s.Tickets.WithTx(tx),
 		Notes:     s.Notes.WithTx(tx),
 		pool:      s.pool,
-		cwClient:  s.cwClient,
+		CWClient:  s.CWClient,
 	}
 }

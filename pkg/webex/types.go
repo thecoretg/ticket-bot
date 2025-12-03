@@ -72,3 +72,30 @@ type Room struct {
 	IsPublic     bool      `json:"isPublic"`
 	IsReadOnly   bool      `json:"isReadOnly"`
 }
+
+type ListPeopleResp struct {
+	NotFoundIds any      `json:"notFoundIds"`
+	Items       []Person `json:"items"`
+}
+
+type Person struct {
+	ID           string   `json:"id"`
+	Emails       []string `json:"emails"`
+	PhoneNumbers []struct {
+		Type    string `json:"type"`
+		Value   string `json:"value"`
+		Primary bool   `json:"primary"`
+	} `json:"phoneNumbers"`
+	DisplayName  string    `json:"displayName"`
+	NickName     string    `json:"nickName"`
+	FirstName    string    `json:"firstName"`
+	LastName     string    `json:"lastName"`
+	Avatar       string    `json:"avatar"`
+	OrgID        string    `json:"orgId"`
+	Created      time.Time `json:"created"`
+	LastModified time.Time `json:"lastModified"`
+	LastActivity time.Time `json:"lastActivity"`
+	Status       string    `json:"status"`
+	Type         string    `json:"type"`
+	Title        string    `json:"title"`
+}

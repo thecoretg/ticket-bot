@@ -96,6 +96,40 @@ func (q *Queries) ListByEmail(ctx context.Context, email *string) ([]WebexRecipi
 	return items, nil
 }
 
+const listWebexPeople = `-- name: ListWebexPeople :many
+SELECT id, webex_id, name, email, type, last_activity, created_on, updated_on FROM webex_recipient
+WHERE type = 'person'
+`
+
+func (q *Queries) ListWebexPeople(ctx context.Context) ([]WebexRecipient, error) {
+	rows, err := q.db.Query(ctx, listWebexPeople)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WebexRecipient
+	for rows.Next() {
+		var i WebexRecipient
+		if err := rows.Scan(
+			&i.ID,
+			&i.WebexID,
+			&i.Name,
+			&i.Email,
+			&i.Type,
+			&i.LastActivity,
+			&i.CreatedOn,
+			&i.UpdatedOn,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWebexRecipients = `-- name: ListWebexRecipients :many
 SELECT id, webex_id, name, email, type, last_activity, created_on, updated_on FROM webex_recipient
 ORDER BY id
@@ -103,6 +137,40 @@ ORDER BY id
 
 func (q *Queries) ListWebexRecipients(ctx context.Context) ([]WebexRecipient, error) {
 	rows, err := q.db.Query(ctx, listWebexRecipients)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WebexRecipient
+	for rows.Next() {
+		var i WebexRecipient
+		if err := rows.Scan(
+			&i.ID,
+			&i.WebexID,
+			&i.Name,
+			&i.Email,
+			&i.Type,
+			&i.LastActivity,
+			&i.CreatedOn,
+			&i.UpdatedOn,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWebexRooms = `-- name: ListWebexRooms :many
+SELECT id, webex_id, name, email, type, last_activity, created_on, updated_on FROM webex_recipient
+WHERE type = 'room'
+`
+
+func (q *Queries) ListWebexRooms(ctx context.Context) ([]WebexRecipient, error) {
+	rows, err := q.db.Query(ctx, listWebexRooms)
 	if err != nil {
 		return nil, err
 	}

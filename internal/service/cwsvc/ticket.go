@@ -76,7 +76,7 @@ func (s *Service) processTicket(ctx context.Context, id int) (req *Request, err 
 			return req, fmt.Errorf("beginning tx: %w", err)
 		}
 
-		txSvc = s.withTX(tx)
+		txSvc = s.WithTX(tx)
 
 		defer func() {
 			_ = tx.Rollback(ctx)
@@ -176,7 +176,7 @@ func (s *Service) processTicket(ctx context.Context, id int) (req *Request, err 
 }
 
 func (s *Service) getCwData(ticketID int) (CWData, error) {
-	t, err := s.cwClient.GetTicket(ticketID, nil)
+	t, err := s.CWClient.GetTicket(ticketID, nil)
 	if err != nil {
 		if errors.Is(err, psa.ErrNotFound) {
 			return CWData{}, ErrTicketWasDeleted
@@ -184,7 +184,7 @@ func (s *Service) getCwData(ticketID int) (CWData, error) {
 		return CWData{}, fmt.Errorf("getting ticket: %w", err)
 	}
 
-	n, err := s.cwClient.GetMostRecentTicketNote(ticketID)
+	n, err := s.CWClient.GetMostRecentTicketNote(ticketID)
 	if err != nil && !errors.Is(err, psa.ErrNotFound) {
 		return CWData{}, fmt.Errorf("getting most recent ticket note: %w", err)
 	}
@@ -202,7 +202,7 @@ func (s *Service) ensureBoard(ctx context.Context, id int) (models.Board, error)
 		return models.Board{}, fmt.Errorf("getting board from store: %w", err)
 	}
 
-	cw, err := s.cwClient.GetBoard(id, nil)
+	cw, err := s.CWClient.GetBoard(id, nil)
 	if err != nil {
 		return models.Board{}, fmt.Errorf("getting board from cw: %w", err)
 	}
@@ -228,7 +228,7 @@ func (s *Service) ensureCompany(ctx context.Context, id int) (models.Company, er
 		return models.Company{}, fmt.Errorf("getting company from store: %w", err)
 	}
 
-	cw, err := s.cwClient.GetCompany(id, nil)
+	cw, err := s.CWClient.GetCompany(id, nil)
 	if err != nil {
 		return models.Company{}, fmt.Errorf("getting company from cw: %w", err)
 	}
@@ -254,7 +254,7 @@ func (s *Service) ensureContact(ctx context.Context, id int) (models.Contact, er
 		return models.Contact{}, fmt.Errorf("getting contact from store: %w", err)
 	}
 
-	cw, err := s.cwClient.GetContact(id, nil)
+	cw, err := s.CWClient.GetContact(id, nil)
 	if err != nil {
 		return models.Contact{}, fmt.Errorf("getting contact from cw: %w", err)
 	}
@@ -291,7 +291,7 @@ func (s *Service) ensureMemberByIdentifier(ctx context.Context, identifier strin
 		return models.Member{}, fmt.Errorf("getting member from store: %w", err)
 	}
 
-	cw, err := s.cwClient.GetMemberByIdentifier(identifier)
+	cw, err := s.CWClient.GetMemberByIdentifier(identifier)
 	if err != nil {
 		return models.Member{}, fmt.Errorf("getting member from cw by identifier: %w", err)
 	}
@@ -309,7 +309,7 @@ func (s *Service) ensureMember(ctx context.Context, id int) (models.Member, erro
 		return models.Member{}, fmt.Errorf("getting member from store: %w", err)
 	}
 
-	cw, err := s.cwClient.GetMember(id, nil)
+	cw, err := s.CWClient.GetMember(id, nil)
 	if err != nil {
 		return models.Member{}, fmt.Errorf("getting member from cw: %w", err)
 	}
