@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -45,15 +46,42 @@ func (s *Service) processNotifications(ctx context.Context, ticket *models.FullT
 		logRequest(req, err, logger)
 	}()
 
-	rules, err := s.Notifiers.ListByBoard(ctx, ticket.Board.ID)
+	if ticket == nil {
+		return errors.New("nil ticket received")
+	}
+
+	rules, err := s.NotifierRules.ListByBoard(ctx, ticket.Board.ID)
 	if err != nil {
 		return fmt.Errorf("listing notifier rules for board: %w", err)
 	}
 	logger = logger.With(ruleLogGroup(rules))
 
+	rules = filterActiveRules(rules)
 	if len(rules) == 0 {
 		req.NoNotiReason = "no notifier rules found for board"
 		return nil
+	}
+
+	// get list of recipients
+	var recips []models.WebexRecipient
+	for _, n := range rules {
+		if !n.NotifyEnabled {
+			continue
+		}
+
+		if isNew {
+			r, err := s.Recipients.Get(ctx, n.WebexRoomID)
+			if err != nil {
+				return fmt.Errorf("getting webex recipient from notifier rule: %w", err)
+			}
+
+			recips = append(recips, r)
+		}
+
+		var excluded []models.Member
+		if ticket.LatestNote != nil && ticket.LatestNote.Member != nil {
+			excluded = append(excluded, *ticket.LatestNote.Member)
+		}
 	}
 
 	if isNew {
@@ -63,7 +91,7 @@ func (s *Service) processNotifications(ctx context.Context, ticket *models.FullT
 				continue
 			}
 
-			r, err := s.Rooms.Get(ctx, n.WebexRoomID)
+			r, err := s.Recipients.Get(ctx, n.WebexRoomID) // TODO: change this in db to RecipientID
 			if err != nil {
 				return fmt.Errorf("getting webex room from notifier rule: %w", err)
 			}
@@ -97,7 +125,7 @@ func (s *Service) processNotifications(ctx context.Context, ticket *models.FullT
 
 		var recips []models.WebexRecipient
 		for _, i := range roomIDs {
-			r, err := s.Rooms.Get(ctx, i)
+			r, err := s.Recipients.Get(ctx, i)
 			if err != nil {
 				logger.Error("error getting message recipient webex room from id", "room_id", i, "error", err)
 				continue
@@ -156,6 +184,17 @@ func (s *Service) sendNotification(ctx context.Context, m *Message) *Message {
 	}
 
 	return m
+}
+
+func filterActiveRules(rules []models.NotifierRule) []models.NotifierRule {
+	var active []models.NotifierRule
+	for _, r := range rules {
+		if r.NotifyEnabled {
+			active = append(active, r)
+		}
+	}
+
+	return active
 }
 
 func ruleLogGroup(rules []models.NotifierRule) slog.Attr {

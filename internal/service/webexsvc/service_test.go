@@ -20,18 +20,6 @@ func TestNewService(t *testing.T) {
 	}
 }
 
-func TestService_SyncRooms(t *testing.T) {
-	ctx := context.Background()
-	s, err := newTestService(t, ctx)
-	if err != nil {
-		t.Fatalf("creating service: %v", err)
-	}
-
-	if err := s.SyncRooms(ctx); err != nil {
-		t.Fatalf("syncing rooms: %v", err)
-	}
-}
-
 func newTestService(t *testing.T, ctx context.Context) (*Service, error) {
 	t.Helper()
 	slog.SetLogLoggerLevel(slog.LevelDebug)

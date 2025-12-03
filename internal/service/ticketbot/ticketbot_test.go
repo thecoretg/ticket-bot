@@ -165,8 +165,8 @@ func testNewService(t *testing.T, cfg *models.Config) (*Service, error) {
 		Ticket:  inmem.NewTicketRepo(nil),
 	}
 
-	notiRepos := notifier.Repos{
-		Rooms:         inmem.NewWebexRecipientRepo(nil),
+	notiRepos := notifier.Params{
+		Recipients:    inmem.NewWebexRecipientRepo(nil),
 		Notifiers:     inmem.NewNotifierRuleRepo(nil),
 		Notifications: inmem.NewNotificationRepo(nil),
 		Forwards:      inmem.NewUserForwardRepo(nil),
@@ -213,7 +213,7 @@ func testSeedNotifiers(t *testing.T, ctx context.Context, s *Service) error {
 		Type:    "group",
 	}
 
-	room, err := s.Notifier.Rooms.Upsert(ctx, r)
+	room, err := s.Notifier.Recipients.Upsert(ctx, r)
 	if err != nil {
 		return fmt.Errorf("inserting mock room: %w", err)
 	}
@@ -226,7 +226,7 @@ func testSeedNotifiers(t *testing.T, ctx context.Context, s *Service) error {
 			NotifyEnabled: true,
 		}
 
-		if _, err := s.Notifier.Notifiers.Insert(ctx, n); err != nil {
+		if _, err := s.Notifier.NotifierRules.Insert(ctx, n); err != nil {
 			return err
 		}
 	}

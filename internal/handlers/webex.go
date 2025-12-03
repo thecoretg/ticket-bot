@@ -17,7 +17,7 @@ func NewWebexHandler(svc *webexsvc.Service) *WebexHandler {
 }
 
 func (h *WebexHandler) ListRooms(c *gin.Context) {
-	r, err := h.Service.ListRooms(c.Request.Context())
+	r, err := h.Service.ListRecipient(c.Request.Context())
 	if err != nil {
 		internalServerError(c, err)
 		return
@@ -33,7 +33,7 @@ func (h *WebexHandler) GetRoom(c *gin.Context) {
 		return
 	}
 
-	r, err := h.Service.GetRoom(c.Request.Context(), id)
+	r, err := h.Service.GetRecipient(c.Request.Context(), id)
 	if err != nil {
 		if errors.Is(err, models.ErrWebexRecipientNotFound) {
 			notFoundError(c, err)

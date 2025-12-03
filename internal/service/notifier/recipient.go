@@ -13,6 +13,90 @@ import (
 
 var ErrNoRoomsForEmail = errors.New("no rooms found for this email")
 
+func (s *Service) processFwdsNew(ctx context.Context, recips []models.WebexRecipient) ([]models.WebexRecipient, error) {
+	lookup := makeRecipLookup(recips) // reduce db calls
+	processed := make(map[int]models.WebexRecipient)
+	for _, r := range recips {
+		if _, ok := checkedRecs[r.ID]; ok {
+			continue
+		}
+
+		recIDs, err := s.processFwdsForRec(ctx, r)
+		if err != nil {
+			recIDs = []int{r.ID}
+		}
+
+		for _, i := range recIDs {
+			// TODO: come back to this in the morning when my brain is no longer liquified by this project
+		}
+	}
+}
+
+func (s *Service) processFwdsForRec(ctx context.Context, src models.WebexRecipient) ([]int, error) {
+	fwds, err := s.Forwards.ListBySourceRoomID(ctx, src.ID)
+	if err != nil {
+		return nil, fmt.Errorf("checking forwards: %w", err)
+	}
+
+	fwds = filterActiveFwds(fwds)
+
+	if len(fwds) == 0 {
+		return []int{src.ID}, nil
+	}
+
+	var recIDs []int
+	keep := false
+	for _, f := range fwds {
+		if f.UserKeepsCopy {
+			keep = true
+		}
+
+		recIDs = append(recIDs, f.DestID)
+	}
+
+	if keep {
+		recIDs = append(recIDs, src.ID)
+	}
+
+	return filterDuplicateInts(recIDs), nil
+}
+
+func (s *Service) getRecipients(ctx context.Context, ticket *models.FullTicket, rule models.NotifierRule, isNew bool) ([]models.WebexRecipient, error) {
+	var recips []models.WebexRecipient
+	if !rule.NotifyEnabled {
+		return nil, nil
+	}
+
+	if isNew {
+		r, err := s.WebexSvc.GetRecipient(ctx, rule.WebexRoomID)
+		if err != nil {
+			return nil, fmt.Errorf("getting recipient info for new ticket notification: %w", err)
+		}
+
+		recips = append(recips, r)
+	}
+
+	excluded := make(map[int]struct{})
+	if ticket.LatestNote != nil && ticket.LatestNote.Member != nil {
+		excluded[ticket.LatestNote.Member.ID] = struct{}{}
+	}
+
+	for _, tr := range ticket.Resources {
+		if _, ok := excluded[tr.ID]; ok {
+			continue
+		}
+
+		r, err := s.WebexSvc.EnsurePersonRecipientByEmail(ctx, tr.PrimaryEmail)
+		if err != nil {
+			return nil, fmt.Errorf("ensuring recipient by email: %w", err)
+		}
+
+		recips = append(recips, r)
+	}
+
+	return recips, nil
+}
+
 func (s *Service) getRecipientRoomIDs(ctx context.Context, ticket *models.FullTicket) []int {
 	var excluded []models.Member
 
@@ -22,7 +106,7 @@ func (s *Service) getRecipientRoomIDs(ctx context.Context, ticket *models.FullTi
 		excluded = append(excluded, *ticket.LatestNote.Member)
 	}
 
-	var roomIDs []int
+	var rscIDs []int
 	for _, r := range ticket.Resources {
 		if memberSliceContains(excluded, r) {
 			continue
@@ -33,14 +117,14 @@ func (s *Service) getRecipientRoomIDs(ctx context.Context, ticket *models.FullTi
 			slog.Error("notifier: error checking forwards for email", "ticket_id", ticket.Ticket.ID, "email", r.PrimaryEmail, "error", err)
 		}
 
-		roomIDs = append(roomIDs, e...)
+		rscIDs = append(rscIDs, e...)
 	}
 
-	return filterDuplicateEmails(roomIDs)
+	return filterDuplicateInts(rscIDs)
 }
 
 func (s *Service) processFwds(ctx context.Context, email string) ([]int, error) {
-	rooms, err := s.Rooms.ListByEmail(ctx, email)
+	rooms, err := s.WebexSvc.ListByEmail(ctx, email)
 	if err != nil {
 		return nil, fmt.Errorf("listing webex rooms by email %s: %w", email, err)
 	}
@@ -128,7 +212,7 @@ func dateRangeActive(start, end *time.Time) bool {
 	return now.After(*start) && now.Before(*end)
 }
 
-func filterDuplicateEmails(ids []int) []int {
+func filterDuplicateInts(ids []int) []int {
 	seenIDs := make(map[int]struct{})
 	for _, i := range ids {
 		if _, ok := seenIDs[i]; !ok {
@@ -142,4 +226,15 @@ func filterDuplicateEmails(ids []int) []int {
 	}
 
 	return uniqueIDs
+}
+
+func makeRecipLookup(recips []models.WebexRecipient) map[int]models.WebexRecipient {
+	l := make(map[int]models.WebexRecipient)
+	for _, r := range recips {
+		if _, ok := l[r.ID]; !ok {
+			l[r.ID] = r
+		}
+	}
+
+	return l
 }

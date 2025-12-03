@@ -84,8 +84,8 @@ func NewApp(ctx context.Context, migVersion int64) (*App, error) {
 	}
 	cfg = loadConfigOverrides(cfg)
 
-	nr := notifier.Repos{
-		Rooms:         r.WebexRecipients,
+	nr := notifier.Params{
+		Recipients:    r.WebexRecipients,
 		Notifiers:     r.NotifierRules,
 		Notifications: r.TicketNotifications,
 		Forwards:      r.NotifierForwards,

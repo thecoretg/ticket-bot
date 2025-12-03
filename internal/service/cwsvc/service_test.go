@@ -24,25 +24,6 @@ func TestNewService(t *testing.T) {
 	}
 }
 
-func TestService_SyncBoards(t *testing.T) {
-	ctx := context.Background()
-	s, err := newInmemTestService(t, ctx)
-	if err != nil {
-		t.Fatalf("creating service: %v", err)
-	}
-
-	if err := s.SyncBoards(ctx); err != nil {
-		t.Fatalf("syncing boards: %v", err)
-	}
-
-	boards, err := s.Boards.List(ctx)
-	if err != nil {
-		t.Fatalf("listing boards (second pass): %v", err)
-	}
-
-	t.Logf("got %d boards (second pass)", len(boards))
-}
-
 func TestService_ProcessTicket(t *testing.T) {
 	ctx := context.Background()
 	s, err := newInmemTestService(t, ctx)

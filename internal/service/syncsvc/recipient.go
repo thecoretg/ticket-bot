@@ -96,7 +96,7 @@ func (s *Service) syncWebexPeople(ctx context.Context, maxSyncs int) error {
 		return fmt.Errorf("getting webex people from connectwise members: %w", err)
 	}
 
-	for _, p := range peopleToUpsert(wp) {
+	for _, p := range peopleToRecipients(wp) {
 		if _, err := s.Webex.Recipients.Upsert(ctx, p); err != nil {
 			return fmt.Errorf("upserting person with name %s: %w", p.Name, err)
 		}
@@ -158,7 +158,7 @@ func (s *Service) getWxPeopleFromCwMembers(members []psa.Member, maxSyncs int) (
 	return wp, nil
 }
 
-func peopleToUpsert(webexPpl []webex.Person) []models.WebexRecipient {
+func peopleToRecipients(webexPpl []webex.Person) []models.WebexRecipient {
 	var toUpsert []models.WebexRecipient
 	for _, p := range webexPpl {
 		if len(p.Emails) == 0 {

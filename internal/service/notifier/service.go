@@ -3,12 +3,13 @@ package notifier
 import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/thecoretg/ticketbot/internal/models"
+	"github.com/thecoretg/ticketbot/internal/service/webexsvc"
 )
 
 type Service struct {
 	Cfg              *models.Config
-	Rooms            models.WebexRecipientRepository
-	Notifiers        models.NotifierRuleRepository
+	WebexSvc         *webexsvc.Service
+	NotifierRules    models.NotifierRuleRepository
 	Notifications    models.TicketNotificationRepository
 	Forwards         models.NotifierForwardRepository
 	Pool             *pgxpool.Pool
@@ -17,20 +18,21 @@ type Service struct {
 	MaxMessageLength int
 }
 
-type Repos struct {
-	Rooms         models.WebexRecipientRepository
+type Params struct {
+	WebexSvc      *webexsvc.Service
+	Recipients    models.WebexRecipientRepository
 	Notifiers     models.NotifierRuleRepository
 	Notifications models.TicketNotificationRepository
 	Forwards      models.NotifierForwardRepository
 }
 
-func New(cfg *models.Config, r Repos, ms models.MessageSender, cwCompanyID string, maxLen int) *Service {
+func New(cfg *models.Config, p Params, ms models.MessageSender, cwCompanyID string, maxLen int) *Service {
 	return &Service{
 		Cfg:              cfg,
-		Rooms:            r.Rooms,
-		Notifiers:        r.Notifiers,
-		Notifications:    r.Notifications,
-		Forwards:         r.Forwards,
+		WebexSvc:         p.WebexSvc,
+		NotifierRules:    p.Notifiers,
+		Notifications:    p.Notifications,
+		Forwards:         p.Forwards,
 		MessageSender:    ms,
 		CWCompanyID:      cwCompanyID,
 		MaxMessageLength: maxLen,
