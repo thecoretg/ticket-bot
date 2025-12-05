@@ -130,7 +130,7 @@ func webexRoomToUpsertParams(r models.WebexRecipient) db.UpsertWebexRecipientPar
 	return db.UpsertWebexRecipientParams{
 		WebexID:      r.WebexID,
 		Name:         r.Name,
-		Type:         r.Type,
+		Type:         string(r.Type),
 		Email:        r.Email,
 		LastActivity: r.LastActivity,
 	}
@@ -141,7 +141,7 @@ func roomFromPG(pg db.WebexRecipient) models.WebexRecipient {
 		ID:           pg.ID,
 		WebexID:      pg.WebexID,
 		Name:         pg.Name,
-		Type:         pg.Type,
+		Type:         models.WebexRecipientType(pg.Type),
 		Email:        pg.Email,
 		LastActivity: pg.LastActivity,
 		CreatedOn:    pg.CreatedOn,

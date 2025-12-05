@@ -102,7 +102,7 @@ func (p NotificationRepo) Delete(ctx context.Context, id int) error {
 
 func notificationToInsertParams(n models.TicketNotification) db.InsertTicketNotificationParams {
 	return db.InsertTicketNotificationParams{
-		TicketID:     n.ID,
+		TicketID:     n.TicketID,
 		TicketNoteID: n.TicketNoteID,
 		RecipientID:  n.RecipientID,
 		Sent:         n.Sent,

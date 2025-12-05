@@ -24,7 +24,7 @@ func webexRoomsToTable(rooms []models.WebexRecipient) {
 	t.Headers("ID", "TYPE", "NAME")
 	for _, r := range rooms {
 		if r.Name != "Empty Title" {
-			t.Row(strconv.Itoa(r.ID), r.Type, r.Name)
+			t.Row(strconv.Itoa(r.ID), string(r.Type), r.Name)
 		}
 	}
 

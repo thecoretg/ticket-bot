@@ -8,7 +8,7 @@ import (
 
 var (
 	webexRoomsCmd = &cobra.Command{
-		Use: "rooms",
+		Use: "recipients",
 	}
 
 	listWebexRoomsCmd = &cobra.Command{
@@ -20,7 +20,7 @@ var (
 			}
 
 			if len(rooms) == 0 {
-				fmt.Println("No rooms found")
+				fmt.Println("No recipients found")
 				return nil
 			}
 

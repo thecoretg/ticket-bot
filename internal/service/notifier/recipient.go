@@ -35,6 +35,7 @@ func (s *Service) getAllRecipients(ctx context.Context, t *models.FullTicket, ru
 
 	if isNew {
 		for _, nr := range rules {
+			slog.Debug("getAllRecipients: calling webexsvc.GetRecipient", "room_id", nr.WebexRoomID)
 			r, err := s.WebexSvc.GetRecipient(ctx, nr.WebexRoomID)
 			if err != nil {
 				// TODO: once done testing, this should warn and not exit

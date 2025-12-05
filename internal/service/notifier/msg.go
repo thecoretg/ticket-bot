@@ -10,19 +10,19 @@ import (
 )
 
 type Message struct {
-	MsgType      string
-	WebexMsg     webex.Message
-	WebexRoom    models.WebexRecipient
-	Notification models.TicketNotification
-	SendError    error
+	MsgType        string
+	WebexMsg       webex.Message
+	WebexRecipient models.WebexRecipient
+	Notification   models.TicketNotification
+	SendError      error
 }
 
 func newMessage(msgType string, wm webex.Message, wr models.WebexRecipient, n models.TicketNotification) Message {
 	return Message{
-		MsgType:      msgType,
-		WebexMsg:     wm,
-		WebexRoom:    wr,
-		Notification: n,
+		MsgType:        msgType,
+		WebexMsg:       wm,
+		WebexRecipient: wr,
+		Notification:   n,
 	}
 }
 
@@ -40,8 +40,7 @@ func (s *Service) makeNewTicketMessages(t *models.FullTicket, recips []models.We
 
 	var msgs []Message
 	for _, r := range recips {
-		wm := webex.NewMessageToRoom(r.WebexID, r.Name, body)
-
+		wm := newWebexMsg(r, body)
 		n := &models.TicketNotification{
 			TicketID:    t.Ticket.ID,
 			RecipientID: r.ID,
@@ -64,8 +63,7 @@ func (s *Service) makeUpdatedTicketMessages(t *models.FullTicket, recips []model
 
 	var msgs []Message
 	for _, r := range recips {
-		wm := webex.NewMessageToRoom(r.WebexID, r.Name, body)
-
+		wm := newWebexMsg(r, body)
 		n := &models.TicketNotification{
 			TicketID:    t.Ticket.ID,
 			RecipientID: r.ID,
@@ -80,6 +78,14 @@ func (s *Service) makeUpdatedTicketMessages(t *models.FullTicket, recips []model
 	}
 
 	return msgs
+}
+
+func newWebexMsg(r models.WebexRecipient, body string) webex.Message {
+	if r.Type == models.RecipientTypePerson && r.Email != nil {
+		return webex.NewMessageToPerson(*r.Email, body)
+	}
+
+	return webex.NewMessageToRoom(r.WebexID, r.Name, body)
 }
 
 func makeMessageBody(ticket *models.FullTicket, header string, maxLen int) string {

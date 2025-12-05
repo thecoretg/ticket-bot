@@ -84,20 +84,25 @@ func NewApp(ctx context.Context, migVersion int64) (*App, error) {
 	}
 	cfg = loadConfigOverrides(cfg)
 
-	nr := notifier.Params{
-		Recipients:    r.WebexRecipients,
-		Notifiers:     r.NotifierRules,
-		Notifications: r.TicketNotifications,
-		Forwards:      r.NotifierForwards,
-	}
-
 	us := user.New(r.APIUser, r.APIKey)
 	cws := cwsvc.New(s.Pool, r.CW, cw)
 	ws := webexsvc.New(s.Pool, r.WebexRecipients, ms)
 	wh := webhooks.New(cw, cr.RootURL)
 
+	nr := notifier.SvcParams{
+		Cfg:              cfg,
+		WebexSvc:         ws,
+		NotifierRules:    r.NotifierRules,
+		Notifications:    r.TicketNotifications,
+		Forwards:         r.NotifierForwards,
+		Pool:             s.Pool,
+		MessageSender:    ms,
+		CWCompanyID:      cr.CWCreds.CompanyId,
+		MaxMessageLength: cfg.MaxMessageLength,
+	}
+
 	sns := syncsvc.New(s.Pool, cws, ws)
-	ns := notifier.New(cfg, nr, ms, cr.CWCreds.CompanyId, cfg.MaxMessageLength)
+	ns := notifier.New(nr)
 	tb := ticketbot.New(cfg, cws, ns)
 	return &App{
 		Creds:         cr,

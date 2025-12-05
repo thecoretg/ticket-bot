@@ -73,6 +73,12 @@ func (s *Service) processNotifications(ctx context.Context, t *models.FullTicket
 	if err != nil {
 		return fmt.Errorf("getting recipients: %w", err)
 	}
+
+	if len(recips) == 0 {
+		req.NoNotiReason = "no recipients to send to"
+		return nil
+	}
+
 	req.MessagesToSend = s.makeTicketMessages(t, recips, isNew)
 
 	for _, m := range req.MessagesToSend {
@@ -98,11 +104,20 @@ func (s *Service) processNotifications(ctx context.Context, t *models.FullTicket
 }
 
 func (s *Service) sendNotification(ctx context.Context, m *Message) *Message {
+	n := m.Notification
+	logger := slog.Default().With(
+		slog.Int("ticket_id", n.TicketID),
+		slog.Int("ticket_note_id", ptrToInt(n.TicketNoteID)),
+		slog.String("recipient", m.WebexRecipient.Name),
+	)
+
+	logger.Debug("notifier: sending notification")
 	_, err := s.MessageSender.PostMessage(&m.WebexMsg)
 	if err != nil {
 		m.SendError = fmt.Errorf("sending webex message: %w", err)
 	}
 
+	logger.Debug("inserting notification into store")
 	m.Notification, err = s.Notifications.Insert(ctx, m.Notification)
 	if err != nil {
 		if m.SendError == nil {
@@ -145,12 +160,12 @@ func msgsLogGroup(key string, msgs []Message) slog.Attr {
 			slog.String("type", m.MsgType),
 		}
 
-		if m.WebexRoom.ID != 0 {
+		if m.WebexRecipient.ID != 0 {
 			g := slog.Group(
 				"webex_room",
-				slog.Int("id", m.WebexRoom.ID),
-				slog.String("name", m.WebexRoom.Name),
-				slog.String("type", m.WebexRoom.Type),
+				slog.Int("id", m.WebexRecipient.ID),
+				slog.String("name", m.WebexRecipient.Name),
+				slog.String("type", string(m.WebexRecipient.Type)),
 			)
 			attrs = append(attrs, g)
 		}
@@ -175,4 +190,13 @@ func logRequest(req *Request, err error, logger *slog.Logger) {
 	} else {
 		logger.Info("notification processed")
 	}
+}
+
+func ptrToInt(p *int) int {
+	i := 0
+	if p != nil {
+		i = *p
+	}
+
+	return i
 }

@@ -85,8 +85,9 @@ var (
 				}
 			} else {
 				p = &models.NotifierRule{
-					CwBoardID:   boardID,
-					WebexRoomID: roomID,
+					CwBoardID:     boardID,
+					WebexRoomID:   roomID,
+					NotifyEnabled: true,
 				}
 			}
 
@@ -159,14 +160,16 @@ var (
 				return errors.New("destination email required")
 			}
 
-			if forwardStartDate == "" {
-				return errors.New("start date required")
-			}
-
 			var start *time.Time
-			st, err := time.Parse("2006-01-02", forwardStartDate)
-			if err != nil {
-				return fmt.Errorf("parsing start date: %w", err)
+			var st time.Time
+			if forwardStartDate == "" {
+				st = time.Now()
+			} else {
+				var err error
+				st, err = time.Parse("2006-01-02", forwardStartDate)
+				if err != nil {
+					return fmt.Errorf("parsing start date: %w", err)
+				}
 			}
 			start = &st
 

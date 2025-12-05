@@ -18,23 +18,28 @@ type Service struct {
 	MaxMessageLength int
 }
 
-type Params struct {
-	WebexSvc      *webexsvc.Service
-	Recipients    models.WebexRecipientRepository
-	Notifiers     models.NotifierRuleRepository
-	Notifications models.TicketNotificationRepository
-	Forwards      models.NotifierForwardRepository
+type SvcParams struct {
+	Cfg              *models.Config
+	WebexSvc         *webexsvc.Service
+	NotifierRules    models.NotifierRuleRepository
+	Notifications    models.TicketNotificationRepository
+	Forwards         models.NotifierForwardRepository
+	Pool             *pgxpool.Pool
+	MessageSender    models.MessageSender
+	CWCompanyID      string
+	MaxMessageLength int
 }
 
-func New(cfg *models.Config, p Params, ms models.MessageSender, cwCompanyID string, maxLen int) *Service {
+func New(p SvcParams) *Service {
 	return &Service{
-		Cfg:              cfg,
+		Cfg:              p.Cfg,
 		WebexSvc:         p.WebexSvc,
-		NotifierRules:    p.Notifiers,
+		NotifierRules:    p.NotifierRules,
 		Notifications:    p.Notifications,
 		Forwards:         p.Forwards,
-		MessageSender:    ms,
-		CWCompanyID:      cwCompanyID,
-		MaxMessageLength: maxLen,
+		Pool:             p.Pool,
+		MessageSender:    p.MessageSender,
+		CWCompanyID:      p.CWCompanyID,
+		MaxMessageLength: p.MaxMessageLength,
 	}
 }
