@@ -1,3 +1,3 @@
 package common
 
-const ServerVersion = "1.1"
+const ServerVersion = "1.2"

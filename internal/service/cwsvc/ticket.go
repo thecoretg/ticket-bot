@@ -32,8 +32,8 @@ func (s *Service) DeleteTicket(ctx context.Context, id int) error {
 	return nil
 }
 
-func (s *Service) ProcessTicket(ctx context.Context, id int) (*models.FullTicket, error) {
-	req, err := s.processTicket(ctx, id)
+func (s *Service) ProcessTicket(ctx context.Context, id int, caller string) (*models.FullTicket, error) {
+	req, err := s.processTicket(ctx, id, caller)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (s *Service) ProcessTicket(ctx context.Context, id int) (*models.FullTicket
 	return req.FullTicket, nil
 }
 
-func (s *Service) processTicket(ctx context.Context, id int) (req *Request, err error) {
+func (s *Service) processTicket(ctx context.Context, id int, caller string) (req *Request, err error) {
 	// TODO: make this less bad
 	req = &Request{
 		NoProcReason: "",
@@ -84,7 +84,7 @@ func (s *Service) processTicket(ctx context.Context, id int) (req *Request, err 
 	}
 
 	cwt := cd.ticket
-	logger = logger.With(slog.Int("ticket_id", cwt.ID))
+	logger = logger.With(slog.Int("ticket_id", cwt.ID), slog.String("caller", caller))
 
 	board, err := txSvc.ensureBoard(ctx, cwt.Board.ID)
 	if err != nil {

@@ -38,7 +38,7 @@ func (s *Service) SyncOpenTickets(ctx context.Context, boardIDs []int, maxSyncs 
 		go func(ticket psa.Ticket) {
 			defer func() { <-sem }()
 			defer wg.Done()
-			if _, err := s.CW.ProcessTicket(ctx, t.ID); err != nil {
+			if _, err := s.CW.ProcessTicket(ctx, t.ID, "sync"); err != nil {
 				slog.Error("cwsvc: ticket sync error", "ticket_id", t.ID, "error", err)
 				errCh <- fmt.Errorf("error syncing ticket %d: %w", t.ID, err)
 			} else {

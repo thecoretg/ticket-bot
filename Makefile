@@ -2,7 +2,7 @@ create-bin-dir:
 	mkdir -p bin
 
 build-cli: create-bin-dir
-	go build -o bin/cli ./cmd/cli && sudo cp bin/cli /usr/local/bin/tbot-admin
+	go build -o bin/cli ./cmd/cli && cp bin/cli ~/go/bin/tbot
 
 gensql:
 	sqlc generate
@@ -10,20 +10,14 @@ gensql:
 runserver:
 	go run ./cmd/server
 
-docker-build:
-	docker buildx build --platform=linux/amd64 -t ticketbot:latest --load .
-
 test-db-up:
-	docker compose -f docker-compose-db.yml up -d
+	docker compose -f ./docker/docker-compose-db.yml up -d
 
 test-db-down:
-	docker compose -f docker-compose-db.yml down -v
+	docker compose -f ./docker/docker-compose-db.yml down -v
 
-test-api-up:
-	docker compose -f docker-compose-api.yml up --build
-
-test-api-down:
-	docker compose -f docker-compose-api.yml down -v
+docker-build:
+	docker buildx build --platform=linux/amd64 -t ticketbot:v1.2 --load -f ./docker/DockerfileMain .
 
 deploy-lightsail: docker-build
 	aws lightsail push-container-image \

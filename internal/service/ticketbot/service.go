@@ -52,7 +52,7 @@ func (s *Service) ProcessTicket(ctx context.Context, id int) (err error) {
 	}
 	isNew := !exists
 
-	ticket, err := s.CW.ProcessTicket(ctx, id)
+	ticket, err := s.CW.ProcessTicket(ctx, id, "ticketbot")
 	if err != nil {
 		return fmt.Errorf("processing ticket %d: %w", id, err)
 	}

@@ -32,7 +32,7 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.AddCommand(versionCmd, authCheckCmd, syncCmd, listCmd, getCmd, createCmd, updateCmd, deleteCmd)
+	rootCmd.AddCommand(versionCmd, pingCmd, syncCmd, listCmd, getCmd, createCmd, updateCmd, deleteCmd)
 }
 
 func createClient(cmd *cobra.Command, args []string) error {

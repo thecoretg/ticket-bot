@@ -143,7 +143,7 @@ var (
 )
 
 func init() {
-	createCmd.AddCommand(createNotifierRuleCmd, createUserCmd, createAPIKeyCmd)
+	createCmd.AddCommand(createNotifierRuleCmd, createForwardCmd, createAPIKeyCmd)
 	createNotifierRuleCmd.Flags().IntVarP(&boardID, "board-id", "b", 0, "board id to use")
 	createNotifierRuleCmd.Flags().IntVarP(&recipientID, "recipient-id", "r", 0, "recipient id to use")
 	createForwardCmd.Flags().BoolVarP(&forwardUserKeeps, "user-keeps-copy", "k", false, "user keeps a copy of forwarded emails")

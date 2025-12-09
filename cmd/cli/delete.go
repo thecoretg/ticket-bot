@@ -17,11 +17,11 @@ var (
 		Use:     "notifier-rule",
 		Aliases: []string{"rule"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := client.DeleteNotifierRule(notifierID); err != nil {
+			if err := client.DeleteNotifierRule(id); err != nil {
 				return err
 			}
 
-			fmt.Printf("Successfully deleted notifier with id of %d\n", notifierID)
+			fmt.Printf("Successfully deleted notifier with id of %d\n", id)
 			return nil
 		},
 	}
@@ -30,11 +30,11 @@ var (
 		Use:     "notifier-forward",
 		Aliases: []string{"forward", "fwd"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := client.DeleteUserForward(forwardID); err != nil {
+			if err := client.DeleteUserForward(id); err != nil {
 				return err
 			}
 
-			fmt.Printf("Successfully deleted user forward with id of %d\n", forwardID)
+			fmt.Printf("Successfully deleted user forward with id of %d\n", id)
 			return nil
 		},
 	}
@@ -75,5 +75,8 @@ var (
 
 func init() {
 	deleteCmd.AddCommand(deleteNotifierRuleCmd, deleteForwardCmd, deleteUserCmd, deleteAPIKeyCmd)
-	deleteCmd.PersistentFlags().IntVar(&id, "id", 0, "id of the item to delete")
+	deleteForwardCmd.Flags().IntVar(&id, "id", 0, "id of the forward to delete")
+	deleteNotifierRuleCmd.Flags().IntVar(&id, "id", 0, "id of the notifier to delete")
+	deleteAPIKeyCmd.Flags().IntVar(&id, "id", 0, "id of the key to delete")
+	deleteUserCmd.Flags().IntVar(&id, "id", 0, "id of the user to delete")
 }

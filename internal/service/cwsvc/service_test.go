@@ -34,7 +34,7 @@ func TestService_ProcessTicket(t *testing.T) {
 	ids := testTicketIDs(t)
 	// add
 	for _, id := range ids {
-		if _, err := s.ProcessTicket(ctx, id); err != nil {
+		if _, err := s.ProcessTicket(ctx, id, "testing"); err != nil {
 			t.Errorf("adding ticket %d: %v", id, err)
 			continue
 		}
@@ -42,7 +42,7 @@ func TestService_ProcessTicket(t *testing.T) {
 
 	// update (not changing anything, just simualting)
 	for _, id := range ids {
-		if _, err := s.ProcessTicket(ctx, id); err != nil {
+		if _, err := s.ProcessTicket(ctx, id, "testing"); err != nil {
 			t.Errorf("updating ticket %d: %v", id, err)
 			continue
 		}
