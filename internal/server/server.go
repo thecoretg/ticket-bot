@@ -101,7 +101,7 @@ func NewApp(ctx context.Context, migVersion int64) (*App, error) {
 		MaxMessageLength: cfg.MaxMessageLength,
 	}
 
-	sns := syncsvc.New(s.Pool, cws, ws)
+	sns := syncsvc.New(s.Pool, cws, ws, r.TicketNotifications)
 	ns := notifier.New(nr)
 	tb := ticketbot.New(cfg, cws, ns)
 	return &App{

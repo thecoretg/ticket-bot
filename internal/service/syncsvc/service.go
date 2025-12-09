@@ -3,21 +3,24 @@ package syncsvc
 import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/thecoretg/ticketbot/internal/models"
 	"github.com/thecoretg/ticketbot/internal/service/cwsvc"
 	"github.com/thecoretg/ticketbot/internal/service/webexsvc"
 )
 
 type Service struct {
-	CW    *cwsvc.Service
-	Webex *webexsvc.Service
-	pool  *pgxpool.Pool
+	CW            *cwsvc.Service
+	Webex         *webexsvc.Service
+	Notifications models.TicketNotificationRepository
+	pool          *pgxpool.Pool
 }
 
-func New(pool *pgxpool.Pool, cw *cwsvc.Service, wx *webexsvc.Service) *Service {
+func New(pool *pgxpool.Pool, cw *cwsvc.Service, wx *webexsvc.Service, nr models.TicketNotificationRepository) *Service {
 	return &Service{
-		CW:    cw,
-		Webex: wx,
-		pool:  pool,
+		CW:            cw,
+		Webex:         wx,
+		Notifications: nr,
+		pool:          pool,
 	}
 }
 
