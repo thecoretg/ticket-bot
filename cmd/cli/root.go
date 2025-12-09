@@ -5,15 +5,23 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/thecoretg/ticketbot/cmd/common"
 	"github.com/thecoretg/ticketbot/pkg/sdk"
 )
 
 var (
 	client  *sdk.Client
 	rootCmd = &cobra.Command{
-		Use:               "tbot",
-		PersistentPreRunE: createClient,
-		SilenceUsage:      true,
+		Use:          "tbot",
+		SilenceUsage: true,
+	}
+
+	versionCmd = &cobra.Command{
+		Use:     "version",
+		Aliases: []string{"v"},
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println(common.ServerVersion)
+		},
 	}
 )
 
@@ -24,7 +32,7 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.AddCommand(pingCmd, authCheckCmd, syncCmd, listCmd, getCmd, createCmd, updateCmd, deleteCmd)
+	rootCmd.AddCommand(versionCmd, authCheckCmd, syncCmd, listCmd, getCmd, createCmd, updateCmd, deleteCmd)
 }
 
 func createClient(cmd *cobra.Command, args []string) error {

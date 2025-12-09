@@ -11,8 +11,9 @@ import (
 
 var (
 	createCmd = &cobra.Command{
-		Use:     "create",
-		Aliases: []string{"add"},
+		Use:               "create",
+		Aliases:           []string{"add"},
+		PersistentPreRunE: createClient,
 	}
 
 	createNotifierRuleCmd = &cobra.Command{

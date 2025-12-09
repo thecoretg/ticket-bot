@@ -9,7 +9,8 @@ import (
 
 var (
 	getCmd = &cobra.Command{
-		Use: "get",
+		Use:               "get",
+		PersistentPreRunE: createClient,
 	}
 
 	getCfgCmd = &cobra.Command{

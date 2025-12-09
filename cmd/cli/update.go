@@ -8,7 +8,8 @@ import (
 
 var (
 	updateCmd = &cobra.Command{
-		Use: "update",
+		Use:               "update",
+		PersistentPreRunE: createClient,
 	}
 
 	updateCfgCmd = &cobra.Command{

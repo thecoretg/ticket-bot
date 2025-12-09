@@ -9,7 +9,8 @@ import (
 
 var (
 	listCmd = &cobra.Command{
-		Use: "list",
+		Use:               "list",
+		PersistentPreRunE: createClient,
 	}
 
 	listBoardsCmd = &cobra.Command{

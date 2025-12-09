@@ -9,7 +9,8 @@ import (
 )
 
 var syncCmd = &cobra.Command{
-	Use: "sync",
+	Use:               "sync",
+	PersistentPreRunE: createClient,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if syncAll {
 			syncBoards = true

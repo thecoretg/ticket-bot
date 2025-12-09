@@ -9,7 +9,8 @@ import (
 
 var (
 	deleteCmd = &cobra.Command{
-		Use: "delete",
+		Use:               "delete",
+		PersistentPreRunE: createClient,
 	}
 
 	deleteNotifierRuleCmd = &cobra.Command{

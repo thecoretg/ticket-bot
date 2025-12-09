@@ -8,7 +8,8 @@ import (
 
 var (
 	pingCmd = &cobra.Command{
-		Use: "ping",
+		Use:               "ping",
+		PersistentPreRunE: createClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := client.Ping(); err != nil {
 				return err
@@ -20,7 +21,8 @@ var (
 	}
 
 	authCheckCmd = &cobra.Command{
-		Use: "authcheck",
+		Use:               "authcheck",
+		PersistentPreRunE: createClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := client.AuthTest(); err != nil {
 				return err

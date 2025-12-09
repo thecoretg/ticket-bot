@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 
 	"github.com/gin-gonic/gin"
+	"github.com/thecoretg/ticketbot/cmd/common"
 	"github.com/thecoretg/ticketbot/internal/server"
 )
 
@@ -19,6 +21,11 @@ func main() {
 }
 
 func Run() error {
+	if len(os.Args[1:]) > 0 && slices.Contains([]string{"version", "v"}, os.Args[1]) {
+		fmt.Println(common.ServerVersion)
+		return nil
+	}
+
 	ctx := context.Background()
 
 	level := slog.LevelInfo
