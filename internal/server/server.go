@@ -2,187 +2,154 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
-	"sync"
 
-	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/thecoretg/ticketbot/internal/db"
-	"github.com/thecoretg/ticketbot/internal/external/psa"
-	"github.com/thecoretg/ticketbot/internal/external/webex"
 	"github.com/thecoretg/ticketbot/internal/mock"
-	"github.com/thecoretg/ticketbot/migrations"
+	"github.com/thecoretg/ticketbot/internal/models"
+	"github.com/thecoretg/ticketbot/internal/service/config"
+	"github.com/thecoretg/ticketbot/internal/service/cwsvc"
+	"github.com/thecoretg/ticketbot/internal/service/notifier"
+	"github.com/thecoretg/ticketbot/internal/service/syncsvc"
+	"github.com/thecoretg/ticketbot/internal/service/ticketbot"
+	"github.com/thecoretg/ticketbot/internal/service/user"
+	"github.com/thecoretg/ticketbot/internal/service/webexsvc"
+	"github.com/thecoretg/ticketbot/internal/service/webhooks"
+	"github.com/thecoretg/ticketbot/pkg/psa"
+	"github.com/thecoretg/ticketbot/pkg/webex"
 )
 
-type Client struct {
-	State         *AppState
-	Creds         *creds
-	Config        *AppConfig
-	CWClient      *psa.Client
-	MessageSender messageSender
-	Pool          *pgxpool.Pool
-	Queries       *db.Queries
-	Server        *gin.Engine
-
-	testing     testFlags
-	ticketLocks sync.Map
+type App struct {
+	Creds                   *Creds
+	TestFlags               *TestFlags
+	Stores                  *models.AllRepos
+	CWClient                *psa.Client
+	MessageSender           models.MessageSender
+	Pool                    *pgxpool.Pool
+	Config                  *models.Config
+	Svc                     *Services
+	CurrentMigrationVersion int64
 }
 
-type creds struct {
+type Creds struct {
 	RootURL           string
 	InitialAdminEmail string
 	PostgresDSN       string
-	CWPublicKey       string
-	CWPrivateKey      string
-	CWClientID        string
-	CWCompanyID       string
 	WebexSecret       string
+	CWCreds           *psa.Creds
 }
 
-type testFlags struct {
-	skipAuth        bool
-	skipHooks       bool
-	mockWebex       bool
-	mockConnectwise bool // currently does nothing
+type TestFlags struct {
+	InMemory        bool
+	APIKey          *string
+	SkipAuth        bool
+	SkipHooks       bool
+	MockWebex       bool
+	MockConnectwise bool // currently does nothing
 }
 
-func Run() error {
-	setInitialLogger()
-	ctx := context.Background()
+type Services struct {
+	Config    *config.Service
+	User      *user.Service
+	CW        *cwsvc.Service
+	Hooks     *webhooks.Service
+	Webex     *webexsvc.Service
+	Sync      *syncsvc.Service
+	Notifier  *notifier.Service
+	Ticketbot *ticketbot.Service
+}
 
-	tf := getTestFlags()
+func NewApp(ctx context.Context, migVersion int64) (*App, error) {
 	cr := getCreds()
+	tf := getTestFlags()
 	if err := cr.validate(tf); err != nil {
-		return fmt.Errorf("validating credentials: %w", err)
+		return nil, fmt.Errorf("validating credentials: %w", err)
 	}
 
-	embeddedMigrations, err := fs.Sub(migrations.Migrations, ".")
+	cw := psa.NewClient(cr.CWCreds)
+	ms := makeMessageSender(tf.MockWebex, cr.WebexSecret)
+
+	s, err := CreateStores(ctx, cr, tf.InMemory, migVersion)
 	if err != nil {
-		return fmt.Errorf("accessing embedded migrations: %w", err)
+		return nil, fmt.Errorf("initializing stores: %w", err)
 	}
+	r := s.Repos
 
-	pool, err := setupDB(ctx, cr.PostgresDSN, embeddedMigrations)
+	cs := config.New(r.Config)
+	cfg, err := cs.Get(ctx)
 	if err != nil {
-		return fmt.Errorf("setting up db connections: %w", err)
+		return nil, fmt.Errorf("getting initial config: %w", err)
+	}
+	cfg = loadConfigOverrides(cfg)
+
+	us := user.New(r.APIUser, r.APIKey)
+	cws := cwsvc.New(s.Pool, r.CW, cw)
+	ws := webexsvc.New(s.Pool, r.WebexRecipients, ms)
+	wh := webhooks.New(cw, cr.RootURL)
+
+	nr := notifier.SvcParams{
+		Cfg:              cfg,
+		WebexSvc:         ws,
+		NotifierRules:    r.NotifierRules,
+		Notifications:    r.TicketNotifications,
+		Forwards:         r.NotifierForwards,
+		Pool:             s.Pool,
+		MessageSender:    ms,
+		CWCompanyID:      cr.CWCreds.CompanyId,
+		MaxMessageLength: cfg.MaxMessageLength,
 	}
 
-	cl, err := newClient(cr, pool, tf)
-	if err != nil {
-		return fmt.Errorf("creating server client: %w", err)
-	}
-
-	if err := cl.startup(ctx); err != nil {
-		return fmt.Errorf("running server startup: %w", err)
-	}
-
-	if err := cl.serve(); err != nil {
-		return fmt.Errorf("serving api: %w", err)
-	}
-
-	return nil
-}
-
-func (cl *Client) serve() error {
-	cl.Server = gin.Default()
-	cl.addRoutes()
-
-	slog.Debug("running server")
-	return cl.Server.Run()
-}
-
-func (cl *Client) startup(ctx context.Context) error {
-	var err error
-	cl.Config, err = cl.getFullConfig(ctx)
-	if err != nil {
-		return fmt.Errorf("fetching config: %w", err)
-	}
-	setLogLevel(cl.Config.Debug)
-
-	cl.setStateIfNil()
-	if err := cl.bootstrapAdmin(ctx); err != nil {
-		return fmt.Errorf("bootstrapping initial admin key: %w", err)
-	}
-
-	if !cl.testing.skipHooks {
-		if err := cl.initAllHooks(); err != nil {
-			return fmt.Errorf("initializing webhooks: %w", err)
-		}
-	} else {
-		slog.Info("skipping webhook creating")
-	}
-
-	return nil
-}
-
-func newClient(cr *creds, pool *pgxpool.Pool, tf testFlags) (*Client, error) {
-	slog.Debug("initializing server client")
-
-	cwCreds := &psa.Creds{
-		PublicKey:  cr.CWPublicKey,
-		PrivateKey: cr.CWPrivateKey,
-		ClientId:   cr.CWClientID,
-		CompanyId:  cr.CWCompanyID,
-	}
-
-	ms, err := getMessageSender(cr.WebexSecret, tf.mockWebex)
-	if err != nil {
-		return nil, fmt.Errorf("getting message sender: %w", err)
-	}
-
-	cl := &Client{
-		State:         defaultAppState,
+	sns := syncsvc.New(s.Pool, cws, ws)
+	ns := notifier.New(nr)
+	tb := ticketbot.New(cfg, cws, ns)
+	return &App{
 		Creds:         cr,
-		Queries:       db.New(pool),
-		Pool:          pool,
-		CWClient:      psa.NewClient(cwCreds),
-		MessageSender: ms,
-		testing:       tf,
-	}
-
-	return cl, nil
+		Config:        cfg,
+		TestFlags:     tf,
+		Stores:        r,
+		Pool:          s.Pool,
+		CWClient:      psa.NewClient(cr.CWCreds),
+		MessageSender: webex.NewClient(cr.WebexSecret),
+		Svc: &Services{
+			Config:    cs,
+			User:      us,
+			Hooks:     wh,
+			CW:        cws,
+			Webex:     ws,
+			Sync:      sns,
+			Notifier:  ns,
+			Ticketbot: tb,
+		},
+	}, nil
 }
 
-func getMessageSender(token string, mocking bool) (messageSender, error) {
-	if mocking {
-		slog.Info("using mock webex client")
-		return mock.NewWebexClient(token), nil
-	}
-
-	if token == "" {
-		return nil, errors.New("webex secret is empty and testing is not enabled")
-	}
-
-	return webex.NewClient(token), nil
-}
-
-func getCreds() *creds {
-	return &creds{
+func getCreds() *Creds {
+	return &Creds{
 		RootURL:           os.Getenv("ROOT_URL"),
 		InitialAdminEmail: os.Getenv("INITIAL_ADMIN_EMAIL"),
 		PostgresDSN:       os.Getenv("POSTGRES_DSN"),
-		CWPublicKey:       os.Getenv("CW_PUB_KEY"),
-		CWPrivateKey:      os.Getenv("CW_PRIV_KEY"),
-		CWClientID:        os.Getenv("CW_CLIENT_ID"),
-		CWCompanyID:       os.Getenv("CW_COMPANY_ID"),
 		WebexSecret:       os.Getenv("WEBEX_SECRET"),
+		CWCreds: &psa.Creds{
+			PublicKey:  os.Getenv("CW_PUB_KEY"),
+			PrivateKey: os.Getenv("CW_PRIV_KEY"),
+			ClientId:   os.Getenv("CW_CLIENT_ID"),
+			CompanyId:  os.Getenv("CW_COMPANY_ID"),
+		},
 	}
 }
 
-func (c *creds) validate(tf testFlags) error {
+func (c *Creds) validate(tf *TestFlags) error {
 	req := map[string]string{
 		"INITIAL_ADMIN_EMAIL": c.InitialAdminEmail,
-		"POSTGRES_DSN":        c.PostgresDSN,
 	}
 
 	cwVals := map[string]string{
-		"CW_PUB_KEY":    c.CWPublicKey,
-		"CW_PRIV_KEY":   c.CWPrivateKey,
-		"CW_CLIENT_ID":  c.CWClientID,
-		"CW_COMPANY_ID": c.CWCompanyID,
+		"CW_PUB_KEY":    c.CWCreds.PublicKey,
+		"CW_PRIV_KEY":   c.CWCreds.PrivateKey,
+		"CW_CLIENT_ID":  c.CWCreds.ClientId,
+		"CW_COMPANY_ID": c.CWCreds.CompanyId,
 	}
 
 	var empty []string
@@ -192,8 +159,12 @@ func (c *creds) validate(tf testFlags) error {
 		}
 	}
 
+	if c.PostgresDSN == "" && !tf.InMemory {
+		empty = append(empty, "POSTGRES_DSN")
+	}
+
 	if c.RootURL == "" {
-		if tf.skipHooks {
+		if tf.SkipHooks {
 			slog.Warn("ROOT_URL is empty, but ok since SKIP_HOOKS is enabled")
 		} else {
 			empty = append(empty, "ROOT_URL")
@@ -206,7 +177,7 @@ func (c *creds) validate(tf testFlags) error {
 
 	for k, v := range cwVals {
 		if v == "" {
-			if tf.mockConnectwise {
+			if tf.MockConnectwise {
 				slog.Warn("env variable empty, but ok since MOCK_CONNECTWISE is enabled", "key", k)
 				continue
 			}
@@ -221,11 +192,28 @@ func (c *creds) validate(tf testFlags) error {
 	return nil
 }
 
-func getTestFlags() testFlags {
-	return testFlags{
-		skipAuth:        os.Getenv("SKIP_AUTH") == "true",
-		skipHooks:       os.Getenv("SKIP_HOOKS") == "true",
-		mockWebex:       os.Getenv("MOCK_WEBEX") == "true",
-		mockConnectwise: os.Getenv("MOCK_CONNECTWISE") == "true",
+func makeMessageSender(mocking bool, webexSecret string) models.MessageSender {
+	if mocking {
+		slog.Info("running with webex mocking")
+		return mock.NewWebexClient(webexSecret)
+	}
+
+	return webex.NewClient(webexSecret)
+}
+
+func getTestFlags() *TestFlags {
+	var apiKey *string
+	if os.Getenv("API_KEY") != "" {
+		k := os.Getenv("API_KEY")
+		apiKey = &k
+	}
+
+	return &TestFlags{
+		InMemory:        os.Getenv("IN_MEMORY_STORE") == "true",
+		APIKey:          apiKey,
+		SkipAuth:        os.Getenv("SKIP_AUTH") == "true",
+		SkipHooks:       os.Getenv("SKIP_HOOKS") == "true",
+		MockWebex:       os.Getenv("MOCK_WEBEX") == "true",
+		MockConnectwise: os.Getenv("MOCK_CONNECTWISE") == "true",
 	}
 }

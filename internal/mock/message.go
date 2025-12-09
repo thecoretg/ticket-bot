@@ -1,7 +1,7 @@
 package mock
 
 import (
-	"github.com/thecoretg/ticketbot/internal/external/webex"
+	"github.com/thecoretg/ticketbot/pkg/webex"
 )
 
 // This isn't ideal at all, but I need it short term just to get this up and running.
@@ -24,4 +24,8 @@ func (w *WebexClient) PostMessage(message *webex.Message) (*webex.Message, error
 
 func (w *WebexClient) ListRooms(params map[string]string) ([]webex.Room, error) {
 	return w.webexClient.ListRooms(params)
+}
+
+func (w *WebexClient) ListPeople(email string) ([]webex.Person, error) {
+	return w.webexClient.ListPeople(email)
 }

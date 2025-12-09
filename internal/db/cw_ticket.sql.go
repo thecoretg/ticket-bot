@@ -9,6 +9,21 @@ import (
 	"context"
 )
 
+const checkTicketExists = `-- name: CheckTicketExists :one
+SELECT EXISTS (
+    SELECT 1
+    FROM cw_ticket
+    WHERE id = $1
+) AS exists
+`
+
+func (q *Queries) CheckTicketExists(ctx context.Context, id int) (bool, error) {
+	row := q.db.QueryRow(ctx, checkTicketExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const deleteTicket = `-- name: DeleteTicket :exec
 DELETE FROM cw_ticket
 WHERE id = $1
@@ -19,18 +34,8 @@ func (q *Queries) DeleteTicket(ctx context.Context, id int) error {
 	return err
 }
 
-const deleteTicketNote = `-- name: DeleteTicketNote :exec
-DELETE FROM cw_ticket_note
-WHERE id = $1
-`
-
-func (q *Queries) DeleteTicketNote(ctx context.Context, id int) error {
-	_, err := q.db.Exec(ctx, deleteTicketNote, id)
-	return err
-}
-
 const getTicket = `-- name: GetTicket :one
-SELECT id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on, deleted FROM cw_ticket
+SELECT id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on FROM cw_ticket
 WHERE id = $1 LIMIT 1
 `
 
@@ -48,106 +53,12 @@ func (q *Queries) GetTicket(ctx context.Context, id int) (CwTicket, error) {
 		&i.UpdatedBy,
 		&i.UpdatedOn,
 		&i.AddedOn,
-		&i.Deleted,
 	)
 	return i, err
-}
-
-const getTicketNote = `-- name: GetTicketNote :one
-SELECT id, ticket_id, member_id, contact_id, notified, skipped_notify, updated_on, added_on, deleted FROM cw_ticket_note
-WHERE id = $1 LIMIT 1
-`
-
-func (q *Queries) GetTicketNote(ctx context.Context, id int) (CwTicketNote, error) {
-	row := q.db.QueryRow(ctx, getTicketNote, id)
-	var i CwTicketNote
-	err := row.Scan(
-		&i.ID,
-		&i.TicketID,
-		&i.MemberID,
-		&i.ContactID,
-		&i.Notified,
-		&i.SkippedNotify,
-		&i.UpdatedOn,
-		&i.AddedOn,
-		&i.Deleted,
-	)
-	return i, err
-}
-
-const listAllTicketNotes = `-- name: ListAllTicketNotes :many
-SELECT id, ticket_id, member_id, contact_id, notified, skipped_notify, updated_on, added_on, deleted FROM cw_ticket_note
-ORDER BY id
-`
-
-func (q *Queries) ListAllTicketNotes(ctx context.Context) ([]CwTicketNote, error) {
-	rows, err := q.db.Query(ctx, listAllTicketNotes)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []CwTicketNote
-	for rows.Next() {
-		var i CwTicketNote
-		if err := rows.Scan(
-			&i.ID,
-			&i.TicketID,
-			&i.MemberID,
-			&i.ContactID,
-			&i.Notified,
-			&i.SkippedNotify,
-			&i.UpdatedOn,
-			&i.AddedOn,
-			&i.Deleted,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listTicketNotesByTicket = `-- name: ListTicketNotesByTicket :many
-SELECT id, ticket_id, member_id, contact_id, notified, skipped_notify, updated_on, added_on, deleted FROM cw_ticket_note
-WHERE ticket_id = $1
-ORDER BY id
-`
-
-func (q *Queries) ListTicketNotesByTicket(ctx context.Context, ticketID int) ([]CwTicketNote, error) {
-	rows, err := q.db.Query(ctx, listTicketNotesByTicket, ticketID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []CwTicketNote
-	for rows.Next() {
-		var i CwTicketNote
-		if err := rows.Scan(
-			&i.ID,
-			&i.TicketID,
-			&i.MemberID,
-			&i.ContactID,
-			&i.Notified,
-			&i.SkippedNotify,
-			&i.UpdatedOn,
-			&i.AddedOn,
-			&i.Deleted,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const listTickets = `-- name: ListTickets :many
-SELECT id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on, deleted FROM cw_ticket
+SELECT id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on FROM cw_ticket
 ORDER BY id
 `
 
@@ -171,7 +82,6 @@ func (q *Queries) ListTickets(ctx context.Context) ([]CwTicket, error) {
 			&i.UpdatedBy,
 			&i.UpdatedOn,
 			&i.AddedOn,
-			&i.Deleted,
 		); err != nil {
 			return nil, err
 		}
@@ -181,66 +91,6 @@ func (q *Queries) ListTickets(ctx context.Context) ([]CwTicket, error) {
 		return nil, err
 	}
 	return items, nil
-}
-
-const setNoteNotified = `-- name: SetNoteNotified :one
-UPDATE cw_ticket_note
-SET
-    notified = $2
-WHERE id = $1
-RETURNING id, ticket_id, member_id, contact_id, notified, skipped_notify, updated_on, added_on, deleted
-`
-
-type SetNoteNotifiedParams struct {
-	ID       int  `json:"id"`
-	Notified bool `json:"notified"`
-}
-
-func (q *Queries) SetNoteNotified(ctx context.Context, arg SetNoteNotifiedParams) (CwTicketNote, error) {
-	row := q.db.QueryRow(ctx, setNoteNotified, arg.ID, arg.Notified)
-	var i CwTicketNote
-	err := row.Scan(
-		&i.ID,
-		&i.TicketID,
-		&i.MemberID,
-		&i.ContactID,
-		&i.Notified,
-		&i.SkippedNotify,
-		&i.UpdatedOn,
-		&i.AddedOn,
-		&i.Deleted,
-	)
-	return i, err
-}
-
-const setNoteSkippedNotify = `-- name: SetNoteSkippedNotify :one
-UPDATE cw_ticket_note
-SET
-    skipped_notify = $2
-WHERE id = $1
-RETURNING id, ticket_id, member_id, contact_id, notified, skipped_notify, updated_on, added_on, deleted
-`
-
-type SetNoteSkippedNotifyParams struct {
-	ID            int  `json:"id"`
-	SkippedNotify bool `json:"skipped_notify"`
-}
-
-func (q *Queries) SetNoteSkippedNotify(ctx context.Context, arg SetNoteSkippedNotifyParams) (CwTicketNote, error) {
-	row := q.db.QueryRow(ctx, setNoteSkippedNotify, arg.ID, arg.SkippedNotify)
-	var i CwTicketNote
-	err := row.Scan(
-		&i.ID,
-		&i.TicketID,
-		&i.MemberID,
-		&i.ContactID,
-		&i.Notified,
-		&i.SkippedNotify,
-		&i.UpdatedOn,
-		&i.AddedOn,
-		&i.Deleted,
-	)
-	return i, err
 }
 
 const softDeleteTicket = `-- name: SoftDeleteTicket :exec
@@ -253,17 +103,6 @@ WHERE id = $1
 
 func (q *Queries) SoftDeleteTicket(ctx context.Context, id int) error {
 	_, err := q.db.Exec(ctx, softDeleteTicket, id)
-	return err
-}
-
-const softDeleteTicketNote = `-- name: SoftDeleteTicketNote :exec
-UPDATE cw_ticket_note
-SET deleted = TRUE
-WHERE id = $1
-`
-
-func (q *Queries) SoftDeleteTicketNote(ctx context.Context, id int) error {
-	_, err := q.db.Exec(ctx, softDeleteTicketNote, id)
 	return err
 }
 
@@ -280,7 +119,7 @@ ON CONFLICT (id) DO UPDATE SET
     resources = EXCLUDED.resources,
     updated_by = EXCLUDED.updated_by,
     updated_on = NOW()
-RETURNING id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on, deleted
+RETURNING id, summary, board_id, owner_id, company_id, contact_id, resources, updated_by, updated_on, added_on
 `
 
 type UpsertTicketParams struct {
@@ -317,54 +156,6 @@ func (q *Queries) UpsertTicket(ctx context.Context, arg UpsertTicketParams) (CwT
 		&i.UpdatedBy,
 		&i.UpdatedOn,
 		&i.AddedOn,
-		&i.Deleted,
-	)
-	return i, err
-}
-
-const upsertTicketNote = `-- name: UpsertTicketNote :one
-INSERT INTO cw_ticket_note
-(id, ticket_id, member_id, contact_id, notified, skipped_notify)
-VALUES ($1, $2, $3, $4, $5, $6)
-ON CONFLICT (id) DO UPDATE SET
-    ticket_id = EXCLUDED.ticket_id,
-    member_id = EXCLUDED.member_id,
-    contact_id = EXCLUDED.contact_id,
-    notified = EXCLUDED.notified,
-    skipped_notify = EXCLUDED.skipped_notify,
-    updated_on = NOW()
-RETURNING id, ticket_id, member_id, contact_id, notified, skipped_notify, updated_on, added_on, deleted
-`
-
-type UpsertTicketNoteParams struct {
-	ID            int  `json:"id"`
-	TicketID      int  `json:"ticket_id"`
-	MemberID      *int `json:"member_id"`
-	ContactID     *int `json:"contact_id"`
-	Notified      bool `json:"notified"`
-	SkippedNotify bool `json:"skipped_notify"`
-}
-
-func (q *Queries) UpsertTicketNote(ctx context.Context, arg UpsertTicketNoteParams) (CwTicketNote, error) {
-	row := q.db.QueryRow(ctx, upsertTicketNote,
-		arg.ID,
-		arg.TicketID,
-		arg.MemberID,
-		arg.ContactID,
-		arg.Notified,
-		arg.SkippedNotify,
-	)
-	var i CwTicketNote
-	err := row.Scan(
-		&i.ID,
-		&i.TicketID,
-		&i.MemberID,
-		&i.ContactID,
-		&i.Notified,
-		&i.SkippedNotify,
-		&i.UpdatedOn,
-		&i.AddedOn,
-		&i.Deleted,
 	)
 	return i, err
 }

@@ -1,0 +1,70 @@
+package user
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/thecoretg/ticketbot/internal/models"
+)
+
+type ErrUserAlreadyExists struct {
+	Email string
+}
+
+func (e ErrUserAlreadyExists) Error() string {
+	return fmt.Sprintf("user with email '%s' already exists", e.Email)
+}
+
+type Service struct {
+	Users models.APIUserRepository
+	Keys  models.APIKeyRepository
+}
+
+func New(u models.APIUserRepository, k models.APIKeyRepository) *Service {
+	return &Service{
+		Users: u,
+		Keys:  k,
+	}
+}
+
+func (s *Service) ListUsers(ctx context.Context) ([]models.APIUser, error) {
+	return s.Users.List(ctx)
+}
+
+func (s *Service) GetUser(ctx context.Context, id int) (*models.APIUser, error) {
+	return s.Users.Get(ctx, id)
+}
+
+func (s *Service) InsertUser(ctx context.Context, email string) (*models.APIUser, error) {
+	exists, err := s.Users.Exists(ctx, email)
+	if err != nil {
+		return nil, fmt.Errorf("checking if user exists: %w", err)
+	}
+
+	if exists {
+		return nil, ErrUserAlreadyExists{Email: email}
+	}
+
+	return s.Users.Insert(ctx, email)
+}
+
+func (s *Service) DeleteUser(ctx context.Context, id int) error {
+	return s.Users.Delete(ctx, id)
+}
+
+func (s *Service) ListAPIKeys(ctx context.Context) ([]models.APIKey, error) {
+	return s.Keys.List(ctx)
+}
+
+func (s *Service) GetAPIKey(ctx context.Context, id int) (*models.APIKey, error) {
+	return s.Keys.Get(ctx, id)
+}
+
+// AddAPIKey creates an API key and returns the plaintext (only once)
+func (s *Service) AddAPIKey(ctx context.Context, email string) (string, error) {
+	return s.createAPIKey(ctx, email, nil)
+}
+
+func (s *Service) DeleteAPIKey(ctx context.Context, id int) error {
+	return s.Keys.Delete(ctx, id)
+}

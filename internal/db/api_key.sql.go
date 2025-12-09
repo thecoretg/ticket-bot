@@ -19,13 +19,13 @@ func (q *Queries) DeleteAPIKey(ctx context.Context, id int) error {
 	return err
 }
 
-const getAPILKey = `-- name: GetAPILKey :one
-SELECT id, user_id, key_hash, created_on, updated_on, deleted FROM api_key
+const getAPIKey = `-- name: GetAPIKey :one
+SELECT id, user_id, key_hash, created_on, updated_on FROM api_key
 WHERE id = $1
 `
 
-func (q *Queries) GetAPILKey(ctx context.Context, id int) (ApiKey, error) {
-	row := q.db.QueryRow(ctx, getAPILKey, id)
+func (q *Queries) GetAPIKey(ctx context.Context, id int) (ApiKey, error) {
+	row := q.db.QueryRow(ctx, getAPIKey, id)
 	var i ApiKey
 	err := row.Scan(
 		&i.ID,
@@ -33,7 +33,6 @@ func (q *Queries) GetAPILKey(ctx context.Context, id int) (ApiKey, error) {
 		&i.KeyHash,
 		&i.CreatedOn,
 		&i.UpdatedOn,
-		&i.Deleted,
 	)
 	return i, err
 }
@@ -42,7 +41,7 @@ const insertAPIKey = `-- name: InsertAPIKey :one
 INSERT INTO api_key
 (user_id, key_hash)
 VALUES ($1, $2)
-RETURNING id, user_id, key_hash, created_on, updated_on, deleted
+RETURNING id, user_id, key_hash, created_on, updated_on
 `
 
 type InsertAPIKeyParams struct {
@@ -59,13 +58,12 @@ func (q *Queries) InsertAPIKey(ctx context.Context, arg InsertAPIKeyParams) (Api
 		&i.KeyHash,
 		&i.CreatedOn,
 		&i.UpdatedOn,
-		&i.Deleted,
 	)
 	return i, err
 }
 
 const listAPIKeys = `-- name: ListAPIKeys :many
-SELECT id, user_id, key_hash, created_on, updated_on, deleted FROM api_key
+SELECT id, user_id, key_hash, created_on, updated_on FROM api_key
 ORDER BY created_on
 `
 
@@ -84,7 +82,6 @@ func (q *Queries) ListAPIKeys(ctx context.Context) ([]ApiKey, error) {
 			&i.KeyHash,
 			&i.CreatedOn,
 			&i.UpdatedOn,
-			&i.Deleted,
 		); err != nil {
 			return nil, err
 		}
@@ -102,7 +99,7 @@ SET
     delete = true,
     updated_on = NOW()
 WHERE id = $1
-RETURNING id, user_id, key_hash, created_on, updated_on, deleted
+RETURNING id, user_id, key_hash, created_on, updated_on
 `
 
 func (q *Queries) SoftDeleteAPIKey(ctx context.Context, id int) (ApiKey, error) {
@@ -114,7 +111,6 @@ func (q *Queries) SoftDeleteAPIKey(ctx context.Context, id int) (ApiKey, error) 
 		&i.KeyHash,
 		&i.CreatedOn,
 		&i.UpdatedOn,
-		&i.Deleted,
 	)
 	return i, err
 }

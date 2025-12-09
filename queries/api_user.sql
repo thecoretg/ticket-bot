@@ -6,6 +6,13 @@ WHERE id = $1 LIMIT 1;
 SELECT * FROM api_user
 WHERE email_address = $1 LIMIT 1;
 
+-- name: CheckUserExists :one
+SELECT EXISTS(
+    SELECT 1
+    FROM api_user
+    WHERE email_address = $1
+) as exists;
+
 -- name: ListUsers :many
 SELECT * FROM api_user
 ORDER BY email_address;
@@ -19,7 +26,7 @@ RETURNING *;
 -- name: UpdateUser :one
 UPDATE api_user
 SET
-    email_address = $1,
+    email_address = $2,
     updated_on = NOW()
 WHERE id = $1
 RETURNING *;
