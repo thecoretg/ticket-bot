@@ -4,34 +4,16 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/thecoretg/ticketbot/internal/models"
 )
 
 var (
-	cfgAttemptNotify bool
-	cfgMaxMsgLen     int
-	cfgMaxSyncs      int
-
-	cfgCmd = &cobra.Command{
-		Use:     "config",
-		Aliases: []string{"cfg"},
-	}
-
-	getCfgCmd = &cobra.Command{
-		Use: "get",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := client.GetConfig()
-			if err != nil {
-				return err
-			}
-
-			printCfg(cfg)
-			return nil
-		},
+	updateCmd = &cobra.Command{
+		Use: "update",
 	}
 
 	updateCfgCmd = &cobra.Command{
-		Use: "update",
+		Use:     "config",
+		Aliases: []string{"cfg"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := client.GetConfig()
 			if err != nil {
@@ -62,15 +44,8 @@ var (
 	}
 )
 
-func printCfg(cfg *models.Config) {
-	fmt.Printf("Attempt Notify: %v\n"+
-		"Max Msg Length: %d\n"+
-		"Max Concurrent Syncs: %d\n",
-		cfg.AttemptNotify, cfg.MaxMessageLength, cfg.MaxConcurrentSyncs)
-}
-
 func init() {
-	cfgCmd.AddCommand(getCfgCmd, updateCfgCmd)
+	updateCmd.AddCommand(updateCfgCmd)
 	updateCfgCmd.Flags().BoolVarP(&cfgAttemptNotify, "attempt-notify", "n", false, "attempt notify on server")
 	updateCfgCmd.Flags().IntVarP(&cfgMaxMsgLen, "max-msg-length", "l", 300, "max webex message length")
 	updateCfgCmd.Flags().IntVarP(&cfgMaxSyncs, "max-concurrent-syncs", "s", 5, "max concurrent syncs")

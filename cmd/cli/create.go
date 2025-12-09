@@ -10,62 +10,14 @@ import (
 )
 
 var (
-	notifierID       int
-	forwardID        int
-	forwardSrcID     int
-	forwardDestID    int
-	forwardStartDate string
-	forwardEndDate   string
-	forwardEnabled   bool
-	forwardUserKeeps bool
-
-	notifiersCmd = &cobra.Command{
-		Use: "notifier",
-	}
-
-	rulesCmd = &cobra.Command{
-		Use: "rules",
-	}
-
-	forwardsCmd = &cobra.Command{
-		Use: "forwards",
-	}
-
-	listNotifierRulesCmd = &cobra.Command{
-		Use: "list",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ns, err := client.ListNotifierRules()
-			if err != nil {
-				return err
-			}
-
-			if len(ns) == 0 {
-				fmt.Println("No notifiers found")
-				return nil
-			}
-
-			notifierRulesTable(ns)
-			return nil
-		},
-	}
-
-	getNotifierRuleCmd = &cobra.Command{
-		Use: "get",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			n, err := client.GetNotifierRule(notifierID)
-			if err != nil {
-				return err
-			}
-
-			fmt.Printf("ID: %d\nRecipient: %d\nBoard: %d\nNotify: %v\n",
-				n.ID, n.WebexRecipientID, n.CwBoardID, n.NotifyEnabled)
-
-			return nil
-		},
+	createCmd = &cobra.Command{
+		Use:     "create",
+		Aliases: []string{"add"},
 	}
 
 	createNotifierRuleCmd = &cobra.Command{
-		Use: "create",
+		Use:     "notifier-rule",
+		Aliases: []string{"rule"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var (
 				p   *models.NotifierRule
@@ -98,54 +50,9 @@ var (
 		},
 	}
 
-	deleteNotifierRuleCmd = &cobra.Command{
-		Use: "delete",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := client.DeleteNotifierRule(notifierID); err != nil {
-				return err
-			}
-
-			fmt.Printf("Successfully deleted notifier with id of %d\n", notifierID)
-			return nil
-		},
-	}
-
-	listForwardsCmd = &cobra.Command{
-		Use: "list",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ufs, err := client.ListUserForwards()
-			if err != nil {
-				return err
-			}
-
-			if len(ufs) == 0 {
-				fmt.Println("No user forwards found")
-				return nil
-			}
-
-			userForwardsTable(ufs)
-			return nil
-		},
-	}
-
-	getForwardCmd = &cobra.Command{
-		Use: "get",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			uf, err := client.GetUserForward(notifierID)
-			if err != nil {
-				return err
-			}
-
-			fmt.Printf("ID: %d\nSource: %d\nForward To: %d\nStart Date: %s\nEnd Date: %s\n"+
-				"User Keeps Copy: %v\nEnabled: %v\n",
-				uf.ID, uf.SourceID, uf.DestID, uf.StartDate, uf.EndDate, uf.UserKeepsCopy, uf.Enabled)
-
-			return nil
-		},
-	}
-
 	createForwardCmd = &cobra.Command{
-		Use: "create",
+		Use:     "notifier-forward",
+		Aliases: []string{"forward", "fwd"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if forwardSrcID == 0 {
 				return errors.New("source email required")
@@ -197,26 +104,10 @@ var (
 			return nil
 		},
 	}
-
-	deleteForwardCmd = &cobra.Command{
-		Use: "delete",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := client.DeleteUserForward(forwardID); err != nil {
-				return err
-			}
-
-			fmt.Printf("Successfully deleted user forward with id of %d\n", forwardID)
-			return nil
-		},
-	}
 )
 
 func init() {
-	notifiersCmd.AddCommand(rulesCmd, forwardsCmd)
-	rulesCmd.AddCommand(createNotifierRuleCmd, listNotifierRulesCmd, getNotifierRuleCmd, deleteNotifierRuleCmd)
-	forwardsCmd.AddCommand(createForwardCmd, listForwardsCmd, getForwardCmd, deleteForwardCmd)
-	rulesCmd.PersistentFlags().IntVar(&notifierID, "id", 0, "id of notifier")
-	forwardsCmd.PersistentFlags().IntVar(&forwardID, "id", 0, "id of user forward")
+	createCmd.AddCommand(createNotifierRuleCmd)
 	createNotifierRuleCmd.Flags().IntVarP(&boardID, "board-id", "b", 0, "board id to use")
 	createNotifierRuleCmd.Flags().IntVarP(&recipientID, "recipient-id", "r", 0, "recipient id to use")
 	createForwardCmd.Flags().BoolVarP(&forwardUserKeeps, "user-keeps-copy", "k", false, "user keeps a copy of forwarded emails")
