@@ -1,22 +1,27 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"log/slog"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/thecoretg/ticketbot/internal/models"
+	"github.com/thecoretg/ticketbot/internal/service/messenger"
 	"github.com/thecoretg/ticketbot/internal/service/webexsvc"
 	"github.com/thecoretg/ticketbot/pkg/webex"
 )
 
 type WebexHandler struct {
-	Service *webexsvc.Service
+	WebexSvc     *webexsvc.Service
+	MessengerSvc *messenger.Service
 }
 
-func NewWebexHandler(svc *webexsvc.Service) *WebexHandler {
-	return &WebexHandler{Service: svc}
+func NewWebexHandler(wx *webexsvc.Service, ms *messenger.Service) *WebexHandler {
+	return &WebexHandler{
+		WebexSvc:     wx,
+		MessengerSvc: ms,
+	}
 }
 
 func (h *WebexHandler) HandleMessageToBot(c *gin.Context) {
@@ -26,24 +31,30 @@ func (h *WebexHandler) HandleMessageToBot(c *gin.Context) {
 		return
 	}
 
-	msg, err := h.Service.GetMessage(c.Request.Context(), w)
-	if err != nil {
-		if errors.Is(err, webexsvc.ErrMessageFromBot) {
-			// messages the bot sends, sends a hook payload. No need to do anything
-			// with these.
-			c.Status(http.StatusOK)
+	ctx := context.WithoutCancel(c.Request.Context())
+	go func() {
+		msg, err := h.WebexSvc.GetMessage(ctx, w)
+		if err != nil {
+			if errors.Is(err, webexsvc.ErrMessageFromBot) {
+				// messages the bot sends, sends a hook payload. No need to do anything
+				// with these.
+				return
+			}
+			slog.Error("bot messages: error fetching webex message details", "error", err)
 			return
 		}
-		internalServerError(c, err)
-		return
-	}
 
-	slog.Info("received message from webex", "id", msg.ID, "sender", msg.PersonEmail, "text", msg.Text)
+		if err := h.MessengerSvc.ParseAndRespond(ctx, msg); err != nil {
+			slog.Error("bot messages: error parsing/responding", "error", err)
+			return
+		}
+	}()
+
 	resultJSON(c, "received webex message")
 }
 
 func (h *WebexHandler) ListRecipients(c *gin.Context) {
-	r, err := h.Service.ListRecipient(c.Request.Context())
+	r, err := h.WebexSvc.ListRecipients(c.Request.Context())
 	if err != nil {
 		internalServerError(c, err)
 		return
@@ -59,7 +70,7 @@ func (h *WebexHandler) GetRoom(c *gin.Context) {
 		return
 	}
 
-	r, err := h.Service.GetRecipient(c.Request.Context(), id)
+	r, err := h.WebexSvc.GetRecipient(c.Request.Context(), id)
 	if err != nil {
 		if errors.Is(err, models.ErrWebexRecipientNotFound) {
 			notFoundError(c, err)

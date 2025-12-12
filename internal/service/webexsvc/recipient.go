@@ -9,7 +9,7 @@ import (
 	"github.com/thecoretg/ticketbot/pkg/webex"
 )
 
-func (s *Service) ListRecipient(ctx context.Context) ([]models.WebexRecipient, error) {
+func (s *Service) ListRecipients(ctx context.Context) ([]models.WebexRecipient, error) {
 	return s.Recipients.List(ctx)
 }
 
