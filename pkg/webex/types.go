@@ -1,6 +1,9 @@
 package webex
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type ListWebhooksResp struct {
 	Items []Webhook `json:"items"`
@@ -21,12 +24,12 @@ type MessageHookPayload struct {
 }
 
 type Message struct {
-	ID          string         `json:"id,omitempty"`
-	RoomID      string         `json:"roomId,omitempty"`
-	RoomType    string         `json:"roomType,omitempty"`
-	Text        string         `json:"text,omitempty"`
-	Markdown    string         `json:"markdown,omitempty"`
-	Attachments []AdaptiveCard `json:"attachments,omitempty"`
+	ID          string            `json:"id,omitempty"`
+	RoomID      string            `json:"roomId,omitempty"`
+	RoomType    string            `json:"roomType,omitempty"`
+	Text        string            `json:"text,omitempty"`
+	Markdown    string            `json:"markdown,omitempty"`
+	Attachments []json.RawMessage `json:"attachments,omitempty"`
 
 	// Use ToPersonEmail for posts. PersonEmail (no to) is returned in gets.
 	// I don't make the rules. Thanks Webex <3

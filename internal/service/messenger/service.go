@@ -2,10 +2,14 @@ package messenger
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"sort"
 
 	"github.com/thecoretg/ticketbot/internal/models"
+	"github.com/thecoretg/ticketbot/internal/service/cwsvc"
 	"github.com/thecoretg/ticketbot/internal/service/user"
 	"github.com/thecoretg/ticketbot/internal/service/webexsvc"
 	"github.com/thecoretg/ticketbot/pkg/webex"
@@ -15,11 +19,16 @@ var ErrNotAnAdmin = errors.New("no admin user found")
 
 type Service struct {
 	UserSvc  *user.Service
+	CWSvc    *cwsvc.Service
 	WebexSvc *webexsvc.Service
 }
 
-func New(wx *webexsvc.Service) *Service {
-	return &Service{WebexSvc: wx}
+func New(us *user.Service, cw *cwsvc.Service, wx *webexsvc.Service) *Service {
+	return &Service{
+		UserSvc:  us,
+		CWSvc:    cw,
+		WebexSvc: wx,
+	}
 }
 
 func (s *Service) ParseAndRespond(ctx context.Context, msg *webex.Message) error {
@@ -48,14 +57,51 @@ func (s *Service) parseIncoming(ctx context.Context, msg *webex.Message) (*webex
 		return nil, errors.New("got empty email field")
 	}
 
-	var m *webex.Message
 	if _, err := s.getValidUser(ctx, email); err != nil {
 		if errors.Is(err, ErrNotAnAdmin) {
 			return notAnAdminMessage(email), nil
 		}
 	}
 
-	return m, nil
+	txt := msg.Text
+	if msg.Markdown != "" {
+		txt = msg.Markdown
+	}
+	slog.Info("messenger: got message", "sender", email, "text", txt)
+
+	switch txt {
+	case "create rule":
+		slog.Debug("messenger: message matches create rule message", "sender", email, "text", txt)
+		return s.makeCreateRuleMsg(ctx, email)
+	default:
+		slog.Warn("messenger: received invalid command", "sender", email, "text", txt)
+		return invalidCommandMessage(email), nil
+	}
+}
+
+func (s *Service) makeCreateRuleMsg(ctx context.Context, email string) (*webex.Message, error) {
+	boards, err := s.CWSvc.ListBoards(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("listing cw boards: %w", err)
+	}
+	slog.Debug("makeCreateRuleMsg: got boards", "total", len(boards))
+	sort.SliceStable(boards, func(i, j int) bool {
+		return boards[i].Name < boards[j].Name
+	})
+
+	recips, err := s.WebexSvc.ListRecipients(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("listing webex recipients: %w", err)
+	}
+	slog.Debug("makeCreateRuleMsg: got webex recipients", "total", len(recips))
+	sort.SliceStable(recips, func(i, j int) bool {
+		return recips[i].Name < recips[j].Name
+	})
+
+	m := webex.NewMessageToPerson(email, "test")
+	msg := &m
+	msg.Attachments = []json.RawMessage{createNotifierRulePayload(boards, recips)}
+	return msg, nil
 }
 
 func (s *Service) getValidUser(ctx context.Context, email string) (*models.APIUser, error) {
@@ -71,7 +117,13 @@ func (s *Service) getValidUser(ctx context.Context, email string) (*models.APIUs
 }
 
 func notAnAdminMessage(email string) *webex.Message {
-	txt := "Sorry, this command requires admin permissions!"
+	txt := "Sorry, this command requires admin permissions."
+	m := webex.NewMessageToPerson(email, txt)
+	return &m
+}
+
+func invalidCommandMessage(email string) *webex.Message {
+	txt := "That was in invalid command."
 	m := webex.NewMessageToPerson(email, txt)
 	return &m
 }

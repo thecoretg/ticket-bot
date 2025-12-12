@@ -28,7 +28,7 @@ func AddRoutes(a *App, g *gin.Engine) {
 	registerCWRoutes(cw, cwh)
 
 	wx := g.Group("webex", auth)
-	wh := handlers.NewWebexHandler(a.Svc.Webex)
+	wh := handlers.NewWebexHandler(a.Svc.Webex, a.Svc.Messenger)
 	registerWebexRoutes(wx, wh)
 
 	n := g.Group("notifiers", auth)
