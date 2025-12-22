@@ -44,6 +44,16 @@ type Message struct {
 	RecipientName string
 }
 
+type AttachmentAction struct {
+	ID        string            `json:"id"`
+	Type      string            `json:"type"`
+	MessageID string            `json:"messageId"`
+	Inputs    map[string]string `json:"inputs"`
+	PersonID  string            `json:"personId"`
+	RoomID    string            `json:"roomId"`
+	Created   time.Time         `json:"created"`
+}
+
 type ListRoomsResp struct {
 	Items []Room `json:"items"`
 }

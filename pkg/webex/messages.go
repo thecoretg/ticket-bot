@@ -19,3 +19,7 @@ func (c *Client) GetMessage(messageID string, params map[string]string) (*Messag
 func (c *Client) PostMessage(message *Message) (*Message, error) {
 	return Post[Message](c, "messages", message)
 }
+
+func (c *Client) GetAttachmentAction(messageID string) (*AttachmentAction, error) {
+	return GetOne[AttachmentAction](c, fmt.Sprintf("attachments/actions/%s", messageID), nil)
+}

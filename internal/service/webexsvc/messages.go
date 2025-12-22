@@ -24,6 +24,20 @@ func (s *Service) GetMessage(ctx context.Context, payload *webex.MessageHookPayl
 	return msg, nil
 }
 
+func (s *Service) GetAttachmentAction(ctx context.Context, payload *webex.MessageHookPayload) (*webex.AttachmentAction, error) {
+	data := payload.Data
+	if data.PersonEmail == s.BotEmail {
+		return nil, ErrMessageFromBot
+	}
+
+	action, err := s.WebexClient.GetAttachmentAction(data.ID)
+	if err != nil {
+		return nil, fmt.Errorf("getting attachment action from webex: %w", err)
+	}
+
+	return action, nil
+}
+
 func (s *Service) PostMessage(msg *webex.Message) (*webex.Message, error) {
 	return s.WebexClient.PostMessage(msg)
 }

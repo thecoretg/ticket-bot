@@ -22,6 +22,10 @@ func (w *WebexClient) GetMessage(id string, params map[string]string) (*webex.Me
 	return &webex.Message{}, nil
 }
 
+func (w *WebexClient) GetAttachmentAction(messageID string) (*webex.AttachmentAction, error) {
+	return &webex.AttachmentAction{}, nil
+}
+
 func (w *WebexClient) PostMessage(message *webex.Message) (*webex.Message, error) {
 	return message, nil
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/thecoretg/ticketbot/internal/models"
 	"github.com/thecoretg/ticketbot/internal/service/cwsvc"
+	"github.com/thecoretg/ticketbot/internal/service/notifier"
 	"github.com/thecoretg/ticketbot/internal/service/user"
 	"github.com/thecoretg/ticketbot/internal/service/webexsvc"
 	"github.com/thecoretg/ticketbot/pkg/webex"
@@ -18,16 +19,18 @@ import (
 var ErrNotAnAdmin = errors.New("no admin user found")
 
 type Service struct {
-	UserSvc  *user.Service
-	CWSvc    *cwsvc.Service
-	WebexSvc *webexsvc.Service
+	UserSvc     *user.Service
+	CWSvc       *cwsvc.Service
+	WebexSvc    *webexsvc.Service
+	NotifierSvc *notifier.Service
 }
 
-func New(us *user.Service, cw *cwsvc.Service, wx *webexsvc.Service) *Service {
+func New(us *user.Service, cw *cwsvc.Service, wx *webexsvc.Service, ns *notifier.Service) *Service {
 	return &Service{
-		UserSvc:  us,
-		CWSvc:    cw,
-		WebexSvc: wx,
+		UserSvc:     us,
+		CWSvc:       cw,
+		WebexSvc:    wx,
+		NotifierSvc: ns,
 	}
 }
 

@@ -30,6 +30,7 @@ func (h *WebexHandler) HandleMessageToBot(c *gin.Context) {
 		badPayloadError(c, err)
 		return
 	}
+	slog.Debug("bot messages: got message from webex", "id", w.Data.ID)
 
 	ctx := context.WithoutCancel(c.Request.Context())
 	go func() {
@@ -51,6 +52,34 @@ func (h *WebexHandler) HandleMessageToBot(c *gin.Context) {
 	}()
 
 	resultJSON(c, "received webex message")
+}
+
+func (h *WebexHandler) HandleAttachmentActions(c *gin.Context) {
+	w := &webex.MessageHookPayload{}
+	if err := c.ShouldBindJSON(w); err != nil {
+		badPayloadError(c, err)
+		return
+	}
+	slog.Debug("bot messages: got attachment action from webex", "id", w.Data.ID)
+
+	ctx := context.WithoutCancel(c.Request.Context())
+	go func() {
+		ach, err := h.WebexSvc.GetAttachmentAction(ctx, w)
+		if err != nil {
+			if errors.Is(err, webexsvc.ErrMessageFromBot) {
+				return
+			}
+			slog.Error("bot messages: error fetching attachment action", "error", err)
+			return
+		}
+
+		if err := h.MessengerSvc.ParseAndRespondAttachment(ctx, ach); err != nil {
+			slog.Error("bot messages: error parsing/responding", "error", err)
+			return
+		}
+	}()
+
+	resultJSON(c, "received webex attachment action")
 }
 
 func (h *WebexHandler) ListRecipients(c *gin.Context) {

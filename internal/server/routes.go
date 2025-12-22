@@ -90,4 +90,5 @@ func registerNotifierRoutes(r *gin.RouterGroup, h *handlers.NotifierHandler) {
 func registerHookRoutes(r *gin.RouterGroup, tb *handlers.TicketbotHandler, wx *handlers.WebexHandler, wxSecret string) {
 	r.POST("cw/tickets", middleware.RequireConnectwiseSignature(), tb.ProcessTicket)
 	r.POST("webex/messages", middleware.RequireWebexSignature(wxSecret), wx.HandleMessageToBot)
+	r.POST("webex/attachmentActions", middleware.RequireWebexSignature(wxSecret), wx.HandleAttachmentActions)
 }
