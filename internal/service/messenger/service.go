@@ -73,6 +73,9 @@ func (s *Service) parseIncoming(ctx context.Context, msg *webex.Message) (*webex
 	slog.Info("messenger: got message", "sender", email, "text", txt)
 
 	switch txt {
+	case "list rules":
+		slog.Debug("messenger: message matches list rules message", "sender", email, "text", txt)
+		return s.makeListRulesMsg(ctx, email)
 	case "create rule":
 		slog.Debug("messenger: message matches create rule message", "sender", email, "text", txt)
 		return s.makeCreateRuleMsg(ctx, email)
@@ -80,6 +83,29 @@ func (s *Service) parseIncoming(ctx context.Context, msg *webex.Message) (*webex
 		slog.Warn("messenger: received invalid command", "sender", email, "text", txt)
 		return invalidCommandMessage(email), nil
 	}
+}
+
+func (s *Service) makeListRulesMsg(ctx context.Context, email string) (*webex.Message, error) {
+	m := webex.NewMessageToPerson(email, "test")
+	msg := &m
+
+	rules, err := s.NotifierSvc.ListNotifierRules(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("listing notifier rules: %w", err)
+	}
+	slog.Debug("makeListRulesMsg: got rules", "total", len(rules))
+
+	if len(rules) == 0 {
+		msg.Markdown = "No notifier rules found."
+		return msg, nil
+	}
+
+	sort.SliceStable(rules, func(i, j int) bool {
+		return rules[i].BoardName < rules[j].BoardName
+	})
+
+	msg.Attachments = []json.RawMessage{createNotifierRuleList(rules)}
+	return msg, nil
 }
 
 func (s *Service) makeCreateRuleMsg(ctx context.Context, email string) (*webex.Message, error) {

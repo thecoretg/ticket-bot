@@ -108,7 +108,7 @@ func NewApp(ctx context.Context, migVersion int64) (*App, error) {
 	}
 
 	ns := notifier.New(nr)
-	mgs := messenger.New(us, cws, ws)
+	mgs := messenger.New(us, cws, ws, ns)
 	sns := syncsvc.New(s.Pool, cws, ws, ns)
 
 	tb := ticketbot.New(cfg, cws, ns)

@@ -97,13 +97,18 @@ func (p *NotifierRuleRepo) Get(ctx context.Context, id int) (*models.NotifierRul
 	return notifierFromPG(d), nil
 }
 
-func (p *NotifierRuleRepo) Exists(ctx context.Context, boardID, roomID int) (bool, error) {
-	ids := db.CheckNotifierExistsParams{
+func (p *NotifierRuleRepo) Exists(ctx context.Context, id int) (bool, error) {
+	return p.queries.CheckNotifierExists(ctx, id)
+}
+
+func (p *NotifierRuleRepo) ExistsByBoardAndRecipient(ctx context.Context, boardID, roomID int) (bool, error) {
+	// say that five times fast
+	ids := db.CheckNotifierExistsByBoardAndRecipientParams{
 		CwBoardID:        boardID,
 		WebexRecipientID: roomID,
 	}
 
-	exists, err := p.queries.CheckNotifierExists(ctx, ids)
+	exists, err := p.queries.CheckNotifierExistsByBoardAndRecipient(ctx, ids)
 	if err != nil {
 		return false, err
 	}

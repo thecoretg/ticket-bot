@@ -21,5 +21,5 @@ func (c *Client) PostMessage(message *Message) (*Message, error) {
 }
 
 func (c *Client) GetAttachmentAction(messageID string) (*AttachmentAction, error) {
-	return GetOne[AttachmentAction](c, fmt.Sprintf("attachments/actions/%s", messageID), nil)
+	return GetOne[AttachmentAction](c, fmt.Sprintf("attachment/actions/%s", messageID), nil)
 }

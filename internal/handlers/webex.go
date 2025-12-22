@@ -60,8 +60,7 @@ func (h *WebexHandler) HandleAttachmentActions(c *gin.Context) {
 		badPayloadError(c, err)
 		return
 	}
-	slog.Debug("bot messages: got attachment action from webex", "id", w.Data.ID)
-
+	slog.Debug("bot messages: got attachment action hook from webex", "id", w.Data.ID)
 	ctx := context.WithoutCancel(c.Request.Context())
 	go func() {
 		ach, err := h.WebexSvc.GetAttachmentAction(ctx, w)

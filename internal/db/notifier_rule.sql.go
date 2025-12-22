@@ -13,17 +13,32 @@ const checkNotifierExists = `-- name: CheckNotifierExists :one
 SELECT EXISTS (
     SELECT 1
     FROM notifier_rule
+    WHERE id = $1
+) AS exists
+`
+
+func (q *Queries) CheckNotifierExists(ctx context.Context, id int) (bool, error) {
+	row := q.db.QueryRow(ctx, checkNotifierExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const checkNotifierExistsByBoardAndRecipient = `-- name: CheckNotifierExistsByBoardAndRecipient :one
+SELECT EXISTS (
+    SELECT 1
+    FROM notifier_rule
     WHERE cw_board_id = $1 AND webex_recipient_id = $2
 ) AS exists
 `
 
-type CheckNotifierExistsParams struct {
+type CheckNotifierExistsByBoardAndRecipientParams struct {
 	CwBoardID        int `json:"cw_board_id"`
 	WebexRecipientID int `json:"webex_recipient_id"`
 }
 
-func (q *Queries) CheckNotifierExists(ctx context.Context, arg CheckNotifierExistsParams) (bool, error) {
-	row := q.db.QueryRow(ctx, checkNotifierExists, arg.CwBoardID, arg.WebexRecipientID)
+func (q *Queries) CheckNotifierExistsByBoardAndRecipient(ctx context.Context, arg CheckNotifierExistsByBoardAndRecipientParams) (bool, error) {
+	row := q.db.QueryRow(ctx, checkNotifierExistsByBoardAndRecipient, arg.CwBoardID, arg.WebexRecipientID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err

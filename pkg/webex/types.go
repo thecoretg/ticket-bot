@@ -32,8 +32,10 @@ type Message struct {
 	Attachments []json.RawMessage `json:"attachments,omitempty"`
 
 	// Use ToPersonEmail for posts. PersonEmail (no to) is returned in gets.
+	// Same with ToPersonId and PersonId.
 	// I don't make the rules. Thanks Webex <3
 	ToPersonEmail string `json:"toPersonEmail,omitempty"`
+	ToPersonID    string `json:"toPersonId,omitempty"`
 	PersonEmail   string `json:"personEmail,omitempty"`
 	PersonID      string `json:"personId,omitempty"`
 

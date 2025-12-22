@@ -80,6 +80,10 @@ func (p *UserForwardRepo) Get(ctx context.Context, id int) (models.NotifierForwa
 	return forwardFromPG(d), nil
 }
 
+func (p *UserForwardRepo) Exists(ctx context.Context, id int) (bool, error) {
+	return p.queries.CheckNotifierForwardExists(ctx, id)
+}
+
 func (p *UserForwardRepo) Insert(ctx context.Context, b models.NotifierForward) (models.NotifierForward, error) {
 	d, err := p.queries.InsertNotifierForward(ctx, forwardToInsertParams(b))
 	if err != nil {

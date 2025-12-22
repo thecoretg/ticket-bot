@@ -9,6 +9,31 @@ import (
 	"github.com/thecoretg/ticketbot/internal/models"
 )
 
+func createNotifierRuleList(rules []models.NotifierRuleFull) json.RawMessage {
+	return json.RawMessage(fmt.Sprintf(`{
+		"contentType": "application/vnd.microsoft.card.adaptive",
+		"content": {
+			"type": "AdaptiveCard",
+			"$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+			"version": "1.3",
+			"body": [
+				{
+					"type": "TextBlock",
+					"text": "Current Notifier Rules",
+					"wrap": true,
+					"weight": "Bolder"
+				},
+				{
+					"type": "FactSet",
+					"facts": [
+						%s
+					]
+				}
+			]
+		}
+	}`, rulesToCardEntries(rules)))
+}
+
 // sweet, man-made horrors beyond my comprehension
 
 func createNotifierRulePayload(boards []models.Board, recips []models.WebexRecipient) json.RawMessage {
@@ -64,6 +89,20 @@ func createNotifierRulePayload(boards []models.Board, recips []models.WebexRecip
 		]
 	}
 }`, boardsToCardChoices(boards), recipientsToCardChoices(recips)))
+}
+
+func rulesToCardEntries(rules []models.NotifierRuleFull) string {
+	var entries []string
+	for _, r := range rules {
+		title := strconv.Itoa(r.ID)
+		board := r.BoardName
+		rec := fmt.Sprintf("%s (%s)", r.RecipientName, r.RecipientType)
+		val := fmt.Sprintf("%s > %s", board, rec)
+		e := fmt.Sprintf(`{ "title": %s, "value": %s }`, strconv.Quote(title), strconv.Quote(val))
+		entries = append(entries, e)
+	}
+
+	return strings.Join(entries, ",")
 }
 
 func boardsToCardChoices(boards []models.Board) string {

@@ -10,6 +10,21 @@ import (
 	"time"
 )
 
+const checkNotifierForwardExists = `-- name: CheckNotifierForwardExists :one
+SELECT EXISTS (
+    SELECT 1
+    FROM notifier_forward
+    WHERE id = $1
+) AS exists
+`
+
+func (q *Queries) CheckNotifierForwardExists(ctx context.Context, id int) (bool, error) {
+	row := q.db.QueryRow(ctx, checkNotifierForwardExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const deleteNotifierForward = `-- name: DeleteNotifierForward :exec
 DELETE FROM notifier_forward
 WHERE id = $1

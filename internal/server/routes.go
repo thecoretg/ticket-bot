@@ -32,7 +32,7 @@ func AddRoutes(a *App, g *gin.Engine) {
 	registerWebexRoutes(wx, wh)
 
 	n := g.Group("notifiers", auth)
-	nh := handlers.NewNotifierHandler(a.Stores.NotifierRules, a.Stores.CW.Board, a.Stores.WebexRecipients, a.Stores.NotifierForwards)
+	nh := handlers.NewNotifierHandler(a.Svc.Notifier)
 	registerNotifierRoutes(n, nh)
 
 	tb := handlers.NewTicketbotHandler(a.Svc.Ticketbot)

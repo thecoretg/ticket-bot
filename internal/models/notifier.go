@@ -51,6 +51,7 @@ type NotifierForwardRepository interface {
 	ListAllFull(ctx context.Context) ([]NotifierForwardFull, error)
 	ListBySourceRoomID(ctx context.Context, id int) ([]NotifierForward, error)
 	Get(ctx context.Context, id int) (NotifierForward, error)
+	Exists(ctx context.Context, id int) (bool, error)
 	Insert(ctx context.Context, c NotifierForward) (NotifierForward, error)
 	Delete(ctx context.Context, id int) error
 }
@@ -82,7 +83,8 @@ type NotifierRuleRepository interface {
 	ListByBoard(ctx context.Context, boardID int) ([]NotifierRule, error)
 	ListByRoom(ctx context.Context, roomID int) ([]NotifierRule, error)
 	Get(ctx context.Context, id int) (*NotifierRule, error)
-	Exists(ctx context.Context, boardID, roomID int) (bool, error)
+	Exists(ctx context.Context, id int) (bool, error)
+	ExistsByBoardAndRecipient(ctx context.Context, boardID, roomID int) (bool, error)
 	Insert(ctx context.Context, n *NotifierRule) (*NotifierRule, error)
 	Update(ctx context.Context, n *NotifierRule) (*NotifierRule, error)
 	Delete(ctx context.Context, id int) error
