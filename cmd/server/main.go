@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/thecoretg/ticketbot/cmd/common"
 	"github.com/thecoretg/ticketbot/internal/logging"
+	"github.com/thecoretg/ticketbot/internal/middleware"
 	"github.com/thecoretg/ticketbot/internal/server"
 )
 
@@ -42,16 +43,15 @@ func Run() error {
 		}
 	}
 
+	var logger *slog.Logger
 	if cwHandler != nil {
 		slog.Info("using AWS log handler")
-		logger := slog.New(cwHandler)
-		slog.SetDefault(logger)
+		logger = slog.New(cwHandler)
 	} else {
 		slog.Info("using stdout json handler")
-		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-			Level: level,
-		})))
+		logger = logging.NewDefaultLogger(level)
 	}
+	slog.SetDefault(logger)
 
 	a, err := server.NewApp(ctx, common.GooseMigrationVersion)
 	if err != nil {
@@ -73,7 +73,12 @@ func Run() error {
 		}
 	}
 
-	srv := gin.Default()
+	srv := gin.New()
+	slogWriter := middleware.NewSlogWriter(logger)
+
+	// send both logs and recovery to the logger, which is likely cloudwatch
+	srv.Use(gin.LoggerWithConfig(gin.LoggerConfig{Output: slogWriter}))
+	srv.Use(gin.RecoveryWithWriter(slogWriter))
 	server.AddRoutes(a, srv)
 
 	return srv.Run()
