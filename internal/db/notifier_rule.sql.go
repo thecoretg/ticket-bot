@@ -59,7 +59,7 @@ SELECT id, cw_board_id, webex_recipient_id, notify_enabled, created_on FROM noti
 WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetNotifierRule(ctx context.Context, id int) (NotifierRule, error) {
+func (q *Queries) GetNotifierRule(ctx context.Context, id int) (*NotifierRule, error) {
 	row := q.db.QueryRow(ctx, getNotifierRule, id)
 	var i NotifierRule
 	err := row.Scan(
@@ -69,7 +69,7 @@ func (q *Queries) GetNotifierRule(ctx context.Context, id int) (NotifierRule, er
 		&i.NotifyEnabled,
 		&i.CreatedOn,
 	)
-	return i, err
+	return &i, err
 }
 
 const insertNotifierRule = `-- name: InsertNotifierRule :one
@@ -84,7 +84,7 @@ type InsertNotifierRuleParams struct {
 	NotifyEnabled    bool `json:"notify_enabled"`
 }
 
-func (q *Queries) InsertNotifierRule(ctx context.Context, arg InsertNotifierRuleParams) (NotifierRule, error) {
+func (q *Queries) InsertNotifierRule(ctx context.Context, arg InsertNotifierRuleParams) (*NotifierRule, error) {
 	row := q.db.QueryRow(ctx, insertNotifierRule, arg.CwBoardID, arg.WebexRecipientID, arg.NotifyEnabled)
 	var i NotifierRule
 	err := row.Scan(
@@ -94,7 +94,7 @@ func (q *Queries) InsertNotifierRule(ctx context.Context, arg InsertNotifierRule
 		&i.NotifyEnabled,
 		&i.CreatedOn,
 	)
-	return i, err
+	return &i, err
 }
 
 const listNotifierRules = `-- name: ListNotifierRules :many
@@ -102,13 +102,13 @@ SELECT id, cw_board_id, webex_recipient_id, notify_enabled, created_on FROM noti
 ORDER BY id
 `
 
-func (q *Queries) ListNotifierRules(ctx context.Context) ([]NotifierRule, error) {
+func (q *Queries) ListNotifierRules(ctx context.Context) ([]*NotifierRule, error) {
 	rows, err := q.db.Query(ctx, listNotifierRules)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []NotifierRule
+	var items []*NotifierRule
 	for rows.Next() {
 		var i NotifierRule
 		if err := rows.Scan(
@@ -120,7 +120,7 @@ func (q *Queries) ListNotifierRules(ctx context.Context) ([]NotifierRule, error)
 		); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, &i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -134,13 +134,13 @@ WHERE cw_board_id = $1
 ORDER BY id
 `
 
-func (q *Queries) ListNotifierRulesByBoard(ctx context.Context, cwBoardID int) ([]NotifierRule, error) {
+func (q *Queries) ListNotifierRulesByBoard(ctx context.Context, cwBoardID int) ([]*NotifierRule, error) {
 	rows, err := q.db.Query(ctx, listNotifierRulesByBoard, cwBoardID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []NotifierRule
+	var items []*NotifierRule
 	for rows.Next() {
 		var i NotifierRule
 		if err := rows.Scan(
@@ -152,7 +152,7 @@ func (q *Queries) ListNotifierRulesByBoard(ctx context.Context, cwBoardID int) (
 		); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, &i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -166,13 +166,13 @@ WHERE webex_recipient_id = $1
 ORDER BY id
 `
 
-func (q *Queries) ListNotifierRulesByRecipient(ctx context.Context, webexRecipientID int) ([]NotifierRule, error) {
+func (q *Queries) ListNotifierRulesByRecipient(ctx context.Context, webexRecipientID int) ([]*NotifierRule, error) {
 	rows, err := q.db.Query(ctx, listNotifierRulesByRecipient, webexRecipientID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []NotifierRule
+	var items []*NotifierRule
 	for rows.Next() {
 		var i NotifierRule
 		if err := rows.Scan(
@@ -184,7 +184,7 @@ func (q *Queries) ListNotifierRulesByRecipient(ctx context.Context, webexRecipie
 		); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, &i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -219,13 +219,13 @@ type ListNotifierRulesFullRow struct {
 	RecipientType string `json:"recipient_type"`
 }
 
-func (q *Queries) ListNotifierRulesFull(ctx context.Context) ([]ListNotifierRulesFullRow, error) {
+func (q *Queries) ListNotifierRulesFull(ctx context.Context) ([]*ListNotifierRulesFullRow, error) {
 	rows, err := q.db.Query(ctx, listNotifierRulesFull)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListNotifierRulesFullRow
+	var items []*ListNotifierRulesFullRow
 	for rows.Next() {
 		var i ListNotifierRulesFullRow
 		if err := rows.Scan(
@@ -239,7 +239,7 @@ func (q *Queries) ListNotifierRulesFull(ctx context.Context) ([]ListNotifierRule
 		); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, &i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -277,7 +277,7 @@ type UpdateNotifierRuleParams struct {
 	NotifyEnabled    bool `json:"notify_enabled"`
 }
 
-func (q *Queries) UpdateNotifierRule(ctx context.Context, arg UpdateNotifierRuleParams) (NotifierRule, error) {
+func (q *Queries) UpdateNotifierRule(ctx context.Context, arg UpdateNotifierRuleParams) (*NotifierRule, error) {
 	row := q.db.QueryRow(ctx, updateNotifierRule,
 		arg.ID,
 		arg.CwBoardID,
@@ -292,5 +292,5 @@ func (q *Queries) UpdateNotifierRule(ctx context.Context, arg UpdateNotifierRule
 		&i.NotifyEnabled,
 		&i.CreatedOn,
 	)
-	return i, err
+	return &i, err
 }

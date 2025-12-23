@@ -27,7 +27,7 @@ func New(u models.APIUserRepository, k models.APIKeyRepository) *Service {
 	}
 }
 
-func (s *Service) ListUsers(ctx context.Context) ([]models.APIUser, error) {
+func (s *Service) ListUsers(ctx context.Context) ([]*models.APIUser, error) {
 	return s.Users.List(ctx)
 }
 
@@ -56,7 +56,7 @@ func (s *Service) DeleteUser(ctx context.Context, id int) error {
 	return s.Users.Delete(ctx, id)
 }
 
-func (s *Service) ListAPIKeys(ctx context.Context) ([]models.APIKey, error) {
+func (s *Service) ListAPIKeys(ctx context.Context) ([]*models.APIKey, error) {
 	return s.Keys.List(ctx)
 }
 

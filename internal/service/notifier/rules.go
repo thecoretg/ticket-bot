@@ -10,7 +10,7 @@ import (
 
 var ErrNotifierConflict = errors.New("notifier already exists with this board and webex recipient")
 
-func (s *Service) ListNotifierRules(ctx context.Context) ([]models.NotifierRuleFull, error) {
+func (s *Service) ListNotifierRules(ctx context.Context) ([]*models.NotifierRuleFull, error) {
 	return s.NotifierRules.ListAllFull(ctx)
 }
 

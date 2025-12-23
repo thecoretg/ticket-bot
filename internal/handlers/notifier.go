@@ -126,7 +126,7 @@ func (h *NotifierHandler) AddUserForward(c *gin.Context) {
 		return
 	}
 
-	f, err := h.Svc.AddForward(c.Request.Context(), *p)
+	f, err := h.Svc.AddForward(c.Request.Context(), p)
 	if err != nil {
 		internalServerError(c, err)
 		return

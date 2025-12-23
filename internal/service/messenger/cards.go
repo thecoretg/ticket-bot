@@ -9,7 +9,7 @@ import (
 	"github.com/thecoretg/ticketbot/internal/models"
 )
 
-func createNotifierRuleList(rules []models.NotifierRuleFull) json.RawMessage {
+func createNotifierRuleList(rules []*models.NotifierRuleFull) json.RawMessage {
 	return json.RawMessage(fmt.Sprintf(`{
 		"contentType": "application/vnd.microsoft.card.adaptive",
 		"content": {
@@ -36,7 +36,7 @@ func createNotifierRuleList(rules []models.NotifierRuleFull) json.RawMessage {
 
 // sweet, man-made horrors beyond my comprehension
 
-func createNotifierRulePayload(boards []models.Board, recips []models.WebexRecipient) json.RawMessage {
+func createNotifierRulePayload(boards []*models.Board, recips []*models.WebexRecipient) json.RawMessage {
 	return json.RawMessage(fmt.Sprintf(`{
 	"contentType": "application/vnd.microsoft.card.adaptive",
 	"content": {
@@ -91,7 +91,7 @@ func createNotifierRulePayload(boards []models.Board, recips []models.WebexRecip
 }`, boardsToCardChoices(boards), recipientsToCardChoices(recips)))
 }
 
-func rulesToCardEntries(rules []models.NotifierRuleFull) string {
+func rulesToCardEntries(rules []*models.NotifierRuleFull) string {
 	var entries []string
 	for _, r := range rules {
 		title := strconv.Itoa(r.ID)
@@ -105,7 +105,7 @@ func rulesToCardEntries(rules []models.NotifierRuleFull) string {
 	return strings.Join(entries, ",")
 }
 
-func boardsToCardChoices(boards []models.Board) string {
+func boardsToCardChoices(boards []*models.Board) string {
 	var choices []string
 	for _, b := range boards {
 		s := fmt.Sprintf(`{ "title": %s, "value": %s }`,
@@ -117,7 +117,7 @@ func boardsToCardChoices(boards []models.Board) string {
 	return strings.Join(choices, ",")
 }
 
-func recipientsToCardChoices(recips []models.WebexRecipient) string {
+func recipientsToCardChoices(recips []*models.WebexRecipient) string {
 	var choices []string
 	for _, b := range recips {
 		nameAndType := fmt.Sprintf("%s (%s)", b.Name, b.Type)

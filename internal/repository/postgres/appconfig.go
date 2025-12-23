@@ -65,7 +65,7 @@ func configToUpsertParams(c *models.Config) db.UpsertAppConfigParams {
 	}
 }
 
-func configFromPG(pg db.AppConfig) *models.Config {
+func configFromPG(pg *db.AppConfig) *models.Config {
 	return &models.Config{
 		ID:                 pg.ID,
 		AttemptNotify:      pg.AttemptNotify,

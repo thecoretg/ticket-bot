@@ -14,7 +14,7 @@ SELECT id, attempt_notify, max_message_length, max_concurrent_syncs, skip_launch
 WHERE id = 1
 `
 
-func (q *Queries) GetAppConfig(ctx context.Context) (AppConfig, error) {
+func (q *Queries) GetAppConfig(ctx context.Context) (*AppConfig, error) {
 	row := q.db.QueryRow(ctx, getAppConfig)
 	var i AppConfig
 	err := row.Scan(
@@ -24,7 +24,7 @@ func (q *Queries) GetAppConfig(ctx context.Context) (AppConfig, error) {
 		&i.MaxConcurrentSyncs,
 		&i.SkipLaunchSyncs,
 	)
-	return i, err
+	return &i, err
 }
 
 const insertDefaultAppConfig = `-- name: InsertDefaultAppConfig :one
@@ -33,7 +33,7 @@ ON CONFLICT (id) DO UPDATE SET id = EXCLUDED.id
 RETURNING id, attempt_notify, max_message_length, max_concurrent_syncs, skip_launch_syncs
 `
 
-func (q *Queries) InsertDefaultAppConfig(ctx context.Context) (AppConfig, error) {
+func (q *Queries) InsertDefaultAppConfig(ctx context.Context) (*AppConfig, error) {
 	row := q.db.QueryRow(ctx, insertDefaultAppConfig)
 	var i AppConfig
 	err := row.Scan(
@@ -43,7 +43,7 @@ func (q *Queries) InsertDefaultAppConfig(ctx context.Context) (AppConfig, error)
 		&i.MaxConcurrentSyncs,
 		&i.SkipLaunchSyncs,
 	)
-	return i, err
+	return &i, err
 }
 
 const upsertAppConfig = `-- name: UpsertAppConfig :one
@@ -64,7 +64,7 @@ type UpsertAppConfigParams struct {
 	SkipLaunchSyncs    bool `json:"skip_launch_syncs"`
 }
 
-func (q *Queries) UpsertAppConfig(ctx context.Context, arg UpsertAppConfigParams) (AppConfig, error) {
+func (q *Queries) UpsertAppConfig(ctx context.Context, arg UpsertAppConfigParams) (*AppConfig, error) {
 	row := q.db.QueryRow(ctx, upsertAppConfig,
 		arg.AttemptNotify,
 		arg.MaxMessageLength,
@@ -79,5 +79,5 @@ func (q *Queries) UpsertAppConfig(ctx context.Context, arg UpsertAppConfigParams
 		&i.MaxConcurrentSyncs,
 		&i.SkipLaunchSyncs,
 	)
-	return i, err
+	return &i, err
 }

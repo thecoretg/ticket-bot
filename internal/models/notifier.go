@@ -47,12 +47,12 @@ type NotifierForwardFull struct {
 
 type NotifierForwardRepository interface {
 	WithTx(tx pgx.Tx) NotifierForwardRepository
-	ListAll(ctx context.Context) ([]NotifierForward, error)
-	ListAllFull(ctx context.Context) ([]NotifierForwardFull, error)
-	ListBySourceRoomID(ctx context.Context, id int) ([]NotifierForward, error)
-	Get(ctx context.Context, id int) (NotifierForward, error)
+	ListAll(ctx context.Context) ([]*NotifierForward, error)
+	ListAllFull(ctx context.Context) ([]*NotifierForwardFull, error)
+	ListBySourceRoomID(ctx context.Context, id int) ([]*NotifierForward, error)
+	Get(ctx context.Context, id int) (*NotifierForward, error)
 	Exists(ctx context.Context, id int) (bool, error)
-	Insert(ctx context.Context, c NotifierForward) (NotifierForward, error)
+	Insert(ctx context.Context, c *NotifierForward) (*NotifierForward, error)
 	Delete(ctx context.Context, id int) error
 }
 
@@ -78,10 +78,10 @@ type NotifierRuleFull struct {
 
 type NotifierRuleRepository interface {
 	WithTx(tx pgx.Tx) NotifierRuleRepository
-	ListAll(ctx context.Context) ([]NotifierRule, error)
-	ListAllFull(ctx context.Context) ([]NotifierRuleFull, error)
-	ListByBoard(ctx context.Context, boardID int) ([]NotifierRule, error)
-	ListByRoom(ctx context.Context, roomID int) ([]NotifierRule, error)
+	ListAll(ctx context.Context) ([]*NotifierRule, error)
+	ListAllFull(ctx context.Context) ([]*NotifierRuleFull, error)
+	ListByBoard(ctx context.Context, boardID int) ([]*NotifierRule, error)
+	ListByRoom(ctx context.Context, roomID int) ([]*NotifierRule, error)
 	Get(ctx context.Context, id int) (*NotifierRule, error)
 	Exists(ctx context.Context, id int) (bool, error)
 	ExistsByBoardAndRecipient(ctx context.Context, boardID, roomID int) (bool, error)
@@ -106,11 +106,11 @@ type TicketNotification struct {
 
 type TicketNotificationRepository interface {
 	WithTx(tx pgx.Tx) TicketNotificationRepository
-	ListAll(ctx context.Context) ([]TicketNotification, error)
-	ListByNoteID(ctx context.Context, noteID int) ([]TicketNotification, error)
+	ListAll(ctx context.Context) ([]*TicketNotification, error)
+	ListByNoteID(ctx context.Context, noteID int) ([]*TicketNotification, error)
 	ExistsForTicket(ctx context.Context, ticketID int) (bool, error)
 	ExistsForNote(ctx context.Context, noteID int) (bool, error)
-	Get(ctx context.Context, id int) (TicketNotification, error)
-	Insert(ctx context.Context, n TicketNotification) (TicketNotification, error)
+	Get(ctx context.Context, id int) (*TicketNotification, error)
+	Insert(ctx context.Context, n *TicketNotification) (*TicketNotification, error)
 	Delete(ctx context.Context, id int) error
 }
