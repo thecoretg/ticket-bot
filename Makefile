@@ -2,7 +2,7 @@ create-bin-dir:
 	mkdir -p bin
 
 build-cli: create-bin-dir
-	go build -o bin/cli ./cmd/cli && cp bin/cli ~/go/bin/tbot
+	go build -o bin/tbot-admin ./cmd/tbot-admin && cp bin/tbot-admin ~/go/bin/tbot-admin
 
 gensql:
 	sqlc generate
