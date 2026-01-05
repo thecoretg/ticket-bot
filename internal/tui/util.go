@@ -8,3 +8,14 @@ func boolToIcon(b bool) string {
 
 	return i
 }
+
+func shortenSourceType(s string) string {
+	switch s {
+	case "person":
+		return "p"
+	case "room":
+		return "r"
+	default:
+		return "?"
+	}
+}

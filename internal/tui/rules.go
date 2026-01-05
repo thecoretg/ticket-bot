@@ -1,28 +1,13 @@
 package tui
 
 import (
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
-
-type rulesModelKeys struct {
-	up   key.Binding
-	down key.Binding
-}
-
-var defaultRulesKeys = rulesModelKeys{
-	up: key.NewBinding(
-		key.WithKeys("up", "k"),
-		key.WithHelp("up/k", "up"),
-	),
-	down: key.NewBinding(
-		key.WithKeys("down", "j"),
-		key.WithHelp("down/j", "down"),
-	),
-}
 
 type rulesModel struct {
 	keys          rulesModelKeys
@@ -30,15 +15,21 @@ type rulesModel struct {
 	width         int
 	height        int
 	rulesLoaded   bool
-	selected      int
+	table         table.Model
+	help          help.Model
 
 	rules []models.NotifierRuleFull
 }
 
 func newRulesModel() *rulesModel {
+	h := help.New()
+	h.Styles.ShortDesc = helpStyle
+	h.Styles.ShortKey = helpStyle
 	return &rulesModel{
 		keys:  defaultRulesKeys,
 		rules: []models.NotifierRuleFull{},
+		table: newTable(),
+		help:  h,
 	}
 }
 
@@ -52,29 +43,23 @@ func (rm *rulesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		rm.width = msg.Width
 		rm.height = msg.Height
 		rm.gotDimensions = true
+		hh := lipgloss.Height(rm.helpView())
+		setRulesTableDimensions(&rm.table, rm.width, rm.height-hh)
+	case tea.KeyMsg:
+		switch {
+		case key.Matches(msg, rm.keys.switchFwds):
+			return rm, switchModel(modelTypeFwds)
+		}
 	case gotRulesMsg:
 		rm.rules = msg.rules
 		rm.rulesLoaded = true
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, rm.keys.up):
-			top := len(rm.rules) - 1
-			if rm.selected == 0 {
-				rm.selected = top
-			} else {
-				rm.selected--
-			}
-		case key.Matches(msg, rm.keys.down):
-			top := len(rm.rules) - 1
-			if rm.selected < top {
-				rm.selected++
-			} else {
-				rm.selected = 0
-			}
-		}
+		rm.table.SetRows(rulesToRows(rm.rules))
 	}
 
-	return rm, nil
+	var cmd tea.Cmd
+	rm.table, cmd = rm.table.Update(msg)
+
+	return rm, cmd
 }
 
 func (rm *rulesModel) View() string {
@@ -86,32 +71,28 @@ func (rm *rulesModel) View() string {
 		return "Loading rules..."
 	}
 
-	return rm.rulesTable(rm.width)
+	return lipgloss.JoinVertical(lipgloss.Top, rm.table.View(), rm.helpView())
 }
 
-func (rm *rulesModel) rulesTable(w int) string {
-	t := table.New().
-		Border(border).
-		Width(w).
-		BorderStyle(borderStyle).
-		StyleFunc(func(row, col int) lipgloss.Style {
-			switch row {
-			case table.HeaderRow:
-				return headerStyle
-			case rm.selected:
-				return selectedStyle
-			default:
-				return unselectedStyle
-			}
-		}).
-		Headers("ENABLED", "BOARD", "RECIPIENT").
-		Rows(rulesToRows(rm.rules)...)
-
-	return t.Render()
+func (rm *rulesModel) helpView() string {
+	return rm.help.ShortHelpView(rm.keys.ShortHelp())
 }
 
-func rulesToRows(rules []models.NotifierRuleFull) [][]string {
-	var rows [][]string
+func setRulesTableDimensions(t *table.Model, w, h int) {
+	enableW := 8
+	boardW := 20
+	remainingW := w - enableW - boardW
+	recipW := remainingW
+	t.SetColumns([]table.Column{
+		{Title: "ENABLED", Width: enableW},
+		{Title: "BOARD", Width: boardW},
+		{Title: "RECIPIENT", Width: recipW},
+	})
+	t.SetHeight(h)
+}
+
+func rulesToRows(rules []models.NotifierRuleFull) []table.Row {
+	var rows []table.Row
 	for _, r := range rules {
 		rows = append(rows, []string{boolToIcon(r.Enabled), r.BoardName, r.RecipientName})
 	}

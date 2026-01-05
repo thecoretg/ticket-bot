@@ -2,46 +2,36 @@ package tui
 
 import (
 	"fmt"
-	"strconv"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
 	"github.com/thecoretg/ticketbot/internal/models"
 )
 
-type fwdsModelKeys struct {
-	up   key.Binding
-	down key.Binding
-}
-
-var defaultFwdsKeys = fwdsModelKeys{
-	up: key.NewBinding(
-		key.WithKeys("up", "k"),
-		key.WithHelp("up/k", "up"),
-	),
-	down: key.NewBinding(
-		key.WithKeys("down", "j"),
-		key.WithHelp("down/j", "down"),
-	),
-}
-
 type fwdsModel struct {
 	keys          fwdsModelKeys
+	help          help.Model
 	gotDimensions bool
 	width         int
 	height        int
 	fwdsLoaded    bool
-	selected      int
+	table         table.Model
 
 	fwds []models.NotifierForwardFull
 }
 
 func newFwdsModel() *fwdsModel {
+	h := help.New()
+	h.Styles.ShortDesc = helpStyle
+	h.Styles.ShortKey = helpStyle
 	return &fwdsModel{
-		keys: defaultFwdsKeys,
-		fwds: []models.NotifierForwardFull{},
+		keys:  defaultFwdsKeys,
+		fwds:  []models.NotifierForwardFull{},
+		table: newTable(),
+		help:  h,
 	}
 }
 
@@ -55,29 +45,23 @@ func (fm *fwdsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		fm.width = msg.Width
 		fm.height = msg.Height
 		fm.gotDimensions = true
+		hh := lipgloss.Height(fm.helpView())
+		setFwdsTableDimensions(&fm.table, fm.width, fm.height-hh)
+	case tea.KeyMsg:
+		switch {
+		case key.Matches(msg, fm.keys.switchRules):
+			return fm, switchModel(modelTypeRules)
+		}
 	case gotFwdsMsg:
 		fm.fwds = msg.fwds
 		fm.fwdsLoaded = true
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, fm.keys.up):
-			top := len(fm.fwds) - 1
-			if fm.selected == 0 {
-				fm.selected = top
-			} else {
-				fm.selected--
-			}
-		case key.Matches(msg, fm.keys.down):
-			top := len(fm.fwds) - 1
-			if fm.selected < top {
-				fm.selected++
-			} else {
-				fm.selected = 0
-			}
-		}
+		fm.table.SetRows(fwdsToRows(fm.fwds))
 	}
 
-	return fm, nil
+	var cmd tea.Cmd
+	fm.table, cmd = fm.table.Update(msg)
+
+	return fm, cmd
 }
 
 func (fm *fwdsModel) View() string {
@@ -89,46 +73,48 @@ func (fm *fwdsModel) View() string {
 		return "Loading forwards..."
 	}
 
-	return fm.fwdsTable(fm.width)
+	return lipgloss.JoinVertical(lipgloss.Top, fm.table.View(), fm.helpView())
 }
 
-func (fm *fwdsModel) fwdsTable(w int) string {
-	t := table.New().
-		Border(border).
-		Width(w).
-		BorderStyle(borderStyle).
-		StyleFunc(func(row, col int) lipgloss.Style {
-			switch row {
-			case table.HeaderRow:
-				return headerStyle
-			case fm.selected:
-				return selectedStyle
-			default:
-				return unselectedStyle
-			}
-		}).
-		Headers("ENABLED", "START", "END", "KEEP COPY", "SOURCE", "DESTINATION").
-		Rows(fwdsToRows(fm.fwds)...)
-
-	return t.Render()
+func (fm *fwdsModel) helpView() string {
+	return fm.help.ShortHelpView(fm.keys.ShortHelp())
 }
 
-func fwdsToRows(fwds []models.NotifierForwardFull) [][]string {
-	var rows [][]string
+func setFwdsTableDimensions(t *table.Model, w, h int) {
+	enableW := 8
+	keepW := 8
+	datesW := 13
+	srcW := 25
+	remainingW := w - enableW - datesW - keepW - srcW
+	destW := remainingW
+	t.SetColumns(
+		[]table.Column{
+			{Title: "ENABLED", Width: enableW},
+			{Title: "KEEP", Width: keepW},
+			{Title: "DATES", Width: datesW},
+			{Title: "SOURCE", Width: srcW},
+			{Title: "DESTINATION", Width: destW},
+		},
+	)
+	t.SetHeight(h)
+}
+
+func fwdsToRows(fwds []models.NotifierForwardFull) []table.Row {
+	var rows []table.Row
 	for _, f := range fwds {
-		src := fmt.Sprintf("%s (%s)", f.SourceName, f.SourceType)
-		dst := fmt.Sprintf("%s (%s)", f.DestinationName, f.DestinationType)
-		sd := f.StartDate.Format("2006-01-02")
+		src := fmt.Sprintf("%s (%s)", f.SourceName, shortenSourceType(f.SourceType))
+		dst := fmt.Sprintf("%s (%s)", f.DestinationName, shortenSourceType(f.DestinationType))
+		sd := f.StartDate.Format("01-02")
 		ed := "N/A"
 		if f.EndDate != nil {
-			ed = f.EndDate.Format("2006-01-02")
+			ed = f.EndDate.Format("01-02")
 		}
+		dr := fmt.Sprintf("%s - %s", sd, ed)
 
 		rows = append(rows, []string{
 			boolToIcon(f.UserKeepsCopy),
-			sd,
-			ed,
-			strconv.FormatBool(f.UserKeepsCopy),
+			boolToIcon(f.UserKeepsCopy),
+			dr,
 			src,
 			dst,
 		})

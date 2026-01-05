@@ -3,7 +3,6 @@ package tui
 import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/thecoretg/ticketbot/internal/models"
 	"github.com/thecoretg/ticketbot/pkg/sdk"
 )
@@ -57,10 +56,19 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keys.quit):
 			return m, tea.Quit
-		case key.Matches(msg, m.keys.up), key.Matches(msg, m.keys.down):
-			mm, cmd := m.activeModel.Update(msg)
-			m.activeModel = mm
-			return m, cmd
+		}
+	case switchModelMsg:
+		switch msg.modelType {
+		case modelTypeRules:
+			if m.activeModel != m.allModels.rules {
+				m.allModels.rules.table.SetCursor(0)
+				m.activeModel = m.allModels.rules
+			}
+		case modelTypeFwds:
+			if m.activeModel != m.allModels.fwds {
+				m.allModels.fwds.table.SetCursor(0)
+				m.activeModel = m.allModels.fwds
+			}
 		}
 	}
 
@@ -76,23 +84,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.allModels.fwds = f
 	}
 	cmds = append(cmds, cmd)
-
 	return m, tea.Batch(cmds...)
 }
 
 func (m *Model) View() string {
-	return lipgloss.JoinVertical(
-		lipgloss.Top,
-		header("Rules", m.width),
-		m.allModels.rules.View(),
-		m.allModels.fwds.View(),
-	)
-}
-
-func header(title string, w int) string {
-	return lipgloss.NewStyle().
-		Align(lipgloss.Center).
-		Width(w).
-		Border(lipgloss.NormalBorder(), false, false, true, false).
-		Render(title)
+	return m.activeModel.View()
 }
