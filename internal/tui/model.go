@@ -41,7 +41,7 @@ func NewModel(sl *sdk.Client) *Model {
 }
 
 func (m *Model) Init() tea.Cmd {
-	return tea.Batch(m.allModels.rules.getRules(), m.getFwds())
+	return tea.Batch(m.allModels.rules.Init(), m.getFwds())
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

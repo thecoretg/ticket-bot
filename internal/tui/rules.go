@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
@@ -17,6 +18,7 @@ type (
 		rulesLoaded bool
 		table       table.Model
 		form        *huh.Form
+		spinner     spinner.Model
 		formResult  *rulesFormResult
 		status      rulesModelStatus
 
@@ -48,16 +50,19 @@ type rulesFormResult struct {
 }
 
 func newRulesModel(cl *sdk.Client) *rulesModel {
+	s := spinner.New()
+	s.Spinner = spinner.Line
 	return &rulesModel{
 		SDKClient:  cl,
 		rules:      []models.NotifierRuleFull{},
 		table:      newTable(),
 		formResult: &rulesFormResult{},
+		spinner:    s,
 	}
 }
 
 func (rm *rulesModel) Init() tea.Cmd {
-	return nil
+	return tea.Batch(rm.spinner.Tick, rm.getRules())
 }
 
 func (rm *rulesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -90,11 +95,10 @@ func (rm *rulesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		rm.status = msg.status
 	}
 
+	var cmds []tea.Cmd
 	switch rm.status {
+
 	case rmStatusEntry:
-
-		var cmds []tea.Cmd
-
 		form, cmd := rm.form.Update(msg)
 		if f, ok := form.(*huh.Form); ok {
 			rm.form = f
@@ -120,20 +124,26 @@ func (rm *rulesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	default:
 		var cmd tea.Cmd
 		rm.table, cmd = rm.table.Update(msg)
-		return rm, cmd
+		cmds = append(cmds, cmd)
 	}
+
+	var cmd tea.Cmd
+	rm.spinner, cmd = rm.spinner.Update(msg)
+	cmds = append(cmds, cmd)
+
+	return rm, tea.Batch(cmds...)
 }
 
 func (rm *rulesModel) View() string {
 	switch rm.status {
 	case rmStatusInitializing:
-		return "Loading rules..."
+		return fillSpaceCentered(rm.useSpinner("Loading rules..."), rm.availWidth, rm.availHeight)
 	case rmStatusRefreshing:
-		return "Refreshing..."
+		return fillSpaceCentered(rm.useSpinner("Refreshing..."), rm.availWidth, rm.availHeight)
 	case rmStatusTable:
 		return rm.table.View()
 	case rmStatusLoadingData:
-		return "Loading form data..."
+		return fillSpaceCentered(rm.useSpinner("Loading form data..."), rm.availWidth, rm.availHeight)
 	case rmStatusEntry:
 		return rm.form.View()
 	}
@@ -225,20 +235,22 @@ func (rm *rulesModel) getRules() tea.Cmd {
 	}
 }
 
-func (rm *rulesModel) setFormHeight(h int) {
-	rm.form.WithHeight(h)
-}
-
 func (rm *rulesModel) setRows() tea.Cmd {
+	sortRules(rm.rules)
 	rm.table.SetRows(rulesToRows(rm.rules))
 	rm.table.SetCursor(0)
 	return nil
 }
 
+func (rm *rulesModel) useSpinner(content string) string {
+	return fmt.Sprintf("%s %s", rm.spinner.View(), content)
+}
+
 func rulesToRows(rules []models.NotifierRuleFull) []table.Row {
 	var rows []table.Row
 	for _, r := range rules {
-		rows = append(rows, []string{boolToIcon(r.Enabled), r.BoardName, r.RecipientName})
+		recip := fmt.Sprintf("%s (%s)", r.RecipientName, r.RecipientType)
+		rows = append(rows, []string{boolToIcon(r.Enabled), r.BoardName, recip})
 	}
 
 	return rows
@@ -258,7 +270,7 @@ func ruleEntryForm(boards []models.Board, recips []models.WebexRecipient, result
 				Options(recipsToFormOpts(recips)...).
 				Value(&result.recip),
 		),
-	).WithTheme(huh.ThemeBase()).WithHeight(height).WithShowHelp(false)
+	).WithTheme(huh.ThemeBase()).WithHeight(height + 1).WithShowHelp(false) // add +1 to height to account for not showing help
 }
 
 func updateRulesStatus(status rulesModelStatus) tea.Cmd {

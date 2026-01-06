@@ -37,3 +37,9 @@ func sortRecips(recips []models.WebexRecipient) {
 		return recips[i].Name < recips[j].Name
 	})
 }
+
+func sortRules(rules []models.NotifierRuleFull) {
+	sort.SliceStable(rules, func(i, j int) bool {
+		return rules[i].BoardName < rules[j].BoardName
+	})
+}
