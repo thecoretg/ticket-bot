@@ -32,12 +32,17 @@ type (
 		recips []models.WebexRecipient
 	}
 
+	rulesFormResult struct {
+		board models.Board
+		recip models.WebexRecipient
+	}
+
 	refreshRulesMsg struct{}
 	gotRulesMsg     struct{ rules []models.NotifierRuleFull }
 
 	updateRmStatusMsg struct{ status rulesModelStatus }
+	rulesModelStatus  int
 )
-type rulesModelStatus int
 
 const (
 	rmStatusInitializing rulesModelStatus = iota
@@ -46,11 +51,6 @@ const (
 	rmStatusEntry
 	rmStatusRefreshing
 )
-
-type rulesFormResult struct {
-	board models.Board
-	recip models.WebexRecipient
-}
 
 func newRulesModel(cl *sdk.Client) *rulesModel {
 	s := spinner.New()
@@ -141,13 +141,13 @@ func (rm *rulesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (rm *rulesModel) View() string {
 	switch rm.status {
 	case rmStatusInitializing:
-		return fillSpaceCentered(rm.useSpinner("Loading rules..."), rm.availWidth, rm.availHeight)
+		return fillSpaceCentered(useSpinner(rm.spinner, "Loading rules..."), rm.availWidth, rm.availHeight)
 	case rmStatusRefreshing:
-		return fillSpaceCentered(rm.useSpinner("Refreshing..."), rm.availWidth, rm.availHeight)
+		return fillSpaceCentered(useSpinner(rm.spinner, "Refreshing..."), rm.availWidth, rm.availHeight)
 	case rmStatusTable:
 		return rm.table.View()
 	case rmStatusLoadingData:
-		return fillSpaceCentered(rm.useSpinner("Loading form data..."), rm.availWidth, rm.availHeight)
+		return fillSpaceCentered(useSpinner(rm.spinner, "Loading form data..."), rm.availWidth, rm.availHeight)
 	case rmStatusEntry:
 		return rm.form.View()
 	}
@@ -234,10 +234,6 @@ func (rm *rulesModel) setRows() tea.Cmd {
 	rm.table.SetRows(rulesToRows(rm.rules))
 	rm.table.SetCursor(0)
 	return nil
-}
-
-func (rm *rulesModel) useSpinner(content string) string {
-	return fmt.Sprintf("%s %s", rm.spinner.View(), content)
 }
 
 func rulesToRows(rules []models.NotifierRuleFull) []table.Row {

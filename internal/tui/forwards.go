@@ -1,64 +1,160 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 	"github.com/thecoretg/ticketbot/internal/models"
+	"github.com/thecoretg/ticketbot/pkg/sdk"
 )
 
-type fwdsModel struct {
-	gotDimensions bool
-	width         int
-	height        int
-	fwdsLoaded    bool
-	table         table.Model
+type (
+	fwdsModel struct {
+		SDKClient  *sdk.Client
+		fwdsLoaded bool
+		table      table.Model
+		form       *huh.Form
+		spinner    spinner.Model
+		formResult *fwdsFormResult
+		status     fwdsModelStatus
 
-	fwds []models.NotifierForwardFull
-}
+		availWidth  int
+		availHeight int
+		fwds        []models.NotifierForwardFull
+	}
 
-func newFwdsModel() *fwdsModel {
+	fwdsFormDataMsg struct {
+		recips []models.WebexRecipient
+	}
+
+	fwdsFormResult struct {
+		src       models.WebexRecipient
+		dst       models.WebexRecipient
+		start     string
+		end       string
+		userKeeps bool
+	}
+
+	refreshFwdsMsg    struct{}
+	gotFwdsMsg        struct{ fwds []models.NotifierForwardFull }
+	updateFmStatusMsg struct{ status fwdsModelStatus }
+	fwdsModelStatus   int
+)
+
+const (
+	fwdStatusInitializing fwdsModelStatus = iota
+	fwdStatusTable
+	fwdStatusLoadingData
+	fwdStatusEntry
+	fwdStatusRefreshing
+)
+
+func newFwdsModel(cl *sdk.Client) *fwdsModel {
+	s := spinner.New()
+	s.Spinner = spinner.Line
+
 	return &fwdsModel{
-		fwds:  []models.NotifierForwardFull{},
-		table: newTable(),
+		SDKClient:  cl,
+		fwds:       []models.NotifierForwardFull{},
+		table:      newTable(),
+		formResult: &fwdsFormResult,
+		spinner:    s,
 	}
 }
 
 func (fm *fwdsModel) Init() tea.Cmd {
-	return nil
+	return tea.Batch(fm.spinner.Tick, fm.getFwds())
 }
 
 func (fm *fwdsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		fm.width = msg.Width
-		fm.height = msg.Height
-		fm.gotDimensions = true
+	case tea.KeyMsg:
+		switch {
+		case key.Matches(msg, allKeys.newItem) && fm.status == fwdStatusTable:
+			return fm, tea.Batch(updateFwdsStatus(fwdStatusLoadingData), fm.prepareForm())
+		case key.Matches(msg, allKeys.deleteItem) && fm.status == fwdStatusTable:
+			fwd := fm.fwds[fm.table.Cursor()]
+			return fm, tea.Batch(updateFwdsStatus(fwdStatusRefreshing), fm.deleteFwd(fwd.ID))
+		}
+	case resizeModelsMsg:
+		fm.availWidth = msg.w
+		fm.availHeight = msg.h
+		fm.setModuleDimensions()
+
+	case refreshFwdsMsg:
+		return fm, fm.getFwds()
+
 	case gotFwdsMsg:
 		fm.fwds = msg.fwds
 		fm.fwdsLoaded = true
-		fm.table.SetRows(fwdsToRows(fm.fwds))
-	case resizeModelsMsg:
-		fm.setTableDimensions(msg.w, msg.h)
+		return fm, tea.Batch(updateFwdsStatus(fwdStatusTable), fm.setRows())
+
+	case fwdsFormDataMsg:
+		fm.formResult = &fwdsFormResult{}
+		fm.form = fwdEntryForm(msg.recips, fm.formResult, fm.availHeight)
+		return fm, tea.Batch(updateFwdsStatus(fwdStatusEntry), fm.form.Init())
+
+	case updateFmStatusMsg:
+		fm.status = msg.status
+	}
+
+	var cmds []tea.Cmd
+	switch fm.status {
+	case fwdStatusEntry:
+		form, cmd := fm.form.Update(msg)
+		if f, ok := form.(*huh.Form); ok {
+			fm.form = f
+		}
+
+		cmds = append(cmds, cmd)
+		switch fm.form.State {
+		case huh.StateAborted:
+			cmds = append(cmds, updateFwdsStatus(fwdStatusTable))
+
+		case huh.StateCompleted:
+			res := fm.formResult
+			fwd := formResToForm(res)
+			cmds = append(cmds, fm.submitFwd(fwd), updateFwdsStatus(fwdStatusRefreshing))
+		}
+
+	default:
+		var cmd tea.Cmd
+		fm.table, cmd = fm.table.Update(msg)
+		cmds = append(cmds, cmd)
 	}
 
 	var cmd tea.Cmd
-	fm.table, cmd = fm.table.Update(msg)
+	fm.spinner, cmd = fm.spinner.Update(msg)
+	cmds = append(cmds, cmd)
 
-	return fm, cmd
+	return fm, tea.Batch(cmds...)
 }
 
 func (fm *fwdsModel) View() string {
-	if !fm.gotDimensions {
-		return "Initializing..."
-	}
-
-	if !fm.fwdsLoaded {
-		return "Loading forwards..."
+	switch fm.status {
+	case fwdStatusInitializing:
+		return fillSpaceCentered(useSpinner(fm.spinner, "Loading forwards..."), fm.availWidth, fm.availHeight)
+	case fwdStatusRefreshing:
+		return fillSpaceCentered(useSpinner(fm.spinner, "Refreshing..."), fm.availWidth, fm.availHeight)
+	case fwdStatusTable:
+		return fm.table.View()
+	case fwdStatusLoadingData:
+		return fillSpaceCentered(useSpinner(fm.spinner, "Loading form data..."), fm.availWidth, fm.availHeight)
+	case fwdStatusEntry:
+		return fm.form.View()
 	}
 
 	return fm.table.View()
+}
+
+func (fm *fwdsModel) setModuleDimensions() {
+	fm.setTableDimensions(fm.availWidth, fm.availHeight)
 }
 
 func (fm *fwdsModel) setTableDimensions(w, h int) {
@@ -78,7 +174,61 @@ func (fm *fwdsModel) setTableDimensions(w, h int) {
 			{Title: "DESTINATION", Width: destW},
 		},
 	)
+	t.SetRows(fwdsToRows(fm.fwds))
 	t.SetHeight(h)
+}
+
+func (fm *fwdsModel) prepareForm() tea.Cmd {
+	return func() tea.Msg {
+		recips, err := fm.SDKClient.ListRecipients()
+		if err != nil {
+			return errMsg{fmt.Errorf("listing recipients: %w", err)}
+		}
+		sortRecips(recips)
+
+		return fwdsFormDataMsg{
+			recips: recips,
+		}
+	}
+}
+
+func (fm *fwdsModel) submitFwd(fwd *models.NotifierForward) tea.Cmd {
+	return func() tea.Msg {
+		_, err := fm.SDKClient.CreateUserForward(fwd)
+		if err != nil {
+			currentErr = fmt.Errorf("creating notifier forward: %w", err)
+		}
+
+		return refreshFwdsMsg{}
+	}
+}
+
+func (fm *fwdsModel) deleteFwd(id int) tea.Cmd {
+	return func() tea.Msg {
+		if err := fm.SDKClient.DeleteUserForward(id); err != nil {
+			currentErr = fmt.Errorf("deleting notifier forward: %w", err)
+		}
+
+		return refreshFwdsMsg{}
+	}
+}
+
+func (fm *fwdsModel) getFwds() tea.Cmd {
+	return func() tea.Msg {
+		fwds, err := fm.SDKClient.ListUserForwards()
+		if err != nil {
+			currentErr = fmt.Errorf("listing notifier forwards: %w", err)
+		}
+
+		return gotFwdsMsg{fwds: fwds}
+	}
+}
+
+func (fm *fwdsModel) setRows() tea.Cmd {
+	// TODO: sort fwds
+	fm.table.SetRows(fwdsToRows(fm.fwds))
+	fm.table.SetCursor(0)
+	return nil
 }
 
 func fwdsToRows(fwds []models.NotifierForwardFull) []table.Row {
@@ -103,4 +253,45 @@ func fwdsToRows(fwds []models.NotifierForwardFull) []table.Row {
 	}
 
 	return rows
+}
+
+func fwdEntryForm(recips []models.WebexRecipient, result *fwdsFormResult, height int) *huh.Form {
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[models.WebexRecipient]().
+				Title("Source Recipient").
+				Options(recipsToFormOpts(recips)...).
+				Value(&result.src),
+		),
+		huh.NewGroup(
+			huh.NewSelect[models.WebexRecipient]().
+				Title("Destination Recipient").
+				Options(recipsToFormOpts(recips)...).
+				Value(&result.dst),
+		),
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Start Date").
+				Description("YYYY-MM-DD format. Leave blank for immediate.").
+				Value(&result.start).
+				Validate(func(s string) error {
+					t := strings.TrimSpace(s)
+					if t == "" {
+						return nil
+					}
+
+					if !isValidDate(t) {
+						return errors.New("valid date in format YYYY-MM-DD required")
+					}
+
+					return nil
+				}),
+		),
+	)
+}
+
+func updateFwdsStatus(status fwdsModelStatus) tea.Cmd {
+	return func() tea.Msg {
+		return updateFmStatusMsg{status: status}
+	}
 }
