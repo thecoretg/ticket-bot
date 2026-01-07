@@ -4,6 +4,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/thecoretg/ticketbot/pkg/sdk"
 )
@@ -12,7 +13,7 @@ var currentErr error
 
 type Model struct {
 	SDKClient   *sdk.Client
-	activeModel tea.Model
+	activeModel subModel
 	rulesModel  *rulesModel
 	fwdsModel   *fwdsModel
 	entryMode   bool
@@ -28,6 +29,7 @@ type subModel interface {
 	Update(msg tea.Msg) (tea.Model, tea.Cmd)
 	View() string
 	Status() subModelStatus
+	Form() *huh.Form
 }
 
 func NewModel(sl *sdk.Client) *Model {
@@ -70,7 +72,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 
 		case key.Matches(msg, allKeys.quit):
-			if m.rulesModel.status != rmStatusEntry && m.fwdsModel.status != fwdStatusEntry {
+			if m.activeModel.Status().quittable() {
 				return m, tea.Quit
 			}
 		case key.Matches(msg, allKeys.clearErr):
@@ -95,6 +97,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.activeModel = m.fwdsModel
 			}
 		}
+	case errMsg:
+		currentErr = msg.error
 	}
 
 	rules, cmd := m.rulesModel.Update(msg)

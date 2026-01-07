@@ -25,7 +25,7 @@ type (
 		form       *huh.Form
 		spinner    spinner.Model
 		formResult *fwdsFormResult
-		status     fwdsModelStatus
+		status     subModelStatus
 
 		availWidth  int
 		availHeight int
@@ -44,23 +44,13 @@ type (
 		userKeeps bool
 	}
 
-	refreshFwdsMsg    struct{}
-	gotFwdsMsg        struct{ fwds []models.NotifierForwardFull }
-	updateFmStatusMsg struct{ status fwdsModelStatus }
-	fwdsModelStatus   int
+	refreshFwdsMsg struct{}
+	gotFwdsMsg     struct{ fwds []models.NotifierForwardFull }
 )
 
 var (
 	errInvalidDateInput    = errors.New("valid date in format YYYY-MM-DD required")
 	errEndEarlierThanStart = errors.New("end time cannot be before start time")
-)
-
-const (
-	fwdStatusInitializing fwdsModelStatus = iota
-	fwdStatusTable
-	fwdStatusLoadingData
-	fwdStatusEntry
-	fwdStatusRefreshing
 )
 
 func newFwdsModel(cl *sdk.Client) *fwdsModel {
@@ -85,12 +75,14 @@ func (fm *fwdsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, allKeys.newItem) && fm.status == fwdStatusTable:
-			return fm, tea.Batch(updateFwdsStatus(fwdStatusLoadingData), fm.prepareForm())
-		case key.Matches(msg, allKeys.deleteItem) && fm.status == fwdStatusTable:
+		case key.Matches(msg, allKeys.newItem) && fm.status == statusMain:
+			fm.status = statusLoadingFormData
+			return fm, fm.prepareForm()
+		case key.Matches(msg, allKeys.deleteItem) && fm.status == statusMain:
 			if len(fm.fwds) > 0 {
 				fwd := fm.fwds[fm.table.Cursor()]
-				return fm, tea.Batch(updateFwdsStatus(fwdStatusRefreshing), fm.deleteFwd(fwd.ID))
+				fm.status = statusRefresh
+				return fm, fm.deleteFwd(fwd.ID)
 			}
 		}
 	case resizeModelsMsg:
@@ -104,20 +96,22 @@ func (fm *fwdsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case gotFwdsMsg:
 		fm.fwds = msg.fwds
 		fm.fwdsLoaded = true
-		return fm, tea.Batch(updateFwdsStatus(fwdStatusTable), fm.setRows())
+		fm.status = statusMain
+		return fm, fm.setRows()
 
 	case fwdsFormDataMsg:
 		fm.formResult = &fwdsFormResult{}
 		fm.form = fwdEntryForm(msg.recips, fm.formResult)
-		return fm, tea.Batch(updateFwdsStatus(fwdStatusEntry), fm.form.Init())
+		fm.status = statusEntry
+		return fm, fm.form.Init()
 
-	case updateFmStatusMsg:
-		fm.status = msg.status
+	case errMsg:
+		fm.status = statusMain
 	}
 
 	var cmds []tea.Cmd
 	switch fm.status {
-	case fwdStatusEntry:
+	case statusEntry:
 		fm.setFormHeight(fm.availHeight)
 		form, cmd := fm.form.Update(msg)
 		if f, ok := form.(*huh.Form); ok {
@@ -127,12 +121,13 @@ func (fm *fwdsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 		switch fm.form.State {
 		case huh.StateAborted:
-			cmds = append(cmds, updateFwdsStatus(fwdStatusTable))
+			fm.status = statusMain
 
 		case huh.StateCompleted:
 			res := fm.formResult
 			fwd := fwdFormResToForm(res)
-			cmds = append(cmds, fm.submitFwd(fwd), updateFwdsStatus(fwdStatusRefreshing))
+			fm.status = statusRefresh
+			cmds = append(cmds, fm.submitFwd(fwd))
 		}
 
 	default:
@@ -150,19 +145,27 @@ func (fm *fwdsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (fm *fwdsModel) View() string {
 	switch fm.status {
-	case fwdStatusInitializing:
+	case statusInit:
 		return fillSpaceCentered(useSpinner(fm.spinner, "Loading forwards..."), fm.availWidth, fm.availHeight)
-	case fwdStatusRefreshing:
+	case statusRefresh:
 		return fillSpaceCentered(useSpinner(fm.spinner, "Refreshing..."), fm.availWidth, fm.availHeight)
-	case fwdStatusTable:
+	case statusMain:
 		return fm.table.View()
-	case fwdStatusLoadingData:
+	case statusLoadingFormData:
 		return fillSpaceCentered(useSpinner(fm.spinner, "Loading form data..."), fm.availWidth, fm.availHeight)
-	case fwdStatusEntry:
+	case statusEntry:
 		return fm.form.View()
 	}
 
 	return fm.table.View()
+}
+
+func (fm *fwdsModel) Status() subModelStatus {
+	return fm.status
+}
+
+func (fm *fwdsModel) Form() *huh.Form {
+	return fm.form
 }
 
 func (fm *fwdsModel) setModuleDimensions() {
@@ -208,8 +211,7 @@ func (fm *fwdsModel) prepareForm() tea.Cmd {
 		}
 
 		if len(recips) == 0 {
-			currentErr = fmt.Errorf("no recipients available to create forward")
-			return updateFmStatusMsg{status: fwdStatusTable}
+			return noRecipsAvailMsg
 		}
 
 		sortRecips(recips)
@@ -224,7 +226,7 @@ func (fm *fwdsModel) submitFwd(fwd *models.NotifierForward) tea.Cmd {
 	return func() tea.Msg {
 		_, err := fm.SDKClient.CreateUserForward(fwd)
 		if err != nil {
-			currentErr = fmt.Errorf("creating notifier forward: %w", err)
+			return errMsg{fmt.Errorf("creating notifier forward: %w", err)}
 		}
 
 		return refreshFwdsMsg{}
@@ -234,7 +236,7 @@ func (fm *fwdsModel) submitFwd(fwd *models.NotifierForward) tea.Cmd {
 func (fm *fwdsModel) deleteFwd(id int) tea.Cmd {
 	return func() tea.Msg {
 		if err := fm.SDKClient.DeleteUserForward(id); err != nil {
-			currentErr = fmt.Errorf("deleting notifier forward: %w", err)
+			return errMsg{fmt.Errorf("deleting notifier forward: %w", err)}
 		}
 
 		return refreshFwdsMsg{}
@@ -245,7 +247,7 @@ func (fm *fwdsModel) getFwds() tea.Cmd {
 	return func() tea.Msg {
 		fwds, err := fm.SDKClient.ListUserForwards()
 		if err != nil {
-			currentErr = fmt.Errorf("listing notifier forwards: %w", err)
+			return errMsg{fmt.Errorf("listing notifier forwards: %w", err)}
 		}
 
 		return gotFwdsMsg{fwds: fwds}
@@ -379,10 +381,4 @@ func fwdFormResToForm(res *fwdsFormResult) *models.NotifierForward {
 	}
 
 	return fwd
-}
-
-func updateFwdsStatus(status fwdsModelStatus) tea.Cmd {
-	return func() tea.Msg {
-		return updateFmStatusMsg{status: status}
-	}
 }

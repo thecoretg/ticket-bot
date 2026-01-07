@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"errors"
+
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -9,6 +11,11 @@ type (
 	switchModelMsg  struct{ modelType }
 	resizeModelsMsg struct{ w, h int }
 	errMsg          struct{ error }
+)
+
+var (
+	noBoardsAvailMsg = errMsg{errors.New("form exited: no boards found")}
+	noRecipsAvailMsg = errMsg{errors.New("form exited: no recipients found")}
 )
 
 const (

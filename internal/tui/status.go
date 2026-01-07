@@ -1,12 +1,27 @@
 package tui
 
-type subModelStatus int
+type (
+	subModelStatus int
+)
 
 const (
 	statusInit subModelStatus = iota
-	statusMainView
+	statusMain
 	statusLoadingFormData
 	statusEntry
-	statusConfirmation
-	statusRefreshing
+	statusConfirm
+	statusRefresh
 )
+
+func (s subModelStatus) inForm() bool {
+	return s == statusEntry || s == statusConfirm
+}
+
+func (s subModelStatus) quittable() bool {
+	switch s {
+	case statusInit, statusMain, statusLoadingFormData:
+		return true
+	default:
+		return false
+	}
+}

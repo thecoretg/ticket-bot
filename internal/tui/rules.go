@@ -20,7 +20,7 @@ type (
 		form        *huh.Form
 		spinner     spinner.Model
 		formResult  *rulesFormResult
-		status      rulesModelStatus
+		status      subModelStatus
 
 		availWidth  int
 		availHeight int
@@ -39,17 +39,6 @@ type (
 
 	refreshRulesMsg struct{}
 	gotRulesMsg     struct{ rules []models.NotifierRuleFull }
-
-	updateRmStatusMsg struct{ status rulesModelStatus }
-	rulesModelStatus  int
-)
-
-const (
-	rmStatusInitializing rulesModelStatus = iota
-	rmStatusTable
-	rmStatusLoadingData
-	rmStatusEntry
-	rmStatusRefreshing
 )
 
 func newRulesModel(cl *sdk.Client) *rulesModel {
@@ -72,12 +61,14 @@ func (rm *rulesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
-		case key.Matches(msg, allKeys.newItem) && rm.status == rmStatusTable:
-			return rm, tea.Batch(updateRulesStatus(rmStatusLoadingData), rm.prepareForm())
-		case key.Matches(msg, allKeys.deleteItem) && rm.status == rmStatusTable:
+		case key.Matches(msg, allKeys.newItem) && rm.status == statusMain:
+			rm.status = statusLoadingFormData
+			return rm, tea.Batch(rm.prepareForm())
+		case key.Matches(msg, allKeys.deleteItem) && rm.status == statusMain:
 			if len(rm.rules) > 0 {
 				rule := rm.rules[rm.table.Cursor()]
-				return rm, tea.Batch(updateRulesStatus(rmStatusRefreshing), rm.deleteRule(rule.ID))
+				rm.status = statusRefresh
+				return rm, tea.Batch(rm.deleteRule(rule.ID))
 			}
 		}
 
@@ -92,21 +83,22 @@ func (rm *rulesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case gotRulesMsg:
 		rm.rules = msg.rules
 		rm.rulesLoaded = true
-		return rm, tea.Batch(updateRulesStatus(rmStatusTable), rm.setRows())
+		rm.status = statusMain
+		return rm, tea.Batch(rm.setRows())
 
 	case ruleFormDataMsg:
 		rm.formResult = &rulesFormResult{}
 		rm.form = ruleEntryForm(msg.boards, msg.recips, rm.formResult, rm.availHeight)
-		return rm, tea.Batch(updateRulesStatus(rmStatusEntry), rm.form.Init())
-
-	case updateRmStatusMsg:
-		rm.status = msg.status
+		rm.status = statusEntry
+		return rm, rm.form.Init()
+	case errMsg:
+		rm.status = statusMain
 	}
 
 	var cmds []tea.Cmd
 	switch rm.status {
 
-	case rmStatusEntry:
+	case statusEntry:
 		form, cmd := rm.form.Update(msg)
 		if f, ok := form.(*huh.Form); ok {
 			rm.form = f
@@ -115,7 +107,7 @@ func (rm *rulesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 		switch rm.form.State {
 		case huh.StateAborted:
-			cmds = append(cmds, updateRulesStatus(rmStatusTable))
+			rm.status = statusMain
 
 		case huh.StateCompleted:
 			res := rm.formResult
@@ -124,7 +116,8 @@ func (rm *rulesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				WebexRecipientID: res.recip.ID,
 				NotifyEnabled:    true,
 			}
-			cmds = append(cmds, rm.submitRule(rule), updateRulesStatus(rmStatusRefreshing))
+			rm.status = statusRefresh
+			cmds = append(cmds, rm.submitRule(rule))
 		}
 
 	default:
@@ -142,19 +135,27 @@ func (rm *rulesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (rm *rulesModel) View() string {
 	switch rm.status {
-	case rmStatusInitializing:
+	case statusInit:
 		return fillSpaceCentered(useSpinner(rm.spinner, "Loading rules..."), rm.availWidth, rm.availHeight)
-	case rmStatusRefreshing:
+	case statusRefresh:
 		return fillSpaceCentered(useSpinner(rm.spinner, "Refreshing..."), rm.availWidth, rm.availHeight)
-	case rmStatusTable:
+	case statusMain:
 		return rm.table.View()
-	case rmStatusLoadingData:
+	case statusLoadingFormData:
 		return fillSpaceCentered(useSpinner(rm.spinner, "Loading form data..."), rm.availWidth, rm.availHeight)
-	case rmStatusEntry:
+	case statusEntry:
 		return rm.form.View()
 	}
 
 	return rm.table.View()
+}
+
+func (rm *rulesModel) Status() subModelStatus {
+	return rm.status
+}
+
+func (rm *rulesModel) Form() *huh.Form {
+	return rm.form
 }
 
 func (rm *rulesModel) setModuleDimensions() {
@@ -183,11 +184,19 @@ func (rm *rulesModel) prepareForm() tea.Cmd {
 		if err != nil {
 			return errMsg{fmt.Errorf("listing boards: %w", err)}
 		}
+
+		if len(boards) == 0 {
+			return noBoardsAvailMsg
+		}
 		sortBoards(boards)
 
 		recips, err := rm.SDKClient.ListRecipients()
 		if err != nil {
 			return errMsg{fmt.Errorf("listing webex recipients: %w", err)}
+		}
+
+		if len(recips) == 0 {
+			return noRecipsAvailMsg
 		}
 		sortRecips(recips)
 
@@ -202,7 +211,7 @@ func (rm *rulesModel) submitRule(rule *models.NotifierRule) tea.Cmd {
 	return func() tea.Msg {
 		_, err := rm.SDKClient.CreateNotifierRule(rule)
 		if err != nil {
-			currentErr = fmt.Errorf("creating notifier rule: %w", err)
+			return errMsg{fmt.Errorf("creating notifier rule: %w", err)}
 		}
 
 		return refreshRulesMsg{}
@@ -212,7 +221,7 @@ func (rm *rulesModel) submitRule(rule *models.NotifierRule) tea.Cmd {
 func (rm *rulesModel) deleteRule(id int) tea.Cmd {
 	return func() tea.Msg {
 		if err := rm.SDKClient.DeleteNotifierRule(id); err != nil {
-			currentErr = fmt.Errorf("deleting notifier rule: %w", err)
+			return errMsg{fmt.Errorf("deleting notifier rule: %w", err)}
 		}
 
 		return refreshRulesMsg{}
@@ -223,7 +232,7 @@ func (rm *rulesModel) getRules() tea.Cmd {
 	return func() tea.Msg {
 		rules, err := rm.SDKClient.ListNotifierRules()
 		if err != nil {
-			currentErr = err
+			return errMsg{fmt.Errorf("getting rules: %w", err)}
 		}
 
 		return gotRulesMsg{rules: rules}
@@ -269,10 +278,4 @@ func ruleEntryForm(boards []models.Board, recips []models.WebexRecipient, result
 				Value(&result.recip),
 		),
 	).WithTheme(huh.ThemeBase16()).WithHeight(height + 1).WithShowHelp(false) // add +1 to height to account for not showing help
-}
-
-func updateRulesStatus(status rulesModelStatus) tea.Cmd {
-	return func() tea.Msg {
-		return updateRmStatusMsg{status: status}
-	}
 }

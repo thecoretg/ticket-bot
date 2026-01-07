@@ -84,9 +84,9 @@ func (m *Model) helpViewSize() (int, int) {
 }
 
 func (m *Model) helpView() string {
-	if m.activeModel == m.rulesModel && m.rulesModel.status == rmStatusEntry {
+	if m.activeModel.Status().inForm() {
 		// add quit bind to form help
-		f := m.rulesModel.form
+		f := m.activeModel.Form()
 		k := append(f.KeyBinds(), allKeys.quit)
 		return f.Help().ShortHelpView(k)
 	}
