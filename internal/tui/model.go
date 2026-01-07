@@ -23,6 +23,13 @@ type Model struct {
 	height int
 }
 
+type subModel interface {
+	Init() tea.Cmd
+	Update(msg tea.Msg) (tea.Model, tea.Cmd)
+	View() string
+	Status() subModelStatus
+}
+
 func NewModel(sl *sdk.Client) *Model {
 	rm := newRulesModel(sl)
 	fm := newFwdsModel(sl)
