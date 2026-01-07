@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/thecoretg/ticketbot/cmd/common"
+	"github.com/thecoretg/ticketbot/internal/tui"
 	"github.com/thecoretg/ticketbot/pkg/sdk"
 )
 
@@ -15,6 +17,17 @@ var (
 	rootCmd = &cobra.Command{
 		Use:          "tbot",
 		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := createClient(cmd, args); err != nil {
+				return fmt.Errorf("creating client: %w", err)
+			}
+			m := tui.NewModel(client)
+			if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
+				return err
+			}
+
+			return nil
+		},
 	}
 
 	versionCmd = &cobra.Command{
@@ -33,7 +46,7 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.AddCommand(adminCmd, versionCmd, pingCmd, authCheckCmd, syncCmd, listCmd, getCmd, createCmd, updateCmd, deleteCmd)
+	rootCmd.AddCommand(versionCmd, pingCmd, authCheckCmd, syncCmd, listCmd, getCmd, createCmd, updateCmd, deleteCmd)
 }
 
 func createClient(cmd *cobra.Command, args []string) error {
