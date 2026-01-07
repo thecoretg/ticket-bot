@@ -170,3 +170,26 @@ func TicketNoteToFullTicketNote(ctx context.Context, note *TicketNote, m MemberR
 		Contact:    contact,
 	}, nil
 }
+
+var ErrTicketStatusNotFound = errors.New("ticket status not found")
+
+type TicketStatus struct {
+	ID             int       `json:"id"`
+	BoardID        int       `json:"board_id"`
+	Name           string    `json:"name"`
+	DefaultStatus  bool      `json:"default_status"`
+	DisplayOnBoard bool      `json:"display_on_board"`
+	Inactive       bool      `json:"inactive"`
+	Closed         bool      `json:"closed"`
+	UpdatedOn      time.Time `json:"updated_on"`
+	AddedOn        time.Time `json:"added_on"`
+}
+
+type TicketStatusRepository interface {
+	WithTx(tx pgx.Tx) TicketStatusRepository
+	List(ctx context.Context) ([]*TicketStatus, error)
+	ListByBoard(ctx context.Context, boardID int) ([]*TicketStatus, error)
+	Get(ctx context.Context, id int) (*TicketStatus, error)
+	Upsert(ctx context.Context, s *TicketStatus) (*TicketStatus, error)
+	Delete(ctx context.Context, id int) error
+}
