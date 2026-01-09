@@ -88,6 +88,7 @@ type Ticket struct {
 	ID        int       `json:"id"`
 	Summary   string    `json:"summary"`
 	BoardID   int       `json:"board_id"`
+	StatusID  *int      `json:"status_id"`
 	OwnerID   *int      `json:"owner_id"`
 	CompanyID int       `json:"company_id"`
 	ContactID *int      `json:"contact_id"`
@@ -109,6 +110,7 @@ type TicketRepository interface {
 type FullTicket struct {
 	Ticket     Ticket
 	Board      Board
+	Status     TicketStatus
 	Company    Company
 	Contact    *Contact
 	Owner      *Member

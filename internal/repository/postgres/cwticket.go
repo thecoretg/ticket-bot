@@ -22,7 +22,8 @@ func NewTicketRepo(pool *pgxpool.Pool) *TicketRepo {
 
 func (p *TicketRepo) WithTx(tx pgx.Tx) models.TicketRepository {
 	return &TicketRepo{
-		queries: db.New(tx)}
+		queries: db.New(tx),
+	}
 }
 
 func (p *TicketRepo) List(ctx context.Context) ([]*models.Ticket, error) {
@@ -80,6 +81,7 @@ func ticketToUpsertParams(t *models.Ticket) db.UpsertTicketParams {
 		ID:        t.ID,
 		Summary:   t.Summary,
 		BoardID:   t.BoardID,
+		StatusID:  t.StatusID,
 		OwnerID:   t.OwnerID,
 		CompanyID: t.CompanyID,
 		ContactID: t.ContactID,
@@ -93,6 +95,7 @@ func ticketFromPG(pg *db.CwTicket) *models.Ticket {
 		ID:        pg.ID,
 		Summary:   pg.Summary,
 		BoardID:   pg.BoardID,
+		StatusID:  pg.StatusID,
 		OwnerID:   pg.OwnerID,
 		CompanyID: pg.CompanyID,
 		ContactID: pg.ContactID,

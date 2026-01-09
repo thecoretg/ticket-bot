@@ -108,6 +108,7 @@ type CwTicket struct {
 	UpdatedBy *string   `json:"updated_by"`
 	UpdatedOn time.Time `json:"updated_on"`
 	AddedOn   time.Time `json:"added_on"`
+	StatusID  *int      `json:"status_id"`
 }
 
 type CwTicketNote struct {

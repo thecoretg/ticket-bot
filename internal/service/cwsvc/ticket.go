@@ -92,6 +92,12 @@ func (s *Service) processTicket(ctx context.Context, id int, caller string) (req
 	}
 	logger = logger.With(boardLogGrp(board))
 
+	status, err := txSvc.ensureStatus(ctx, cwt.Status.ID, cwt.Board.ID)
+	if err != nil {
+		return req, fmt.Errorf("ensuring status in store: %w", err)
+	}
+	logger = logger.With(statusLogGrp(status))
+
 	company, err := txSvc.ensureCompany(ctx, cwt.Company.ID)
 	if err != nil {
 		return nil, fmt.Errorf("ensuring company in store: %w", err)
@@ -154,6 +160,7 @@ func (s *Service) processTicket(ctx context.Context, id int, caller string) (req
 
 	req.FullTicket = &models.FullTicket{
 		Board:      *board,
+		Status:     *status,
 		Ticket:     *ticket,
 		Company:    *company,
 		Contact:    contact,
@@ -184,11 +191,11 @@ func (s *Service) getCwData(ticketID int) (CWData, error) {
 
 func (s *Service) ensureBoard(ctx context.Context, id int) (*models.Board, error) {
 	b, err := s.Boards.Get(ctx, id)
-	if err == nil {
+	if err == nil && !s.checkTTL(b.UpdatedOn, "board", id) {
 		return b, nil
 	}
 
-	if !errors.Is(err, models.ErrBoardNotFound) {
+	if err != nil && !errors.Is(err, models.ErrBoardNotFound) {
 		return nil, fmt.Errorf("getting board from store: %w", err)
 	}
 
@@ -208,13 +215,49 @@ func (s *Service) ensureBoard(ctx context.Context, id int) (*models.Board, error
 	return b, nil
 }
 
+func (s *Service) ensureStatus(ctx context.Context, id, boardID int) (*models.TicketStatus, error) {
+	st, err := s.Statuses.Get(ctx, id)
+	if err == nil && !s.checkTTL(st.UpdatedOn, "status", id) {
+		return st, nil
+	}
+
+	if err != nil && !errors.Is(err, models.ErrTicketStatusNotFound) {
+		return nil, fmt.Errorf("getting status from store: %w", err)
+	}
+
+	_, err = s.ensureBoard(ctx, boardID)
+	if err != nil {
+		return nil, fmt.Errorf("ensuring status board in store: %w", err)
+	}
+
+	cw, err := s.CWClient.GetBoardStatus(id, nil, boardID)
+	if err != nil {
+		return nil, fmt.Errorf("getting status from cw: %w", err)
+	}
+
+	st, err = s.Statuses.Upsert(ctx, &models.TicketStatus{
+		ID:             id,
+		BoardID:        boardID,
+		Name:           cw.Name,
+		DefaultStatus:  cw.DefaultFlag,
+		DisplayOnBoard: cw.DisplayOnBoard,
+		Inactive:       cw.Inactive,
+		Closed:         cw.ClosedStatus,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("inserting board into store: %w", err)
+	}
+
+	return st, nil
+}
+
 func (s *Service) ensureCompany(ctx context.Context, id int) (*models.Company, error) {
 	c, err := s.Companies.Get(ctx, id)
-	if err == nil {
+	if err == nil && !s.checkTTL(c.UpdatedOn, "company", id) {
 		return c, nil
 	}
 
-	if !errors.Is(err, models.ErrCompanyNotFound) {
+	if err != nil && !errors.Is(err, models.ErrCompanyNotFound) {
 		return nil, fmt.Errorf("getting company from store: %w", err)
 	}
 
@@ -236,11 +279,11 @@ func (s *Service) ensureCompany(ctx context.Context, id int) (*models.Company, e
 
 func (s *Service) ensureContact(ctx context.Context, id int) (*models.Contact, error) {
 	c, err := s.Contacts.Get(ctx, id)
-	if err == nil {
+	if err == nil && !s.checkTTL(c.UpdatedOn, "contact", id) {
 		return c, nil
 	}
 
-	if !errors.Is(err, models.ErrContactNotFound) {
+	if err != nil && !errors.Is(err, models.ErrContactNotFound) {
 		return nil, fmt.Errorf("getting contact from store: %w", err)
 	}
 
@@ -273,11 +316,11 @@ func (s *Service) ensureContact(ctx context.Context, id int) (*models.Contact, e
 
 func (s *Service) ensureMemberByIdentifier(ctx context.Context, identifier string) (*models.Member, error) {
 	m, err := s.Members.GetByIdentifier(ctx, identifier)
-	if err == nil {
+	if err == nil && !s.checkTTL(m.UpdatedOn, "member", identifier) {
 		return m, nil
 	}
 
-	if !errors.Is(err, models.ErrMemberNotFound) {
+	if err != nil && !errors.Is(err, models.ErrMemberNotFound) {
 		return nil, fmt.Errorf("getting member from store: %w", err)
 	}
 
@@ -291,11 +334,11 @@ func (s *Service) ensureMemberByIdentifier(ctx context.Context, identifier strin
 
 func (s *Service) ensureMember(ctx context.Context, id int) (*models.Member, error) {
 	m, err := s.Members.Get(ctx, id)
-	if err == nil {
+	if err == nil && !s.checkTTL(m.UpdatedOn, "member", id) {
 		return m, nil
 	}
 
-	if !errors.Is(err, models.ErrMemberNotFound) {
+	if err != nil && !errors.Is(err, models.ErrMemberNotFound) {
 		return nil, fmt.Errorf("getting member from store: %w", err)
 	}
 
@@ -356,7 +399,7 @@ func (s *Service) ensureTicketNote(ctx context.Context, cwn *psa.ServiceTicketNo
 	}
 
 	n, err := s.Notes.Get(ctx, cwn.ID)
-	if err == nil {
+	if err == nil && !s.checkTTL(n.UpdatedOn, "ticket_note", cwn.ID) {
 		return models.TicketNoteToFullTicketNote(ctx, n, s.Members, s.Contacts)
 	}
 
@@ -447,6 +490,15 @@ func companyLogGrp(company *models.Company) slog.Attr {
 
 func boardLogGrp(board *models.Board) slog.Attr {
 	return slog.Group("board", "id", board.ID, "name", board.Name)
+}
+
+func statusLogGrp(status *models.TicketStatus) slog.Attr {
+	return slog.Group("status",
+		"id", status.ID,
+		"name", status.Name,
+		"closed", status.Closed,
+		"inactive", status.Inactive,
+	)
 }
 
 func ownerLogGrp(owner *models.Member) slog.Attr {
