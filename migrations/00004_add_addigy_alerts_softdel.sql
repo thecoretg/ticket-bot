@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS cw_ticket_status (
     inactive BOOLEAN NOT NULL,
     closed BOOLEAN NOT NULL,
     added_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS addigy_alert_config (
@@ -45,12 +46,24 @@ CREATE TABLE IF NOT EXISTS addigy_alert (
     added_on TIMESTAMP NOT NULL
 );
 
+ALTER TABLE cw_board ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE cw_company ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE cw_contact ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE cw_member ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE cw_ticket_note ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE cw_ticket ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE cw_ticket ADD COLUMN status_id INT REFERENCES cw_ticket_status(id);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
 ALTER TABLE cw_ticket DROP COLUMN status_id;
+ALTER TABLE cw_ticket DROP COLUMN deleted;
+ALTER TABLE cw_ticket_note DROP COLUMN deleted;
+ALTER TABLE cw_member DROP COLUMN deleted;
+ALTER TABLE cw_contact DROP COLUMN deleted;
+ALTER TABLE cw_company DROP COLUMN deleted;
+ALTER TABLE cw_board DROP COLUMN deleted;
 DROP TABLE IF EXISTS addigy_alert;
 DROP TABLE IF EXISTS addigy_alert_config;
 DROP TABLE IF EXISTS cw_ticket_status;

@@ -69,6 +69,7 @@ type CwBoard struct {
 	Name      string    `json:"name"`
 	UpdatedOn time.Time `json:"updated_on"`
 	AddedOn   time.Time `json:"added_on"`
+	Deleted   bool      `json:"deleted"`
 }
 
 type CwCompany struct {
@@ -76,6 +77,7 @@ type CwCompany struct {
 	Name      string    `json:"name"`
 	UpdatedOn time.Time `json:"updated_on"`
 	AddedOn   time.Time `json:"added_on"`
+	Deleted   bool      `json:"deleted"`
 }
 
 type CwContact struct {
@@ -85,6 +87,7 @@ type CwContact struct {
 	CompanyID *int      `json:"company_id"`
 	UpdatedOn time.Time `json:"updated_on"`
 	AddedOn   time.Time `json:"added_on"`
+	Deleted   bool      `json:"deleted"`
 }
 
 type CwMember struct {
@@ -95,6 +98,7 @@ type CwMember struct {
 	PrimaryEmail string    `json:"primary_email"`
 	UpdatedOn    time.Time `json:"updated_on"`
 	AddedOn      time.Time `json:"added_on"`
+	Deleted      bool      `json:"deleted"`
 }
 
 type CwTicket struct {
@@ -108,6 +112,7 @@ type CwTicket struct {
 	UpdatedBy *string   `json:"updated_by"`
 	UpdatedOn time.Time `json:"updated_on"`
 	AddedOn   time.Time `json:"added_on"`
+	Deleted   bool      `json:"deleted"`
 	StatusID  *int      `json:"status_id"`
 }
 
@@ -119,6 +124,7 @@ type CwTicketNote struct {
 	Content   *string   `json:"content"`
 	UpdatedOn time.Time `json:"updated_on"`
 	AddedOn   time.Time `json:"added_on"`
+	Deleted   bool      `json:"deleted"`
 }
 
 type CwTicketStatus struct {
@@ -131,6 +137,7 @@ type CwTicketStatus struct {
 	Closed         bool      `json:"closed"`
 	AddedOn        time.Time `json:"added_on"`
 	UpdatedOn      time.Time `json:"updated_on"`
+	Deleted        bool      `json:"deleted"`
 }
 
 type NotifierForward struct {

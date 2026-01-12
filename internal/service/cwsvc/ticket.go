@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/thecoretg/ticketbot/internal/models"
 	"github.com/thecoretg/ticketbot/pkg/psa"
 )
@@ -25,11 +24,12 @@ type CWData struct {
 	note   *psa.ServiceTicketNote
 }
 
-func (s *Service) DeleteTicket(ctx context.Context, id int) error {
-	if err := s.Tickets.Delete(ctx, id); err != nil {
-		return fmt.Errorf("deleting ticket from store: %w", err)
-	}
-	return nil
+func (s *Service) SoftDeleteTicket(ctx context.Context, id int) error {
+	return s.Tickets.SoftDelete(ctx, id)
+}
+
+func (s *Service) PermDeleteTicket(ctx context.Context, id int) error {
+	return s.Tickets.Delete(ctx, id)
 }
 
 func (s *Service) ProcessTicket(ctx context.Context, id int, caller string) (*models.FullTicket, error) {
@@ -42,7 +42,6 @@ func (s *Service) ProcessTicket(ctx context.Context, id int, caller string) (*mo
 }
 
 func (s *Service) processTicket(ctx context.Context, id int, caller string) (req *Request, err error) {
-	// TODO: make this less bad
 	req = &Request{
 		NoProcReason: "",
 		cd:           CWData{},
@@ -67,21 +66,16 @@ func (s *Service) processTicket(ctx context.Context, id int, caller string) (req
 		return req, fmt.Errorf("no data returned from connectwise for ticket %d", id)
 	}
 
-	// TODO: this is a bandaid. Move this logic to the repo.
-	txSvc := s
-	var tx pgx.Tx
-	if s.pool != nil {
-		tx, err = s.pool.Begin(ctx)
-		if err != nil {
-			return req, fmt.Errorf("beginning tx: %w", err)
-		}
-
-		txSvc = s.WithTX(tx)
-
-		defer func() {
-			_ = tx.Rollback(ctx)
-		}()
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return req, fmt.Errorf("beginning tx: %w", err)
 	}
+
+	txSvc := s.WithTX(tx)
+
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	cwt := cd.ticket
 	logger = logger.With(slog.Int("ticket_id", cwt.ID), slog.String("caller", caller))
@@ -151,11 +145,8 @@ func (s *Service) processTicket(ctx context.Context, id int, caller string) (req
 		logger = logger.With(noteLogGrp(note))
 	}
 
-	// TODO: this is a bandaid. Move this logic to the repo.
-	if s.pool != nil {
-		if err := tx.Commit(ctx); err != nil {
-			return nil, fmt.Errorf("committing transaction: %w", err)
-		}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("committing transaction: %w", err)
 	}
 
 	req.FullTicket = &models.FullTicket{
@@ -191,7 +182,7 @@ func (s *Service) getCwData(ticketID int) (CWData, error) {
 
 func (s *Service) ensureBoard(ctx context.Context, id int) (*models.Board, error) {
 	b, err := s.Boards.Get(ctx, id)
-	if err == nil && !s.checkTTL(b.UpdatedOn, "board", id) {
+	if err == nil && !s.withinTTL(b.UpdatedOn, "board", id) {
 		return b, nil
 	}
 
@@ -217,7 +208,7 @@ func (s *Service) ensureBoard(ctx context.Context, id int) (*models.Board, error
 
 func (s *Service) ensureStatus(ctx context.Context, id, boardID int) (*models.TicketStatus, error) {
 	st, err := s.Statuses.Get(ctx, id)
-	if err == nil && !s.checkTTL(st.UpdatedOn, "status", id) {
+	if err == nil && !s.withinTTL(st.UpdatedOn, "status", id) {
 		return st, nil
 	}
 
@@ -253,7 +244,7 @@ func (s *Service) ensureStatus(ctx context.Context, id, boardID int) (*models.Ti
 
 func (s *Service) ensureCompany(ctx context.Context, id int) (*models.Company, error) {
 	c, err := s.Companies.Get(ctx, id)
-	if err == nil && !s.checkTTL(c.UpdatedOn, "company", id) {
+	if err == nil && !s.withinTTL(c.UpdatedOn, "company", id) {
 		return c, nil
 	}
 
@@ -279,7 +270,7 @@ func (s *Service) ensureCompany(ctx context.Context, id int) (*models.Company, e
 
 func (s *Service) ensureContact(ctx context.Context, id int) (*models.Contact, error) {
 	c, err := s.Contacts.Get(ctx, id)
-	if err == nil && !s.checkTTL(c.UpdatedOn, "contact", id) {
+	if err == nil && !s.withinTTL(c.UpdatedOn, "contact", id) {
 		return c, nil
 	}
 
@@ -316,7 +307,7 @@ func (s *Service) ensureContact(ctx context.Context, id int) (*models.Contact, e
 
 func (s *Service) ensureMemberByIdentifier(ctx context.Context, identifier string) (*models.Member, error) {
 	m, err := s.Members.GetByIdentifier(ctx, identifier)
-	if err == nil && !s.checkTTL(m.UpdatedOn, "member", identifier) {
+	if err == nil && !s.withinTTL(m.UpdatedOn, "member", identifier) {
 		return m, nil
 	}
 
@@ -334,7 +325,7 @@ func (s *Service) ensureMemberByIdentifier(ctx context.Context, identifier strin
 
 func (s *Service) ensureMember(ctx context.Context, id int) (*models.Member, error) {
 	m, err := s.Members.Get(ctx, id)
-	if err == nil && !s.checkTTL(m.UpdatedOn, "member", id) {
+	if err == nil && !s.withinTTL(m.UpdatedOn, "member", id) {
 		return m, nil
 	}
 
@@ -370,6 +361,7 @@ func (s *Service) ensureTicket(ctx context.Context, cwt *psa.Ticket) (*models.Ti
 		ID:        cwt.ID,
 		Summary:   cwt.Summary,
 		BoardID:   cwt.Board.ID,
+		StatusID:  &cwt.Status.ID,
 		OwnerID:   intToPtr(cwt.Owner.ID),
 		CompanyID: cwt.Company.ID,
 		ContactID: intToPtr(cwt.Contact.ID),
@@ -399,7 +391,7 @@ func (s *Service) ensureTicketNote(ctx context.Context, cwn *psa.ServiceTicketNo
 	}
 
 	n, err := s.Notes.Get(ctx, cwn.ID)
-	if err == nil && !s.checkTTL(n.UpdatedOn, "ticket_note", cwn.ID) {
+	if err == nil && !s.withinTTL(n.UpdatedOn, "ticket_note", cwn.ID) {
 		return models.TicketNoteToFullTicketNote(ctx, n, s.Members, s.Contacts)
 	}
 

@@ -46,7 +46,7 @@ func (h *TicketbotHandler) processTicket(ctx context.Context, id int) {
 }
 
 func (h *TicketbotHandler) deleteTicket(ctx context.Context, id int) {
-	if err := h.Service.CW.DeleteTicket(ctx, id); err != nil {
-		slog.Error("deleting ticket from webhook", "ticket_id", id, "error", err)
+	if err := h.Service.CW.SoftDeleteTicket(ctx, id); err != nil {
+		slog.Error("soft deleting ticket from webhook", "ticket_id", id, "error", err)
 	}
 }

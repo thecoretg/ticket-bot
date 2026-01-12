@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func (s *Service) checkTTL(updatedOn time.Time, entity string, id any) bool {
+func (s *Service) withinTTL(updatedOn time.Time, entity string, id any) bool {
 	expiry := updatedOn.Add(s.TTL)
 	stale := time.Now().After(expiry)
 	if stale {
