@@ -37,12 +37,12 @@ func (s *Service) SyncBoards(ctx context.Context) error {
 
 	for _, b := range boardsToUpsert(cwb) {
 		if _, err := txSvc.CW.Boards.Upsert(ctx, b); err != nil {
-			slog.Error("board sync: upserting board", "board_id", b.ID, "error", err)
+			slog.Error("board sync: upserting board", "board_id", b.ID, "error", err.Error())
 			continue
 		}
 
 		if err := txSvc.SyncBoardStatuses(ctx, b.ID); err != nil {
-			slog.Error("board sync: status sync", "board_id", b.ID, "error", err)
+			slog.Error("board sync: status sync", "board_id", b.ID, "error", err.Error())
 		}
 	}
 

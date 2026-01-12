@@ -56,7 +56,7 @@ func (s *Service) SyncOpenTickets(ctx context.Context, boardIDs []int, maxSyncs 
 
 	for err := range errCh {
 		if err != nil {
-			slog.Error("cwsvc: syncing ticket", "error", err)
+			slog.Error("cwsvc: syncing ticket", "error", err.Error())
 		}
 	}
 	slog.Info("cwsvc: syncing tickets complete", "took_time", time.Since(start))

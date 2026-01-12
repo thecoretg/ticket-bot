@@ -30,7 +30,7 @@ func (h *SyncHandler) HandleSync(c *gin.Context) {
 	ctx := context.WithoutCancel(c.Request.Context())
 	go func() {
 		if err := h.Svc.Sync(ctx, p); err != nil {
-			slog.Error("syncing", "error", err)
+			slog.Error("syncing", "error", err.Error())
 		}
 	}()
 

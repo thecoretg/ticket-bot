@@ -94,7 +94,7 @@ func (s *Service) processTicket(ctx context.Context, id int, caller string) (req
 
 	company, err := txSvc.ensureCompany(ctx, cwt.Company.ID)
 	if err != nil {
-		return nil, fmt.Errorf("ensuring company in store: %w", err)
+		return req, fmt.Errorf("ensuring company in store: %w", err)
 	}
 	logger = logger.With(companyLogGrp(company))
 
@@ -102,7 +102,7 @@ func (s *Service) processTicket(ctx context.Context, id int, caller string) (req
 	if cwt.Contact.ID != 0 {
 		contact, err = txSvc.ensureContact(ctx, cwt.Contact.ID)
 		if err != nil {
-			return nil, fmt.Errorf("ensuring ticket contact in store: %w", err)
+			return req, fmt.Errorf("ensuring ticket contact in store: %w", err)
 		}
 		logger = logger.With(contactLogGrp(contact))
 	}
@@ -111,14 +111,14 @@ func (s *Service) processTicket(ctx context.Context, id int, caller string) (req
 	if cwt.Owner.ID != 0 {
 		owner, err = txSvc.ensureMember(ctx, cwt.Owner.ID)
 		if err != nil {
-			return nil, fmt.Errorf("ensuring ticket owner in store: %w", err)
+			return req, fmt.Errorf("ensuring ticket owner in store: %w", err)
 		}
 		logger = logger.With(ownerLogGrp(owner))
 	}
 
 	ticket, err := txSvc.ensureTicket(ctx, cd.ticket)
 	if err != nil {
-		return nil, fmt.Errorf("ensuring ticket in store: %w", err)
+		return req, fmt.Errorf("ensuring ticket in store: %w", err)
 	}
 
 	var rsc []*models.Member
@@ -128,7 +128,7 @@ func (s *Service) processTicket(ctx context.Context, id int, caller string) (req
 		for _, i := range ids {
 			member, err := txSvc.ensureMemberByIdentifier(ctx, i)
 			if err != nil {
-				logger.Warn("cwsvc: error getting resource member by identifier", "identifier", i, "error", err)
+				logger.Warn("cwsvc: error getting resource member by identifier", "identifier", i, "error", err.Error())
 				continue
 			}
 
@@ -140,13 +140,13 @@ func (s *Service) processTicket(ctx context.Context, id int, caller string) (req
 	if cd.note != nil && cd.note.ID != 0 {
 		note, err = txSvc.ensureTicketNote(ctx, cd.note)
 		if err != nil {
-			return nil, fmt.Errorf("ensuring ticket note in store: %w", err)
+			return req, fmt.Errorf("ensuring ticket note in store: %w", err)
 		}
 		logger = logger.With(noteLogGrp(note))
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("committing transaction: %w", err)
+		return req, fmt.Errorf("committing transaction: %w", err)
 	}
 
 	req.FullTicket = &models.FullTicket{
@@ -465,12 +465,17 @@ func strToPtr(s string) *string {
 }
 
 func logRequest(req *Request, err error, logger *slog.Logger) {
+	if req == nil {
+		logger.Error("received nil request")
+		return
+	}
+
 	if req.NoProcReason != "" {
 		logger = logger.With("no_process_reason", req.NoProcReason)
 	}
 
 	if err != nil {
-		logger.Error("error occured processing ticket", "error", err)
+		logger.Error("error occured processing ticket", "error", err.Error())
 	} else {
 		logger.Info("ticket processed")
 	}
