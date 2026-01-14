@@ -32,9 +32,11 @@ type (
 	}
 
 	AlertSearchParams struct {
-		Query   AlertsQuery `json:"query"`
-		Page    int         `json:"page"`
-		PerPage int         `json:"per_page"`
+		Query         AlertsQuery `json:"query"`
+		Page          int         `json:"page,omitempty"`
+		PerPage       int         `json:"per_page,omitempty"`
+		SortDirection string      `json:"sort_direction,omitempty"`
+		SortField     string      `json:"sort_field,omitempty"`
 	}
 
 	AlertsQuery struct {
@@ -43,8 +45,6 @@ type (
 		Category          string   `json:"category,omitempty"`
 		RemediationStatus string   `json:"remediation_status,omitempty"`
 		Statuses          []string `json:"statuses,omitempty"`
-		SortDirection     string   `json:"sort_direction,omitempty"`
-		SortField         string   `json:"sort_field,omitempty"`
 	}
 
 	DeviceSearchParams struct {
@@ -73,29 +73,33 @@ type (
 	}
 
 	Alert struct {
-		ID                    string    `json:"id"`
-		OrgID                 string    `json:"orgid"`
-		Name                  string    `json:"name"`
-		Status                string    `json:"status"`
-		AgentID               string    `json:"agent_id"`
-		FactName              string    `json:"fact_name"`
-		FactIdentifier        string    `json:"fact_identifier"`
-		Value                 any       `json:"value"`
-		ValueType             string    `json:"value_type"`
-		Selector              string    `json:"selector"`
-		Level                 string    `json:"level"`
-		Category              string    `json:"category"`
-		Emails                []string  `json:"emails"`
-		RemediationEnabled    bool      `json:"remediation_enabled"`
-		RemediationTime       int       `json:"remediation_time"`
-		RemediationStatus     string    `json:"remediation_status"`
-		CreatedDate           time.Time `json:"created_date"`
-		ResolvedUserEmail     string    `json:"resolved_user_email"`
-		ResolvedDate          time.Time `json:"resolved_date"`
-		SecondsToResolved     int       `json:"seconds_to_resolved"`
-		AcknowledgedUserEmail string    `json:"ack_user_email"`
-		AcknowledgedDate      time.Time `json:"ack_date"`
-		SecondsToAcknowledge  int       `json:"seconds_to_ack"`
-		Muted                 bool      `json:"muted"`
+		// TODO: Find a solution to empty time strings; Addigy's API returns "" for
+		// time such as ResolvedDate instead of null, and therefore it can't unmarshal
+		// into time.Time. Probably need to do something like RespAlertToAlert.
+
+		ID                    string   `json:"id,omitempty"`
+		OrgID                 string   `json:"orgid,omitempty"`
+		Name                  string   `json:"name,omitempty"`
+		Status                string   `json:"status,omitempty"`
+		AgentID               string   `json:"agent_id,omitempty"`
+		FactName              string   `json:"fact_name,omitempty"`
+		FactIdentifier        string   `json:"fact_identifier,omitempty"`
+		Value                 any      `json:"value,omitempty"`
+		ValueType             string   `json:"value_type,omitempty"`
+		Selector              string   `json:"selector,omitempty"`
+		Level                 string   `json:"level,omitempty"`
+		Category              string   `json:"category,omitempty"`
+		Emails                []string `json:"emails,omitempty"`
+		RemediationEnabled    bool     `json:"remediation_enabled,omitempty"`
+		RemediationTime       int      `json:"remediation_time,omitempty"`
+		RemediationStatus     string   `json:"remediation_status,omitempty"`
+		CreatedDate           string   `json:"created_date,omitempty"`
+		ResolvedUserEmail     string   `json:"resolved_user_email,omitempty"`
+		ResolvedDate          string   `json:"resolved_date,omitempty"`
+		SecondsToResolved     int      `json:"seconds_to_resolved,omitempty"`
+		AcknowledgedUserEmail string   `json:"ack_user_email,omitempty"`
+		AcknowledgedDate      string   `json:"ack_date,omitempty"`
+		SecondsToAcknowledge  int      `json:"seconds_to_ack,omitempty"`
+		Muted                 bool     `json:"muted,omitempty"`
 	}
 )

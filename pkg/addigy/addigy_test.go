@@ -40,6 +40,21 @@ func TestDeviceSearch(t *testing.T) {
 	}
 }
 
+func TestGetAlert(t *testing.T) {
+	cl, err := testClient(t)
+	if err != nil {
+		t.Fatalf("creating test client: %v", err)
+	}
+
+	id := "69680c02c697b82ded996037"
+	a, err := cl.GetAlert(id)
+	if err != nil {
+		t.Fatalf("getting alert: %v", err)
+	}
+
+	t.Logf("Got alert; name:%s, fact:%s", a.Name, a.FactName)
+}
+
 func testClient(t *testing.T) (*Client, error) {
 	t.Helper()
 	token := os.Getenv("ADDIGY_TOKEN")
