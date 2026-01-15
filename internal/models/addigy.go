@@ -60,7 +60,7 @@ type AddigyAlertRepository interface {
 	ListByTicket(ctx context.Context, ticketID int) ([]*AddigyAlert, error)
 	Get(ctx context.Context, id string) (*AddigyAlert, error)
 	Create(ctx context.Context, a *AddigyAlert) (*AddigyAlert, error)
-	Update(ctx context.Context, a *AddigyAlert) (*AddigyAlert, error)
+	Upsert(ctx context.Context, a *AddigyAlert) (*AddigyAlert, error)
 	UpdateTicket(ctx context.Context, id string, ticketID *int) error
 	UpdateStatus(ctx context.Context, id string, status string) error
 	Acknowledge(ctx context.Context, id string, acknowledgedOn time.Time) error

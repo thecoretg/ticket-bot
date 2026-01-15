@@ -101,5 +101,6 @@ type (
 		AcknowledgedDate      string   `json:"ack_date,omitempty"`
 		SecondsToAcknowledge  int      `json:"seconds_to_ack,omitempty"`
 		Muted                 bool     `json:"muted,omitempty"`
+		TicketID              *int     `json:"ticket_id,omitempty"`
 	}
 )

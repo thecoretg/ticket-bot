@@ -104,8 +104,8 @@ func (p *AddigyAlertRepo) Create(ctx context.Context, a *models.AddigyAlert) (*m
 	return addigyAlertFromPG(d), nil
 }
 
-func (p *AddigyAlertRepo) Update(ctx context.Context, a *models.AddigyAlert) (*models.AddigyAlert, error) {
-	d, err := p.queries.UpdateAddigyAlert(ctx, addigyAlertToUpdateParams(a))
+func (p *AddigyAlertRepo) Upsert(ctx context.Context, a *models.AddigyAlert) (*models.AddigyAlert, error) {
+	d, err := p.queries.UpsertAddigyAlert(ctx, addigyAlertToUpsertParams(a))
 	if err != nil {
 		return nil, err
 	}
@@ -203,8 +203,8 @@ func addigyAlertToCreateParams(a *models.AddigyAlert) db.CreateAddigyAlertParams
 	}
 }
 
-func addigyAlertToUpdateParams(a *models.AddigyAlert) db.UpdateAddigyAlertParams {
-	return db.UpdateAddigyAlertParams{
+func addigyAlertToUpsertParams(a *models.AddigyAlert) db.UpsertAddigyAlertParams {
+	return db.UpsertAddigyAlertParams{
 		ID:              a.ID,
 		TicketID:        a.TicketID,
 		Level:           a.Level,
@@ -221,6 +221,7 @@ func addigyAlertToUpdateParams(a *models.AddigyAlert) db.UpdateAddigyAlertParams
 		ResolvedByEmail: a.ResolvedByEmail,
 		ResolvedOn:      a.ResolvedOn,
 		AcknowledgedOn:  a.AcknowledgedOn,
+		AddedOn:         a.AddedOn,
 	}
 }
 

@@ -75,25 +75,43 @@ INSERT INTO addigy_alert (
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 RETURNING *;
 
--- name: UpdateAddigyAlert :one
-UPDATE addigy_alert
-SET
-    ticket_id = $2,
-    level = $3,
-    category = $4,
-    name = $5,
-    fact_name = $6,
-    fact_identifier = $7,
-    fact_type = $8,
-    selector = $9,
-    status = $10,
-    value = $11,
-    muted = $12,
-    remediation = $13,
-    resolved_by_email = $14,
-    resolved_on = $15,
-    acknowledged_on = $16
-WHERE id = $1
+-- name: UpsertAddigyAlert :one
+INSERT INTO addigy_alert (
+    id,
+    ticket_id,
+    level,
+    category,
+    name,
+    fact_name,
+    fact_identifier,
+    fact_type,
+    selector,
+    status,
+    value,
+    muted,
+    remediation,
+    resolved_by_email,
+    resolved_on,
+    acknowledged_on,
+    added_on
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+ON CONFLICT (id) DO UPDATE SET
+    ticket_id = EXCLUDED.ticket_id,
+    level = EXCLUDED.level,
+    category = EXCLUDED.category,
+    name = EXCLUDED.name,
+    fact_name = EXCLUDED.fact_name,
+    fact_identifier = EXCLUDED.fact_identifier,
+    fact_type = EXCLUDED.fact_type,
+    selector = EXCLUDED.selector,
+    status = EXCLUDED.status,
+    value = EXCLUDED.value,
+    muted = EXCLUDED.muted,
+    remediation = EXCLUDED.remediation,
+    resolved_by_email = EXCLUDED.resolved_by_email,
+    resolved_on = EXCLUDED.resolved_on,
+    acknowledged_on = EXCLUDED.acknowledged_on
 RETURNING *;
 
 -- name: UpdateAddigyAlertTicket :exec
