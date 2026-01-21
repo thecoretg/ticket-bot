@@ -6,3 +6,5 @@
 *config.json
 *.key
 bin/
+# Added by goreleaser init:
+dist/

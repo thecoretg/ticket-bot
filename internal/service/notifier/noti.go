@@ -19,6 +19,8 @@ type Request struct {
 	NoNotiReason    string
 }
 
+const NoNotiReasonSync = "ticket sync"
+
 func newRequest(ticket *models.FullTicket) *Request {
 	return &Request{
 		Ticket: ticket,
@@ -77,6 +79,11 @@ func (s *Service) processNotifications(ctx context.Context, t *models.FullTicket
 	logger := slog.Default().With("ticket_id", t.Ticket.ID)
 	defer func() {
 		logRequest(req, err, logger)
+		if req.Ticket != nil && req.NoNotiReason != "" {
+			if err := s.AddSkippedNotification(ctx, req.Ticket, fmt.Sprintf("notifier: %s", req.NoNotiReason)); err != nil {
+				logger.Error("adding skipped notification")
+			}
+		}
 	}()
 
 	rules, err := s.NotifierRules.ListByBoard(ctx, t.Board.ID)
