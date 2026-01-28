@@ -12,21 +12,17 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/thecoretg/ticketbot/internal/models"
-	"github.com/thecoretg/ticketbot/pkg/sdk"
 )
 
 type (
 	fwdsModel struct {
-		SDKClient  *sdk.Client
-		fwdsLoaded bool
-		table      table.Model
-		form       *huh.Form
-		formResult *fwdsFormResult
-		status     subModelStatus
+		parent *Model
 
-		availWidth  int
-		availHeight int
-
+		fwdsLoaded       bool
+		table            table.Model
+		form             *huh.Form
+		formResult       *fwdsFormResult
+		status           subModelStatus
 		fwds             []models.NotifierForwardFull
 		fwdToDelete      models.NotifierForwardFull
 		fwdDeleteConfirm bool
@@ -47,12 +43,6 @@ type (
 	refreshFwdsMsg struct{}
 	gotFwdsMsg     struct{ fwds []models.NotifierForwardFull }
 
-	fwdsModelParams struct {
-		sdkClient     *sdk.Client
-		initialWidth  int
-		initialHeight int
-		initialFwds   []models.NotifierForwardFull
-	}
 )
 
 var (
@@ -60,15 +50,13 @@ var (
 	errEndEarlierThanStart = errors.New("end time cannot be before start time")
 )
 
-func newFwdsModel(p fwdsModelParams) *fwdsModel {
+func newFwdsModel(parent *Model, initialFwds []models.NotifierForwardFull) *fwdsModel {
 	fm := &fwdsModel{
-		SDKClient:   p.sdkClient,
-		fwds:        p.initialFwds,
-		availWidth:  p.initialWidth,
-		availHeight: p.initialHeight,
-		table:       newTable(),
-		formResult:  &fwdsFormResult{},
-		status:      statusMain,
+		parent:     parent,
+		fwds:       initialFwds,
+		table:      newTable(),
+		formResult: &fwdsFormResult{},
+		status:     statusMain,
 	}
 
 	fm.setModuleDimensions()
@@ -89,14 +77,14 @@ func (fm *fwdsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, allKeys.deleteItem) && fm.status == statusMain:
 			if len(fm.fwds) > 0 {
 				fm.fwdToDelete = fm.fwds[fm.table.Cursor()]
-				fm.form = confirmationForm("Delete forward?", &fm.fwdDeleteConfirm, fm.availHeight)
+				fm.form = confirmationForm("Delete forward?", &fm.fwdDeleteConfirm, fm.parent.availHeight)
 				fm.status = statusConfirm
 				return fm, fm.form.Init()
 			}
 		}
 	case resizeModelsMsg:
-		fm.availWidth = msg.w
-		fm.availHeight = msg.h
+		fm.parent.width = msg.w
+		fm.parent.availHeight = msg.h
 		fm.setModuleDimensions()
 		if fm.status == statusInit {
 			fm.status = statusMain
@@ -139,7 +127,7 @@ func (fm *fwdsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch fm.status {
 	case statusEntry, statusConfirm:
-		fm.setFormHeight(fm.availHeight)
+		fm.setFormHeight(fm.parent.availHeight)
 		form, cmd := fm.form.Update(msg)
 		if f, ok := form.(*huh.Form); ok {
 			fm.form = f
@@ -175,13 +163,13 @@ func (fm *fwdsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (fm *fwdsModel) View() string {
 	switch fm.status {
 	case statusInit:
-		return fillSpaceCentered(useSpinner(spn, "Loading forwards..."), fm.availWidth, fm.availHeight)
+		return fillSpaceCentered(useSpinner(spn, "Loading forwards..."), fm.parent.width, fm.parent.availHeight)
 	case statusRefresh:
-		return fillSpaceCentered(useSpinner(spn, "Refreshing..."), fm.availWidth, fm.availHeight)
+		return fillSpaceCentered(useSpinner(spn, "Refreshing..."), fm.parent.width, fm.parent.availHeight)
 	case statusMain:
 		return fm.table.View()
 	case statusLoadingFormData:
-		return fillSpaceCentered(useSpinner(spn, "Loading form data..."), fm.availWidth, fm.availHeight)
+		return fillSpaceCentered(useSpinner(spn, "Loading form data..."), fm.parent.width, fm.parent.availHeight)
 	case statusEntry, statusConfirm:
 		return fm.form.View()
 	}
@@ -202,13 +190,15 @@ func (fm *fwdsModel) Table() table.Model {
 }
 
 func (fm *fwdsModel) setModuleDimensions() {
-	fm.setTableDimensions(fm.availWidth, fm.availHeight)
+	fm.setTableDimensions()
 	if fm.form != nil {
-		fm.setFormHeight(fm.availHeight)
+		fm.setFormHeight(fm.parent.availHeight)
 	}
 }
 
-func (fm *fwdsModel) setTableDimensions(w, h int) {
+func (fm *fwdsModel) setTableDimensions() {
+	w := fm.parent.width
+	h := fm.parent.availHeight
 	t := &fm.table
 	enableW := 8
 	keepW := 8
@@ -238,7 +228,7 @@ func (fm *fwdsModel) setFormHeight(h int) {
 
 func (fm *fwdsModel) prepareForm() tea.Cmd {
 	return func() tea.Msg {
-		recips, err := fm.SDKClient.ListRecipients()
+		recips, err := fm.parent.SDKClient.ListRecipients()
 		if err != nil {
 			return errMsg{fmt.Errorf("listing recipients: %w", err)}
 		}
@@ -257,7 +247,7 @@ func (fm *fwdsModel) prepareForm() tea.Cmd {
 
 func (fm *fwdsModel) submitFwd(fwd *models.NotifierForward) tea.Cmd {
 	return func() tea.Msg {
-		_, err := fm.SDKClient.CreateUserForward(fwd)
+		_, err := fm.parent.SDKClient.CreateUserForward(fwd)
 		if err != nil {
 			return errMsg{fmt.Errorf("creating notifier forward: %w", err)}
 		}
@@ -268,7 +258,7 @@ func (fm *fwdsModel) submitFwd(fwd *models.NotifierForward) tea.Cmd {
 
 func (fm *fwdsModel) deleteFwd(id int) tea.Cmd {
 	return func() tea.Msg {
-		if err := fm.SDKClient.DeleteUserForward(id); err != nil {
+		if err := fm.parent.SDKClient.DeleteUserForward(id); err != nil {
 			return errMsg{fmt.Errorf("deleting notifier forward: %w", err)}
 		}
 
@@ -278,7 +268,7 @@ func (fm *fwdsModel) deleteFwd(id int) tea.Cmd {
 
 func (fm *fwdsModel) getFwds() tea.Cmd {
 	return func() tea.Msg {
-		fwds, err := fm.SDKClient.ListUserForwards()
+		fwds, err := fm.parent.SDKClient.ListUserForwards()
 		if err != nil {
 			return errMsg{fmt.Errorf("listing notifier forwards: %w", err)}
 		}

@@ -20,15 +20,17 @@ var (
 )
 
 type Model struct {
-	SDKClient   *sdk.Client
-	initialized bool
-	activeModel subModel
-	rulesModel  *rulesModel
-	fwdsModel   *fwdsModel
-	usersModel  *usersModel
-	help        help.Model
-	width       int
-	height      int
+	SDKClient     *sdk.Client
+	initialized   bool
+	currentUserID int
+	activeModel   subModel
+	rulesModel    *rulesModel
+	fwdsModel     *fwdsModel
+	usersModel    *usersModel
+	help          help.Model
+	width         int
+	height        int
+	availHeight   int
 }
 
 type modelsReadyMsg struct {
@@ -53,7 +55,7 @@ func NewModel(sl *sdk.Client) *Model {
 	}
 }
 
-func (m *Model) createSubModels(w, h int) tea.Cmd {
+func (m *Model) createSubModels() tea.Cmd {
 	return func() tea.Msg {
 		rules, err := m.SDKClient.ListNotifierRules()
 		if err != nil {
@@ -70,37 +72,27 @@ func (m *Model) createSubModels(w, h int) tea.Cmd {
 			return errMsg{fmt.Errorf("listing initial users: %w", err)}
 		}
 
-		rp := rulesModelParams{
-			sdkClient:     m.SDKClient,
-			initialRules:  rules,
-			initialWidth:  w,
-			initialHeight: h,
-		}
-
-		fp := fwdsModelParams{
-			sdkClient:     m.SDKClient,
-			initialFwds:   fwds,
-			initialWidth:  w,
-			initialHeight: h,
-		}
-
-		up := usersModelParams{
-			sdkClient:     m.SDKClient,
-			initialUsers:  users,
-			initialWidth:  w,
-			initialHeight: h,
-		}
-
 		return modelsReadyMsg{
-			rules: newRulesModel(rp),
-			fwds:  newFwdsModel(fp),
-			users: newUsersModel(up),
+			rules: newRulesModel(m, rules),
+			fwds:  newFwdsModel(m, fwds),
+			users: newUsersModel(m, users),
 		}
 	}
 }
 
 func (m *Model) Init() tea.Cmd {
-	return spn.Tick
+	return tea.Batch(spn.Tick, m.getCurrentUser())
+}
+
+func (m *Model) getCurrentUser() tea.Cmd {
+	return func() tea.Msg {
+		user, err := m.SDKClient.GetCurrentUser()
+		if err != nil {
+			return errMsg{fmt.Errorf("getting current user: %w", err)}
+		}
+
+		return gotCurrentUserMsg{userID: user.ID}
+	}
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -112,12 +104,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		_, hv := m.helpViewSize()
 		ev := lipgloss.Height(errView(currentErr))
 		th := lipgloss.Height(m.headerView())
+		m.availHeight = m.height - hv - ev - th
 
 		if !m.initialized {
-			return m, m.createSubModels(m.width, m.height-hv-ev-th)
+			return m, m.createSubModels()
 		}
 
-		cmds = append(cmds, resizeModels(m.width, m.height-hv-ev-th))
+		cmds = append(cmds, resizeModels(m.width, m.availHeight))
 	case tea.KeyMsg:
 		switch {
 		case !isGlobalKey(msg):
@@ -174,11 +167,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case gotCurrentUserMsg:
-		users, cmd := m.usersModel.Update(msg)
-		if u, ok := users.(*usersModel); ok {
-			m.usersModel = u
-		}
-		cmds = append(cmds, cmd)
+		m.currentUserID = msg.userID
 	case errMsg:
 		currentErr = msg.error
 	}

@@ -8,20 +8,17 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/thecoretg/ticketbot/internal/models"
-	"github.com/thecoretg/ticketbot/pkg/sdk"
 )
 
 type (
 	rulesModel struct {
-		SDKClient   *sdk.Client
-		rulesLoaded bool
-		table       table.Model
-		form        *huh.Form
-		formResult  *rulesFormResult
-		status      subModelStatus
-		availWidth  int
-		availHeight int
+		parent *Model
 
+		rulesLoaded       bool
+		table             table.Model
+		form              *huh.Form
+		formResult        *rulesFormResult
+		status            subModelStatus
 		rules             []models.NotifierRuleFull
 		ruleToDelete      models.NotifierRuleFull
 		ruleDeleteConfirm bool
@@ -40,23 +37,15 @@ type (
 	refreshRulesMsg struct{}
 	gotRulesMsg     struct{ rules []models.NotifierRuleFull }
 
-	rulesModelParams struct {
-		sdkClient     *sdk.Client
-		initialWidth  int
-		initialHeight int
-		initialRules  []models.NotifierRuleFull
-	}
 )
 
-func newRulesModel(p rulesModelParams) *rulesModel {
+func newRulesModel(parent *Model, initialRules []models.NotifierRuleFull) *rulesModel {
 	rm := &rulesModel{
-		SDKClient:   p.sdkClient,
-		rules:       p.initialRules,
-		availWidth:  p.initialWidth,
-		availHeight: p.initialHeight,
-		table:       newTable(),
-		formResult:  &rulesFormResult{},
-		status:      statusMain,
+		parent:     parent,
+		rules:      initialRules,
+		table:      newTable(),
+		formResult: &rulesFormResult{},
+		status:     statusMain,
 	}
 	rm.setModuleDimensions()
 	return rm
@@ -76,15 +65,15 @@ func (rm *rulesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, allKeys.deleteItem) && rm.status == statusMain:
 			if len(rm.rules) > 0 {
 				rm.ruleToDelete = rm.rules[rm.table.Cursor()]
-				rm.form = confirmationForm("Delete rule?", &rm.ruleDeleteConfirm, rm.availHeight)
+				rm.form = confirmationForm("Delete rule?", &rm.ruleDeleteConfirm, rm.parent.availHeight)
 				rm.status = statusConfirm
 				return rm, rm.form.Init()
 			}
 		}
 
 	case resizeModelsMsg:
-		rm.availWidth = msg.w
-		rm.availHeight = msg.h
+		rm.parent.width = msg.w
+		rm.parent.availHeight = msg.h
 		rm.setModuleDimensions()
 		if rm.status == statusInit {
 			rm.status = statusMain
@@ -101,7 +90,7 @@ func (rm *rulesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ruleFormDataMsg:
 		rm.formResult = &rulesFormResult{}
-		rm.form = ruleEntryForm(msg.boards, msg.recips, rm.formResult, rm.availHeight)
+		rm.form = ruleEntryForm(msg.boards, msg.recips, rm.formResult, rm.parent.availHeight)
 		rm.status = statusEntry
 		return rm, rm.form.Init()
 
@@ -167,13 +156,13 @@ func (rm *rulesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (rm *rulesModel) View() string {
 	switch rm.status {
 	case statusInit:
-		return fillSpaceCentered(useSpinner(spn, "Loading rules..."), rm.availWidth, rm.availHeight)
+		return fillSpaceCentered(useSpinner(spn, "Loading rules..."), rm.parent.width, rm.parent.availHeight)
 	case statusRefresh:
-		return fillSpaceCentered(useSpinner(spn, "Refreshing..."), rm.availWidth, rm.availHeight)
+		return fillSpaceCentered(useSpinner(spn, "Refreshing..."), rm.parent.width, rm.parent.availHeight)
 	case statusMain:
 		return rm.table.View()
 	case statusLoadingFormData:
-		return fillSpaceCentered(useSpinner(spn, "Loading form data..."), rm.availWidth, rm.availHeight)
+		return fillSpaceCentered(useSpinner(spn, "Loading form data..."), rm.parent.width, rm.parent.availHeight)
 	case statusEntry, statusConfirm:
 		return rm.form.View()
 	}
@@ -194,10 +183,12 @@ func (rm *rulesModel) Table() table.Model {
 }
 
 func (rm *rulesModel) setModuleDimensions() {
-	rm.setTableDimensions(rm.availWidth, rm.availHeight)
+	rm.setTableDimensions()
 }
 
-func (rm *rulesModel) setTableDimensions(w, h int) {
+func (rm *rulesModel) setTableDimensions() {
+	w := rm.parent.width
+	h := rm.parent.availHeight
 	t := &rm.table
 	enableW := 8
 	boardW := 20
@@ -215,7 +206,7 @@ func (rm *rulesModel) setTableDimensions(w, h int) {
 
 func (rm *rulesModel) prepareForm() tea.Cmd {
 	return func() tea.Msg {
-		boards, err := rm.SDKClient.ListBoards()
+		boards, err := rm.parent.SDKClient.ListBoards()
 		if err != nil {
 			return errMsg{fmt.Errorf("listing boards: %w", err)}
 		}
@@ -225,7 +216,7 @@ func (rm *rulesModel) prepareForm() tea.Cmd {
 		}
 		sortBoards(boards)
 
-		recips, err := rm.SDKClient.ListRecipients()
+		recips, err := rm.parent.SDKClient.ListRecipients()
 		if err != nil {
 			return errMsg{fmt.Errorf("listing webex recipients: %w", err)}
 		}
@@ -244,7 +235,7 @@ func (rm *rulesModel) prepareForm() tea.Cmd {
 
 func (rm *rulesModel) submitRule(rule *models.NotifierRule) tea.Cmd {
 	return func() tea.Msg {
-		_, err := rm.SDKClient.CreateNotifierRule(rule)
+		_, err := rm.parent.SDKClient.CreateNotifierRule(rule)
 		if err != nil {
 			return errMsg{fmt.Errorf("creating notifier rule: %w", err)}
 		}
@@ -255,7 +246,7 @@ func (rm *rulesModel) submitRule(rule *models.NotifierRule) tea.Cmd {
 
 func (rm *rulesModel) deleteRule(id int) tea.Cmd {
 	return func() tea.Msg {
-		if err := rm.SDKClient.DeleteNotifierRule(id); err != nil {
+		if err := rm.parent.SDKClient.DeleteNotifierRule(id); err != nil {
 			return errMsg{fmt.Errorf("deleting notifier rule: %w", err)}
 		}
 
@@ -265,7 +256,7 @@ func (rm *rulesModel) deleteRule(id int) tea.Cmd {
 
 func (rm *rulesModel) getRules() tea.Cmd {
 	return func() tea.Msg {
-		rules, err := rm.SDKClient.ListNotifierRules()
+		rules, err := rm.parent.SDKClient.ListNotifierRules()
 		if err != nil {
 			return errMsg{fmt.Errorf("getting rules: %w", err)}
 		}

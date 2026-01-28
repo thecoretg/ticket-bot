@@ -8,21 +8,17 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/thecoretg/ticketbot/internal/models"
-	"github.com/thecoretg/ticketbot/pkg/sdk"
 )
 
 type (
 	usersModel struct {
-		SDKClient   *sdk.Client
-		usersLoaded bool
-		table       table.Model
-		form        *huh.Form
-		formResult  *usersFormResult
-		status      subModelStatus
-		availWidth  int
-		availHeight int
+		parent *Model
 
-		currentUserID     int
+		usersLoaded       bool
+		table             table.Model
+		form              *huh.Form
+		formResult        *usersFormResult
+		status            subModelStatus
 		users             []models.APIUser
 		userToDelete      models.APIUser
 		userDeleteConfirm bool
@@ -36,30 +32,22 @@ type (
 	gotUsersMsg       struct{ users []models.APIUser }
 	gotCurrentUserMsg struct{ userID int }
 
-	usersModelParams struct {
-		sdkClient     *sdk.Client
-		initialWidth  int
-		initialHeight int
-		initialUsers  []models.APIUser
-	}
 )
 
-func newUsersModel(p usersModelParams) *usersModel {
+func newUsersModel(parent *Model, initialUsers []models.APIUser) *usersModel {
 	um := &usersModel{
-		SDKClient:   p.sdkClient,
-		users:       p.initialUsers,
-		availWidth:  p.initialWidth,
-		availHeight: p.initialHeight,
-		table:       newTable(),
-		formResult:  &usersFormResult{},
-		status:      statusMain,
+		parent:     parent,
+		users:      initialUsers,
+		table:      newTable(),
+		formResult: &usersFormResult{},
+		status:     statusMain,
 	}
 	um.setModuleDimensions()
 	return um
 }
 
 func (um *usersModel) Init() tea.Cmd {
-	return um.getCurrentUser()
+	return nil
 }
 
 func (um *usersModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -68,26 +56,24 @@ func (um *usersModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, allKeys.newItem) && um.status == statusMain:
 			um.formResult = &usersFormResult{}
-			um.form = userEntryForm(um.formResult, um.availHeight)
+			um.form = userEntryForm(um.formResult, um.parent.availHeight)
 			um.status = statusEntry
 			return um, um.form.Init()
 		case key.Matches(msg, allKeys.deleteItem) && um.status == statusMain:
 			if len(um.users) > 0 {
 				um.userToDelete = um.users[um.table.Cursor()]
-				if um.currentUserID > 0 && um.userToDelete.ID == um.currentUserID {
+				if um.parent.currentUserID > 0 && um.userToDelete.ID == um.parent.currentUserID {
 					return um, func() tea.Msg {
-						return errMsg{fmt.Errorf("cannot delete your own user account (ID: %d)", um.currentUserID)}
+						return errMsg{fmt.Errorf("cannot delete your own user account (ID: %d)", um.parent.currentUserID)}
 					}
 				}
-				um.form = confirmationForm("Delete user?", &um.userDeleteConfirm, um.availHeight)
+				um.form = confirmationForm("Delete user?", &um.userDeleteConfirm, um.parent.availHeight)
 				um.status = statusConfirm
 				return um, um.form.Init()
 			}
 		}
 
 	case resizeModelsMsg:
-		um.availWidth = msg.w
-		um.availHeight = msg.h
 		um.setModuleDimensions()
 		if um.status == statusInit {
 			um.status = statusMain
@@ -95,9 +81,6 @@ func (um *usersModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case refreshUsersMsg:
 		return um, um.getUsers()
-
-	case gotCurrentUserMsg:
-		um.currentUserID = msg.userID
 
 	case gotUsersMsg:
 		um.users = msg.users
@@ -162,9 +145,9 @@ func (um *usersModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (um *usersModel) View() string {
 	switch um.status {
 	case statusInit:
-		return fillSpaceCentered(useSpinner(spn, "Loading users..."), um.availWidth, um.availHeight)
+		return fillSpaceCentered(useSpinner(spn, "Loading users..."), um.parent.width, um.parent.availHeight)
 	case statusRefresh:
-		return fillSpaceCentered(useSpinner(spn, "Refreshing..."), um.availWidth, um.availHeight)
+		return fillSpaceCentered(useSpinner(spn, "Refreshing..."), um.parent.width, um.parent.availHeight)
 	case statusMain:
 		return um.table.View()
 	case statusEntry, statusConfirm:
@@ -187,10 +170,12 @@ func (um *usersModel) Table() table.Model {
 }
 
 func (um *usersModel) setModuleDimensions() {
-	um.setTableDimensions(um.availWidth, um.availHeight)
+	um.setTableDimensions()
 }
 
-func (um *usersModel) setTableDimensions(w, h int) {
+func (um *usersModel) setTableDimensions() {
+	w := um.parent.width
+	h := um.parent.availHeight
 	t := &um.table
 	idW := 6
 	emailW := 40
@@ -208,7 +193,7 @@ func (um *usersModel) setTableDimensions(w, h int) {
 
 func (um *usersModel) submitUser(email string) tea.Cmd {
 	return func() tea.Msg {
-		_, err := um.SDKClient.CreateUser(email)
+		_, err := um.parent.SDKClient.CreateUser(email)
 		if err != nil {
 			return errMsg{fmt.Errorf("creating user: %w", err)}
 		}
@@ -219,7 +204,7 @@ func (um *usersModel) submitUser(email string) tea.Cmd {
 
 func (um *usersModel) deleteUser(id int) tea.Cmd {
 	return func() tea.Msg {
-		if err := um.SDKClient.DeleteUser(id); err != nil {
+		if err := um.parent.SDKClient.DeleteUser(id); err != nil {
 			return errMsg{fmt.Errorf("deleting user: %w", err)}
 		}
 
@@ -229,23 +214,12 @@ func (um *usersModel) deleteUser(id int) tea.Cmd {
 
 func (um *usersModel) getUsers() tea.Cmd {
 	return func() tea.Msg {
-		users, err := um.SDKClient.ListUsers()
+		users, err := um.parent.SDKClient.ListUsers()
 		if err != nil {
 			return errMsg{fmt.Errorf("getting users: %w", err)}
 		}
 
 		return gotUsersMsg{users: users}
-	}
-}
-
-func (um *usersModel) getCurrentUser() tea.Cmd {
-	return func() tea.Msg {
-		user, err := um.SDKClient.GetCurrentUser()
-		if err != nil {
-			return errMsg{fmt.Errorf("getting current user: %w", err)}
-		}
-
-		return gotCurrentUserMsg{userID: user.ID}
 	}
 }
 
