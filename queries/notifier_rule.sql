@@ -60,13 +60,6 @@ SET
 WHERE id = $1
 RETURNING *;
 
--- name: SoftDeleteNotifierRule :exec
-UPDATE notifier_rule
-SET
-    deleted = TRUE,
-    updated_on = NOW()
-WHERE id = $1;
-
 -- name: DeleteNotifierRule :exec
 DELETE FROM notifier_rule
 WHERE id = $1;

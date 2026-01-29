@@ -31,14 +31,6 @@ SET
 WHERE id = $1
 RETURNING *;
 
--- name: SoftDeleteUser :one
-UPDATE api_user
-SET
-    deleted = true,
-    updated_on = NOW()
-WHERE id = $1
-RETURNING *;
-
 -- name: DeleteUser :exec
 DELETE FROM api_user
 WHERE id = $1;

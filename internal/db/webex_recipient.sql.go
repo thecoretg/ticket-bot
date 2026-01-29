@@ -198,19 +198,6 @@ func (q *Queries) ListWebexRooms(ctx context.Context) ([]*WebexRecipient, error)
 	return items, nil
 }
 
-const softDeleteWebexRecipient = `-- name: SoftDeleteWebexRecipient :exec
-UPDATE cw_board
-SET
-    deleted = TRUE,
-    updated_on = NOW()
-WHERE id = $1
-`
-
-func (q *Queries) SoftDeleteWebexRecipient(ctx context.Context, id int) error {
-	_, err := q.db.Exec(ctx, softDeleteWebexRecipient, id)
-	return err
-}
-
 const upsertWebexRecipient = `-- name: UpsertWebexRecipient :one
 INSERT INTO webex_recipient
 (webex_id, name, type, email, last_activity)

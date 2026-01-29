@@ -247,19 +247,6 @@ func (q *Queries) ListNotifierRulesFull(ctx context.Context) ([]*ListNotifierRul
 	return items, nil
 }
 
-const softDeleteNotifierRule = `-- name: SoftDeleteNotifierRule :exec
-UPDATE notifier_rule
-SET
-    deleted = TRUE,
-    updated_on = NOW()
-WHERE id = $1
-`
-
-func (q *Queries) SoftDeleteNotifierRule(ctx context.Context, id int) error {
-	_, err := q.db.Exec(ctx, softDeleteNotifierRule, id)
-	return err
-}
-
 const updateNotifierRule = `-- name: UpdateNotifierRule :one
 UPDATE notifier_rule
 SET

@@ -117,27 +117,6 @@ func (q *Queries) ListUsers(ctx context.Context) ([]*ApiUser, error) {
 	return items, nil
 }
 
-const softDeleteUser = `-- name: SoftDeleteUser :one
-UPDATE api_user
-SET
-    deleted = true,
-    updated_on = NOW()
-WHERE id = $1
-RETURNING id, email_address, created_on, updated_on
-`
-
-func (q *Queries) SoftDeleteUser(ctx context.Context, id int) (*ApiUser, error) {
-	row := q.db.QueryRow(ctx, softDeleteUser, id)
-	var i ApiUser
-	err := row.Scan(
-		&i.ID,
-		&i.EmailAddress,
-		&i.CreatedOn,
-		&i.UpdatedOn,
-	)
-	return &i, err
-}
-
 const updateUser = `-- name: UpdateUser :one
 UPDATE api_user
 SET

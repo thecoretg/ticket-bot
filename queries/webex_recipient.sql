@@ -34,13 +34,6 @@ ON CONFLICT (webex_id) DO UPDATE SET
     updated_on = NOW()
 RETURNING *;
 
--- name: SoftDeleteWebexRecipient :exec
-UPDATE cw_board
-SET
-    deleted = TRUE,
-    updated_on = NOW()
-WHERE id = $1;
-
 -- name: DeleteWebexRecipient :exec
 DELETE FROM webex_recipient
 WHERE id = $1;
