@@ -16,8 +16,6 @@ gensql:
 runserver:
 	op run --env-file="./testing.env" --no-masking -- go run ./cmd/server
 
-runserver-wipedb: test-db-down test-db-up runserver
-
 sync:
 	op run --env-file="./testing.env" --no-masking -- tbot-admin sync -b -r
 
@@ -26,6 +24,8 @@ test-db-up:
 
 test-db-down:
 	docker compose -f ./docker/docker-compose-db.yml down -v
+
+reset-test-db: test-db-down test-db-up
 
 docker-build:
 	docker buildx build --platform=linux/amd64 -t ticketbot:v1.3.4 --load -f ./docker/DockerfileMain .
