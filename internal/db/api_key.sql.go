@@ -20,7 +20,7 @@ func (q *Queries) DeleteAPIKey(ctx context.Context, id int) error {
 }
 
 const getAPIKey = `-- name: GetAPIKey :one
-SELECT id, user_id, key_hash, created_on, updated_on FROM api_key
+SELECT id, user_id, key_hash, created_on, updated_on, key_hint FROM api_key
 WHERE id = $1
 `
 
@@ -33,24 +33,26 @@ func (q *Queries) GetAPIKey(ctx context.Context, id int) (*ApiKey, error) {
 		&i.KeyHash,
 		&i.CreatedOn,
 		&i.UpdatedOn,
+		&i.KeyHint,
 	)
 	return &i, err
 }
 
 const insertAPIKey = `-- name: InsertAPIKey :one
 INSERT INTO api_key
-(user_id, key_hash)
-VALUES ($1, $2)
-RETURNING id, user_id, key_hash, created_on, updated_on
+(user_id, key_hash, key_hint)
+VALUES ($1, $2, $3)
+RETURNING id, user_id, key_hash, created_on, updated_on, key_hint
 `
 
 type InsertAPIKeyParams struct {
-	UserID  int    `json:"user_id"`
-	KeyHash []byte `json:"key_hash"`
+	UserID  int     `json:"user_id"`
+	KeyHash []byte  `json:"key_hash"`
+	KeyHint *string `json:"key_hint"`
 }
 
 func (q *Queries) InsertAPIKey(ctx context.Context, arg InsertAPIKeyParams) (*ApiKey, error) {
-	row := q.db.QueryRow(ctx, insertAPIKey, arg.UserID, arg.KeyHash)
+	row := q.db.QueryRow(ctx, insertAPIKey, arg.UserID, arg.KeyHash, arg.KeyHint)
 	var i ApiKey
 	err := row.Scan(
 		&i.ID,
@@ -58,12 +60,13 @@ func (q *Queries) InsertAPIKey(ctx context.Context, arg InsertAPIKeyParams) (*Ap
 		&i.KeyHash,
 		&i.CreatedOn,
 		&i.UpdatedOn,
+		&i.KeyHint,
 	)
 	return &i, err
 }
 
 const listAPIKeys = `-- name: ListAPIKeys :many
-SELECT id, user_id, key_hash, created_on, updated_on FROM api_key
+SELECT id, user_id, key_hash, created_on, updated_on, key_hint FROM api_key
 ORDER BY created_on
 `
 
@@ -82,6 +85,7 @@ func (q *Queries) ListAPIKeys(ctx context.Context) ([]*ApiKey, error) {
 			&i.KeyHash,
 			&i.CreatedOn,
 			&i.UpdatedOn,
+			&i.KeyHint,
 		); err != nil {
 			return nil, err
 		}
@@ -99,7 +103,7 @@ SET
     delete = true,
     updated_on = NOW()
 WHERE id = $1
-RETURNING id, user_id, key_hash, created_on, updated_on
+RETURNING id, user_id, key_hash, created_on, updated_on, key_hint
 `
 
 func (q *Queries) SoftDeleteAPIKey(ctx context.Context, id int) (*ApiKey, error) {
@@ -111,6 +115,7 @@ func (q *Queries) SoftDeleteAPIKey(ctx context.Context, id int) (*ApiKey, error)
 		&i.KeyHash,
 		&i.CreatedOn,
 		&i.UpdatedOn,
+		&i.KeyHint,
 	)
 	return &i, err
 }

@@ -73,6 +73,7 @@ func insertParamsFromAPIKey(a *models.APIKey) db.InsertAPIKeyParams {
 	return db.InsertAPIKeyParams{
 		UserID:  a.UserID,
 		KeyHash: a.KeyHash,
+		KeyHint: a.KeyHint,
 	}
 }
 
@@ -81,6 +82,7 @@ func keyFromPG(pg *db.ApiKey) *models.APIKey {
 		ID:        pg.ID,
 		UserID:    pg.UserID,
 		KeyHash:   pg.KeyHash,
+		KeyHint:   pg.KeyHint,
 		CreatedOn: pg.CreatedOn,
 		UpdatedOn: pg.UpdatedOn,
 	}

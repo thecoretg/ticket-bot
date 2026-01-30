@@ -14,6 +14,7 @@ type ApiKey struct {
 	KeyHash   []byte    `json:"key_hash"`
 	CreatedOn time.Time `json:"created_on"`
 	UpdatedOn time.Time `json:"updated_on"`
+	KeyHint   *string   `json:"key_hint"`
 }
 
 type ApiUser struct {

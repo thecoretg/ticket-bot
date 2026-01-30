@@ -23,6 +23,7 @@ type APIKey struct {
 	ID        int       `json:"id"`
 	UserID    int       `json:"user_id"`
 	KeyHash   []byte    `json:"key_hash"`
+	KeyHint   *string   `json:"key_hint,omitempty"`
 	CreatedOn time.Time `json:"created_on"`
 	UpdatedOn time.Time `json:"updated_on"`
 }

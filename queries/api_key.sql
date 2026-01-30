@@ -8,8 +8,8 @@ ORDER BY created_on;
 
 -- name: InsertAPIKey :one
 INSERT INTO api_key
-(user_id, key_hash)
-VALUES ($1, $2)
+(user_id, key_hash, key_hint)
+VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: SoftDeleteAPIKey :one

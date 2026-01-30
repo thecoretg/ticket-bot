@@ -37,9 +37,11 @@ func (s *Service) createAPIKey(ctx context.Context, email string, explicitKey *s
 		return "", fmt.Errorf("hashing key: %w", err)
 	}
 
+	hint := generateKeyHint(plain)
 	p := &models.APIKey{
 		UserID:  u.ID,
 		KeyHash: hash,
+		KeyHint: &hint,
 	}
 
 	_, err = s.Keys.Insert(ctx, p)
@@ -117,4 +119,11 @@ func generateKey() (string, error) {
 
 func hashKey(key string) ([]byte, error) {
 	return bcrypt.GenerateFromPassword([]byte(key), bcrypt.DefaultCost)
+}
+
+func generateKeyHint(key string) string {
+	if len(key) <= 4 {
+		return key
+	}
+	return key[len(key)-4:]
 }
