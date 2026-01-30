@@ -26,7 +26,7 @@ var (
 				return fmt.Errorf("error authenticating: %w", err)
 			}
 
-			m := tui.NewModel(client)
+			m := tui.NewModel(client, currentAPIKey)
 			if _, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
 				return err
 			}
@@ -54,14 +54,16 @@ func init() {
 	rootCmd.AddCommand(versionCmd, pingCmd, authCheckCmd, syncCmd, listCmd, getCmd, createCmd, updateCmd, deleteCmd)
 }
 
+var currentAPIKey string
+
 func createClient(cmd *cobra.Command, args []string) error {
 	_ = godotenv.Load()
 
 	var err error
-	key := os.Getenv("TBOT_API_KEY")
+	currentAPIKey = os.Getenv("TBOT_API_KEY")
 	base := os.Getenv("TBOT_BASE_URL")
 
-	client, err = sdk.NewClient(key, base)
+	client, err = sdk.NewClient(currentAPIKey, base)
 	if err != nil {
 		return fmt.Errorf("creating api client: %w", err)
 	}

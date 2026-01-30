@@ -19,9 +19,11 @@ type (
 		form              *huh.Form
 		formResult        *rulesFormResult
 		status            subModelStatus
+		previousStatus    subModelStatus
 		rules             []models.NotifierRuleFull
 		ruleToDelete      models.NotifierRuleFull
 		ruleDeleteConfirm bool
+		errorMsg          error
 	}
 
 	ruleFormDataMsg struct {
@@ -36,7 +38,6 @@ type (
 
 	refreshRulesMsg struct{}
 	gotRulesMsg     struct{ rules []models.NotifierRuleFull }
-
 )
 
 func newRulesModel(parent *Model, initialRules []models.NotifierRuleFull) *rulesModel {
@@ -59,6 +60,10 @@ func (rm *rulesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
+		case msg.String() == "enter" && rm.status == statusError:
+			rm.errorMsg = nil
+			rm.status = rm.previousStatus
+			return rm, nil
 		case key.Matches(msg, allKeys.newItem) && rm.status == statusMain:
 			rm.status = statusLoadingFormData
 			return rm, tea.Batch(rm.prepareForm())
@@ -110,7 +115,14 @@ func (rm *rulesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		rm.status = statusMain
 
 	case errMsg:
-		rm.status = statusMain
+		// If we're in a transient/loading status, go back to main after error
+		if rm.status == statusLoadingFormData || rm.status == statusRefresh {
+			rm.previousStatus = statusMain
+		} else {
+			rm.previousStatus = rm.status
+		}
+		rm.errorMsg = msg.error
+		rm.status = statusError
 	}
 
 	var cmds []tea.Cmd
@@ -159,6 +171,8 @@ func (rm *rulesModel) View() string {
 		return fillSpaceCentered(useSpinner(spn, "Loading rules..."), rm.parent.width, rm.parent.availHeight)
 	case statusRefresh:
 		return fillSpaceCentered(useSpinner(spn, "Refreshing..."), rm.parent.width, rm.parent.availHeight)
+	case statusError:
+		return renderErrorView(rm.errorMsg, rm.parent.width, rm.parent.availHeight)
 	case statusMain:
 		return rm.table.View()
 	case statusLoadingFormData:

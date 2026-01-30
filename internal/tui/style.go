@@ -13,9 +13,9 @@ var (
 	green                = lipgloss.ANSIColor(2)
 	blue                 = lipgloss.ANSIColor(6)
 	red                  = lipgloss.ANSIColor(1)
-	errStyle             = lipgloss.NewStyle().Foreground(red).Bold(true)
 	menuLabelStyle       = lipgloss.NewStyle().Foreground(white)
 	activeMenuLabelStyle = lipgloss.NewStyle().Foreground(green).Bold(true)
+	errorStyle           = lipgloss.NewStyle().Foreground(red).Bold(true)
 )
 
 func fillSpaceCentered(content string, w, h int) string {

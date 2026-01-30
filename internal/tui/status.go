@@ -11,17 +11,10 @@ const (
 	statusEntry
 	statusConfirm
 	statusRefresh
+	statusShowKey
+	statusError
 )
 
 func (s subModelStatus) inForm() bool {
 	return s == statusEntry || s == statusConfirm
-}
-
-func (s subModelStatus) quittable() bool {
-	switch s {
-	case statusInit, statusMain, statusLoadingFormData:
-		return true
-	default:
-		return false
-	}
 }

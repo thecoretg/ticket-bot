@@ -14,14 +14,15 @@ type (
 )
 
 var (
-	noBoardsAvailMsg = errMsg{errors.New("form exited: no boards found")}
-	noRecipsAvailMsg = errMsg{errors.New("form exited: no recipients found")}
+	noBoardsAvailMsg = errMsg{errors.New("no boards found")}
+	noRecipsAvailMsg = errMsg{errors.New("no recipients found")}
 )
 
 const (
 	modelTypeRules modelType = iota
 	modelTypeFwds
 	modelTypeUsers
+	modelTypeAPIKeys
 )
 
 func switchModel(m modelType) tea.Cmd {

@@ -19,9 +19,11 @@ type (
 		form              *huh.Form
 		formResult        *usersFormResult
 		status            subModelStatus
+		previousStatus    subModelStatus
 		users             []models.APIUser
 		userToDelete      models.APIUser
 		userDeleteConfirm bool
+		errorMsg          error
 	}
 
 	usersFormResult struct {
@@ -31,6 +33,7 @@ type (
 	refreshUsersMsg   struct{}
 	gotUsersMsg       struct{ users []models.APIUser }
 	gotCurrentUserMsg struct{ userID int }
+	gotCurrentKeyMsg  struct{ keyID int }
 )
 
 func newUsersModel(parent *Model, initialUsers []models.APIUser) *usersModel {
@@ -53,6 +56,10 @@ func (um *usersModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
+		case msg.String() == "enter" && um.status == statusError:
+			um.errorMsg = nil
+			um.status = um.previousStatus
+			return um, nil
 		case key.Matches(msg, allKeys.newItem) && um.status == statusMain:
 			um.formResult = &usersFormResult{}
 			um.form = userEntryForm(um.formResult, um.parent.availHeight)
@@ -103,7 +110,14 @@ func (um *usersModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		um.status = statusMain
 
 	case errMsg:
-		um.status = statusMain
+		// If we're in a transient/loading status, go back to main after error
+		if um.status == statusRefresh {
+			um.previousStatus = statusMain
+		} else {
+			um.previousStatus = um.status
+		}
+		um.errorMsg = msg.error
+		um.status = statusError
 	}
 
 	var cmds []tea.Cmd
@@ -147,6 +161,8 @@ func (um *usersModel) View() string {
 		return fillSpaceCentered(useSpinner(spn, "Loading users..."), um.parent.width, um.parent.availHeight)
 	case statusRefresh:
 		return fillSpaceCentered(useSpinner(spn, "Refreshing..."), um.parent.width, um.parent.availHeight)
+	case statusError:
+		return renderErrorView(um.errorMsg, um.parent.width, um.parent.availHeight)
 	case statusMain:
 		return um.table.View()
 	case statusEntry, statusConfirm:

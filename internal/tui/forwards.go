@@ -23,9 +23,11 @@ type (
 		form             *huh.Form
 		formResult       *fwdsFormResult
 		status           subModelStatus
+		previousStatus   subModelStatus
 		fwds             []models.NotifierForwardFull
 		fwdToDelete      models.NotifierForwardFull
 		fwdDeleteConfirm bool
+		errorMsg         error
 	}
 
 	fwdsFormDataMsg struct {
@@ -71,6 +73,10 @@ func (fm *fwdsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
+		case msg.String() == "enter" && fm.status == statusError:
+			fm.errorMsg = nil
+			fm.status = fm.previousStatus
+			return fm, nil
 		case key.Matches(msg, allKeys.newItem) && fm.status == statusMain:
 			fm.status = statusLoadingFormData
 			return fm, fm.prepareForm()
@@ -121,7 +127,14 @@ func (fm *fwdsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		fm.status = statusMain
 
 	case errMsg:
-		fm.status = statusMain
+		// If we're in a transient/loading status, go back to main after error
+		if fm.status == statusLoadingFormData || fm.status == statusRefresh {
+			fm.previousStatus = statusMain
+		} else {
+			fm.previousStatus = fm.status
+		}
+		fm.errorMsg = msg.error
+		fm.status = statusError
 	}
 
 	var cmds []tea.Cmd
@@ -166,6 +179,8 @@ func (fm *fwdsModel) View() string {
 		return fillSpaceCentered(useSpinner(spn, "Loading forwards..."), fm.parent.width, fm.parent.availHeight)
 	case statusRefresh:
 		return fillSpaceCentered(useSpinner(spn, "Refreshing..."), fm.parent.width, fm.parent.availHeight)
+	case statusError:
+		return renderErrorView(fm.errorMsg, fm.parent.width, fm.parent.availHeight)
 	case statusMain:
 		return fm.table.View()
 	case statusLoadingFormData:

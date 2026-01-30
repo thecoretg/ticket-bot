@@ -7,23 +7,19 @@ import (
 )
 
 type keyMap struct {
-	quit             key.Binding
-	clearErr         key.Binding
-	switchModelRules key.Binding
-	switchModelFwds  key.Binding
-	switchModelUsers key.Binding
-	newItem          key.Binding
-	deleteItem       key.Binding
+	quit               key.Binding
+	switchModelRules   key.Binding
+	switchModelFwds    key.Binding
+	switchModelUsers   key.Binding
+	switchModelAPIKeys key.Binding
+	newItem            key.Binding
+	deleteItem         key.Binding
 }
 
 var allKeys = keyMap{
 	quit: key.NewBinding(
 		key.WithKeys("ctrl+c"),
 		key.WithHelp("ctrl+c", "quit"),
-	),
-	clearErr: key.NewBinding(
-		key.WithKeys("ctrl+e"),
-		key.WithHelp("ctrl+e", "clear error"),
 	),
 	switchModelRules: key.NewBinding(
 		key.WithKeys("ctrl+r"),
@@ -33,6 +29,9 @@ var allKeys = keyMap{
 	),
 	switchModelUsers: key.NewBinding(
 		key.WithKeys("ctrl+u"),
+	),
+	switchModelAPIKeys: key.NewBinding(
+		key.WithKeys("ctrl+a"),
 	),
 	newItem: key.NewBinding(
 		key.WithKeys("n"),
@@ -58,10 +57,6 @@ func (m *Model) helpKeys() []key.Binding {
 	var keys []key.Binding
 	keys = append(keys, allKeys.quit, allKeys.newItem)
 
-	if currentErr != nil {
-		keys = append(keys, allKeys.clearErr)
-	}
-
 	if m.activeModel == nil {
 		return keys
 	}
@@ -72,17 +67,18 @@ func (m *Model) helpKeys() []key.Binding {
 			if len(m.rulesModel.rules) > 0 {
 				keys = append(keys, allKeys.deleteItem)
 			}
-			keys = append(keys, allKeys.switchModelFwds, allKeys.switchModelUsers)
 		case m.fwdsModel:
 			if len(m.fwdsModel.fwds) > 0 {
 				keys = append(keys, allKeys.deleteItem)
 			}
-			keys = append(keys, allKeys.switchModelRules, allKeys.switchModelUsers)
 		case m.usersModel:
 			if len(m.usersModel.users) > 0 {
 				keys = append(keys, allKeys.deleteItem)
 			}
-			keys = append(keys, allKeys.switchModelRules, allKeys.switchModelFwds)
+		case m.apiKeysModel:
+			if len(m.apiKeysModel.keys) > 0 {
+				keys = append(keys, allKeys.deleteItem)
+			}
 		}
 	}
 
@@ -106,8 +102,8 @@ func (m *Model) helpView() string {
 
 func isGlobalKey(msg tea.KeyMsg) bool {
 	return key.Matches(msg, allKeys.quit) ||
-		key.Matches(msg, allKeys.clearErr) ||
 		key.Matches(msg, allKeys.switchModelRules) ||
 		key.Matches(msg, allKeys.switchModelFwds) ||
-		key.Matches(msg, allKeys.switchModelUsers)
+		key.Matches(msg, allKeys.switchModelUsers) ||
+		key.Matches(msg, allKeys.switchModelAPIKeys)
 }
